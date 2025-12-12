@@ -1,0 +1,7 @@
+{
+  "name": "VocalHarmony Pro",
+  "description": "Professional vocal training tool with multi-track layering, pitch detection, and loop analysis.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
