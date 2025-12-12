@@ -940,16 +940,28 @@ export default function App() {
         setIsLoading(true);
         setMainView('studio'); // Switch to studio immediately
 
+        // --- RESET SESSION FOR NEW SONG ---
+        stopAudio();
+        stopRecording();
+        audioBuffersRef.current = {};
+        processedBuffersRef.current = {};
+        activeSourcesRef.current = {};
+        setCurrentTime(0);
+        pauseOffsetRef.current = 0;
+        setLoopStart(null);
+        setLoopEnd(null);
+        setNoteBlocks([]);
+        setImportedLyrics([]);
+        setImportedChords([]);
+        setKeySignature(null);
+        // ----------------------------------
+
         const ctx = await initAudioContext();
         if (!ctx) return;
 
-        // Reset current session to clean slate? Or append? 
-        // Typically opening a song replaces the session or adds to it. 
-        // For now, let's append to existing tracks (or user can reset first).
-        // Actually, let's behave like file import (append).
-
-        const newTracks = [...tracks];
-        let maxDur = maxDuration;
+        // Start with fresh tracks instead of appending
+        const newTracks = getInitialTracks();
+        let maxDur = 0;
         const colors = ["#f97316", "#84cc16", "#eab308", "#10b981", "#06b6d4", "#ec4899"];
 
         const processBuffer = (buffer: AudioBuffer, fileName: string) => {
