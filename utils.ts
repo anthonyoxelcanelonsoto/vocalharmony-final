@@ -8,7 +8,7 @@ export const getNoteFromPitch = (frequency: number): NoteData | null => {
   const noteName = NOTE_STRINGS[midi % 12];
   const octave = Math.floor(midi / 12) - 1;
   const deviation = Math.floor((noteNum - Math.round(noteNum)) * 100);
-  
+
   return {
     note: noteName,
     octave: octave,
@@ -27,7 +27,7 @@ export const autoCorrelate = (buf: Float32Array, sampleRate: number): { pitch: n
     rms += val * val;
   }
   rms = Math.sqrt(rms / SIZE);
-  
+
   if (rms < 0.008) return { pitch: -1, volume: rms };
 
   let r1 = 0, r2 = SIZE - 1, thres = 0.2;
@@ -66,7 +66,7 @@ export const analyzeAudioBlocks = (audioBuffer: AudioBuffer): NoteBlock[] => {
   const sampleRate = audioBuffer.sampleRate;
   const chunkSize = 2048; // Window size
   const blocks: NoteBlock[] = [];
-  
+
   let currentBlock: Partial<NoteBlock> | null = null;
   let framesInBlock = 0;
   let freqSum = 0;
@@ -80,40 +80,40 @@ export const analyzeAudioBlocks = (audioBuffer: AudioBuffer): NoteBlock[] => {
     const time = i / sampleRate;
 
     const hasSignal = pitch !== -1 && volume > 0.01;
-    
+
     if (hasSignal) {
       // If we have a current block, check if pitch is consistent (within a semitone approx)
       if (currentBlock) {
         // approx 6% difference is a semitone
         const freqDiff = Math.abs(currentBlock.frequency! - pitch) / currentBlock.frequency!;
-        
+
         if (freqDiff < 0.06) {
-           // Continue block
-           currentBlock.end = time + (chunkSize / sampleRate);
-           freqSum += pitch;
-           framesInBlock++;
-           // Update average frequency on the fly
-           currentBlock.frequency = freqSum / framesInBlock;
+          // Continue block
+          currentBlock.end = time + (chunkSize / sampleRate);
+          freqSum += pitch;
+          framesInBlock++;
+          // Update average frequency on the fly
+          currentBlock.frequency = freqSum / framesInBlock;
         } else {
-           // Pitch changed significantly, finalize block and start new
-           const midi = Math.round(69 + 12 * Math.log2(currentBlock.frequency! / 440));
-           if (currentBlock.end! - currentBlock.start! > 0.1) { // Min duration 100ms
-             blocks.push({
-               id: crypto.randomUUID(),
-               start: currentBlock.start!,
-               end: currentBlock.end!,
-               duration: currentBlock.end! - currentBlock.start!,
-               frequency: currentBlock.frequency!,
-               originalMidi: midi,
-               currentMidi: midi,
-               shiftCents: 0
-             });
-           }
-           
-           // Start new
-           currentBlock = { start: time, end: time, frequency: pitch };
-           freqSum = pitch;
-           framesInBlock = 1;
+          // Pitch changed significantly, finalize block and start new
+          const midi = Math.round(69 + 12 * Math.log2(currentBlock.frequency! / 440));
+          if (currentBlock.end! - currentBlock.start! > 0.1) { // Min duration 100ms
+            blocks.push({
+              id: crypto.randomUUID(),
+              start: currentBlock.start!,
+              end: currentBlock.end!,
+              duration: currentBlock.end! - currentBlock.start!,
+              frequency: currentBlock.frequency!,
+              originalMidi: midi,
+              currentMidi: midi,
+              shiftCents: 0
+            });
+          }
+
+          // Start new
+          currentBlock = { start: time, end: time, frequency: pitch };
+          freqSum = pitch;
+          framesInBlock = 1;
         }
       } else {
         // Start new block
@@ -124,22 +124,22 @@ export const analyzeAudioBlocks = (audioBuffer: AudioBuffer): NoteBlock[] => {
     } else {
       // Silence
       if (currentBlock) {
-         const midi = Math.round(69 + 12 * Math.log2(currentBlock.frequency! / 440));
-         if (currentBlock.end! - currentBlock.start! > 0.1) {
-            blocks.push({
-               id: crypto.randomUUID(),
-               start: currentBlock.start!,
-               end: currentBlock.end!,
-               duration: currentBlock.end! - currentBlock.start!,
-               frequency: currentBlock.frequency!,
-               originalMidi: midi,
-               currentMidi: midi,
-               shiftCents: 0
-             });
-         }
-         currentBlock = null;
-         framesInBlock = 0;
-         freqSum = 0;
+        const midi = Math.round(69 + 12 * Math.log2(currentBlock.frequency! / 440));
+        if (currentBlock.end! - currentBlock.start! > 0.1) {
+          blocks.push({
+            id: crypto.randomUUID(),
+            start: currentBlock.start!,
+            end: currentBlock.end!,
+            duration: currentBlock.end! - currentBlock.start!,
+            frequency: currentBlock.frequency!,
+            originalMidi: midi,
+            currentMidi: midi,
+            shiftCents: 0
+          });
+        }
+        currentBlock = null;
+        framesInBlock = 0;
+        freqSum = 0;
       }
     }
   }
@@ -170,9 +170,25 @@ export const loadJSZip = (): Promise<any> => {
 export const parseLRC = (lrcContent: string): LyricLine[] => {
   const lines = lrcContent.split('\n');
   const result: LyricLine[] = [];
-  
+
   // Regex to match [mm:ss.xx] or [mm:ss.xxx]
   const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+  // Regex to match [offset: +/-ms]
+  const offsetRegex = /\[offset:\s*([+-]?\d+)\]/i;
+
+  let globalOffset = 0;
+
+  // First pass: find offset if exists
+  for (const line of lines) {
+    const offsetMatch = line.match(offsetRegex);
+    if (offsetMatch) {
+      // Offset is in milliseconds. 
+      // User Logic: "Negative value" moves timestamps earlier (to fix lagging lyrics). 
+      // Implementation: Time + (Offset / 1000). 
+      // If Offset = -1000, Timestamp reduces by 1s.
+      globalOffset = parseInt(offsetMatch[1], 10) / 1000;
+    }
+  }
 
   for (const line of lines) {
     const match = line.match(timeRegex);
@@ -182,12 +198,12 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
       const msStr = match[3];
       // Normalize ms to fraction of second. If 2 digits, it's 10ms units. If 3, it's 1ms.
       const ms = msStr.length === 3 ? parseInt(msStr, 10) / 1000 : parseInt(msStr, 10) / 100;
-      
-      const totalTime = minutes * 60 + seconds + ms;
+
+      const adjustedTime = Math.max(0, (minutes * 60 + seconds + ms) + globalOffset);
       const text = line.replace(timeRegex, '').trim();
 
-      if (text) {
-        result.push({ time: totalTime, text });
+      if (text && !text.match(offsetRegex)) { // Don't add the offset line itself
+        result.push({ time: adjustedTime, text });
       }
     }
   }
@@ -215,25 +231,25 @@ export const audioBufferToWav = (buffer: AudioBuffer): Blob => {
   const sampleRate = buffer.sampleRate;
   const format = 1; // PCM
   const bitDepth = 16;
-  
+
   let resultBuffer: Float32Array;
-  
+
   // Interleave channels
   if (numChannels === 2) {
-      const left = buffer.getChannelData(0);
-      const right = buffer.getChannelData(1);
-      resultBuffer = new Float32Array(left.length + right.length);
-      for (let i = 0; i < left.length; i++) {
-          resultBuffer[i * 2] = left[i];
-          resultBuffer[i * 2 + 1] = right[i];
-      }
+    const left = buffer.getChannelData(0);
+    const right = buffer.getChannelData(1);
+    resultBuffer = new Float32Array(left.length + right.length);
+    for (let i = 0; i < left.length; i++) {
+      resultBuffer[i * 2] = left[i];
+      resultBuffer[i * 2 + 1] = right[i];
+    }
   } else {
-      resultBuffer = buffer.getChannelData(0);
+    resultBuffer = buffer.getChannelData(0);
   }
 
   const bytesPerSample = bitDepth / 8;
   const blockAlign = numChannels * bytesPerSample;
-  
+
   const bufferLength = 44 + resultBuffer.length * bytesPerSample;
   const arrayBuffer = new ArrayBuffer(bufferLength);
   const view = new DataView(arrayBuffer);

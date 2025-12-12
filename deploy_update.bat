@@ -1,0 +1,9 @@
+@echo off
+echo Adding changes...
+git add .
+echo Committing changes...
+git commit -m "Fix track naming and VuMeter layout"
+echo Pushing to GitHub...
+git push origin main
+echo Done! Vercel deployment should trigger automatically.
+pause

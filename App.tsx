@@ -742,18 +742,21 @@ export default function App() {
         const colors = ["#f97316", "#84cc16", "#eab308", "#10b981", "#06b6d4", "#ec4899"];
 
         const processBuffer = (buffer: AudioBuffer, fileName: string) => {
+            // Sanitize name: remove path, remove extension, limit to 20 chars
+            const cleanName = (fileName.split('/').pop() || fileName).replace(/\.[^/.]+$/, "").substring(0, 20);
+
             let track = newTracks.find(t => !t.hasFile && t.id !== 99);
             if (!track) {
                 const id = Math.max(...newTracks.map(t => t.id), 0) + 1;
                 track = {
                     id,
-                    name: fileName.substring(0, 12),
+                    name: cleanName,
                     color: colors[id % colors.length],
                     vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0
                 };
                 newTracks.push(track);
             } else {
-                track.name = fileName.substring(0, 12);
+                track.name = cleanName;
                 track.hasFile = true;
                 track.duration = buffer.duration;
                 track.pitchShift = 0; // Reset pitch on new file
@@ -950,18 +953,21 @@ export default function App() {
         const colors = ["#f97316", "#84cc16", "#eab308", "#10b981", "#06b6d4", "#ec4899"];
 
         const processBuffer = (buffer: AudioBuffer, fileName: string) => {
+            // Sanitize name: remove path, remove extension, limit to 20 chars
+            const cleanName = (fileName.split('/').pop() || fileName).replace(/\.[^/.]+$/, "").substring(0, 20);
+
             let track = newTracks.find(t => !t.hasFile && t.id !== 99);
             if (!track) {
                 const id = Math.max(...newTracks.map(t => t.id), 0) + 1;
                 track = {
                     id,
-                    name: fileName.substring(0, 12),
+                    name: cleanName,
                     color: colors[id % colors.length],
                     vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0
                 };
                 newTracks.push(track);
             } else {
-                track.name = fileName.substring(0, 12);
+                track.name = cleanName;
                 track.hasFile = true;
                 track.duration = buffer.duration;
                 track.pitchShift = 0;
@@ -1299,7 +1305,7 @@ export default function App() {
                         </div>
                     </div>
 
-                    <div className={`h-[180px] shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe relative
+                    <div className={`h-[220px] shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe pb-6 relative
               ${appMode === 'ULTRA' ? 'bg-black/90' : (appMode === 'SIMPLE' ? 'bg-slate-900/90' : 'bg-slate-900/90')}
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
@@ -1419,7 +1425,7 @@ export default function App() {
                                                         >S</button>
                                                     </div>
 
-                                                    <div className="flex-1 flex items-end justify-between px-1 pb-1 relative z-10">
+                                                    <div className="flex-1 flex items-end justify-between px-1 pb-3 relative z-10">
                                                         <div className="h-full flex items-center justify-center pb-1">
                                                             <MiniFader
                                                                 value={track.vol}
