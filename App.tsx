@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -1372,33 +1372,62 @@ export default function App() {
                                             </div>
                                         ) : (
                                             appMode === 'SIMPLE' ? (
-                                                <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                                                <div className="flex-1 flex flex-col items-center justify-center gap-2">
                                                     <SignalLight
                                                         analyser={trackAnalysersRef.current[track.id]}
                                                         isPlaying={isPlaying}
                                                         color={track.color}
                                                     />
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            vibrate(20);
-                                                            setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
-                                                        }}
-                                                        className={`
-                                            w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all active:scale-95 shadow-lg
-                                            ${!track.mute
-                                                                ? (appMode === 'SIMPLE' ? 'bg-slate-600 text-white' : 'bg-slate-700 text-white')
-                                                                : (appMode === 'SIMPLE' ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-800 border-slate-600 text-slate-500 shadow-none')
-                                                            }
-                                        `}
-                                                        style={!track.mute ? {
-                                                            borderColor: track.color,
-                                                            color: track.color,
-                                                            boxShadow: `0 0 20px ${track.color}40`
-                                                        } : {}}
-                                                    >
-                                                        <Power size={28} strokeWidth={3} />
-                                                    </button>
+                                                    <div className="flex flex-col w-12 h-24 rounded-2xl overflow-hidden border border-slate-700 shadow-lg">
+                                                        {/* TOP: MUTE BUTTON */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                vibrate(20);
+                                                                setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
+                                                            }}
+                                                            className={`
+                                                flex-1 w-full flex items-center justify-center transition-all active:bg-slate-600
+                                                ${!track.mute
+                                                                    ? 'bg-slate-700 text-white'
+                                                                    : 'bg-slate-800 text-slate-500'
+                                                                }
+                                            `}
+                                                            style={!track.mute ? {
+                                                                color: track.color
+                                                            } : {}}
+                                                        >
+                                                            <Power size={18} strokeWidth={3} />
+                                                        </button>
+
+                                                        {/* DIVIDER */}
+                                                        <div className="h-[1px] bg-slate-900 w-full" />
+
+                                                        {/* BOTTOM: EXCLUSIVE SOLO BUTTON */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                vibrate(20);
+                                                                // Exclusive Solo Logic
+                                                                setTracks(tracks.map(t => {
+                                                                    if (t.id === track.id) {
+                                                                        return { ...t, solo: !t.solo };
+                                                                    } else {
+                                                                        return track.solo ? t : { ...t, solo: false };
+                                                                    }
+                                                                }));
+                                                            }}
+                                                            className={`
+                                                flex-1 w-full flex items-center justify-center transition-all active:bg-slate-600
+                                                ${track.solo
+                                                                    ? 'bg-lime-400 text-black'
+                                                                    : 'bg-slate-800 text-slate-500 hover:text-slate-300'
+                                                                }
+                                            `}
+                                                        >
+                                                            <Headphones size={18} strokeWidth={3} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="flex-1 flex flex-col gap-2">
