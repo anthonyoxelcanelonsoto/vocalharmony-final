@@ -19,25 +19,55 @@ export const Timeline: React.FC<TimelineProps> = ({ currentTime, duration, loopS
     const loopStartPercent = loopStart !== null && duration > 0 ? (loopStart / duration) * 100 : null;
     const loopEndPercent = loopEnd !== null && duration > 0 ? (loopEnd / duration) * 100 : null;
 
-    const handleInteraction = (e: React.MouseEvent | React.TouchEvent, isEnd: boolean = false) => {
-        if (!progressBarRef.current) return;
+    // Helper to calculate time from clientX
+    const getTimeFromClientX = (clientX: number) => {
+        if (!progressBarRef.current) return 0;
         const rect = progressBarRef.current.getBoundingClientRect();
-        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-        
         let x = clientX - rect.left;
         let percent = x / rect.width;
         percent = Math.max(0, Math.min(1, percent));
-        
-        const newTime = percent * duration;
-
-        if (isEnd) {
-            onSeek(newTime);
-            setIsDragging(false);
-        } else {
-            setLocalDragTime(newTime);
-            setIsDragging(true);
-        }
+        return percent * duration;
     };
+
+    // Initial Start Handlers (Attached to Div)
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        setLocalDragTime(getTimeFromClientX(e.clientX));
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setIsDragging(true);
+        setLocalDragTime(getTimeFromClientX(e.touches[0].clientX));
+    };
+
+    // Global Move/Up Handlers (Attached to Window)
+    React.useEffect(() => {
+        if (!isDragging) return;
+
+        const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
+            const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+            setLocalDragTime(getTimeFromClientX(clientX));
+        };
+
+        const handleGlobalUp = (e: MouseEvent | TouchEvent) => {
+            const clientX = 'changedTouches' in e ? e.changedTouches[0].clientX : (e as MouseEvent).clientX;
+            const finalTime = getTimeFromClientX(clientX);
+            setIsDragging(false);
+            onSeek(finalTime);
+        };
+
+        window.addEventListener('mousemove', handleGlobalMove);
+        window.addEventListener('mouseup', handleGlobalUp);
+        window.addEventListener('touchmove', handleGlobalMove, { passive: false });
+        window.addEventListener('touchend', handleGlobalUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handleGlobalMove);
+            window.removeEventListener('mouseup', handleGlobalUp);
+            window.removeEventListener('touchmove', handleGlobalMove);
+            window.removeEventListener('touchend', handleGlobalUp);
+        };
+    }, [isDragging, duration, onSeek]);
 
     return (
         <div className="w-full flex flex-col gap-1 select-none">
@@ -48,32 +78,28 @@ export const Timeline: React.FC<TimelineProps> = ({ currentTime, duration, loopS
             </div>
 
             {/* Fat Scrubber */}
-            <div 
+            <div
                 ref={progressBarRef}
                 className="relative h-6 w-full cursor-pointer touch-none bg-slate-900 rounded overflow-hidden border border-slate-800"
-                onMouseDown={(e) => handleInteraction(e)}
-                onMouseMove={(e) => isDragging && handleInteraction(e)}
-                onMouseUp={(e) => isDragging && handleInteraction(e, true)}
-                onTouchStart={(e) => handleInteraction(e)}
-                onTouchMove={(e) => handleInteraction(e)}
-                onTouchEnd={(e) => isDragging && handleInteraction(e, true)}
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
             >
                 {/* Loop Region */}
                 {(loopStartPercent !== null && loopEndPercent !== null) && (
-                    <div 
+                    <div
                         className="absolute h-full bg-lime-900/30 border-l border-r border-lime-500/50"
                         style={{ left: `${loopStartPercent}%`, width: `${loopEndPercent - loopStartPercent}%` }}
                     />
                 )}
-                
+
                 {/* Progress Bar */}
-                <div 
+                <div
                     className="absolute h-full bg-orange-600 opacity-30"
                     style={{ width: `${progressPercent}%` }}
                 />
 
                 {/* Handle (Big for thumb) */}
-                <div 
+                <div
                     className="absolute top-0 h-full w-1 bg-lime-400 shadow-[0_0_10px_rgba(132,204,22,0.8)] z-20"
                     style={{ left: `${progressPercent}%` }}
                 >
