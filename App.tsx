@@ -152,6 +152,8 @@ export default function App() {
     const [saveTitle, setSaveTitle] = useState("");
     const [saveArtist, setSaveArtist] = useState("");
     const [saveGenre, setSaveGenre] = useState("");
+    const [saveImage, setSaveImage] = useState<File | null>(null);
+    const [saveImagePreview, setSaveImagePreview] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -938,37 +940,57 @@ export default function App() {
             zip.file("project.json", JSON.stringify(projectData, null, 2));
 
             // 3. GENERATE COVER IMAGE
-            const canvas = document.createElement('canvas');
-            canvas.width = 300;
-            canvas.height = 300;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                const gradient = ctx.createLinearGradient(0, 0, 300, 300);
-                gradient.addColorStop(0, "#1e293b");
-                gradient.addColorStop(1, "#0f172a");
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, 300, 300);
+            let coverUrl = "";
 
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 24px sans-serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(saveTitle.substring(0, 20), 150, 130);
+            if (saveImage) {
+                // USE UPLOADED IMAGE
+                const arrayBuffer = await saveImage.arrayBuffer();
+                const blob = new Blob([arrayBuffer], { type: saveImage.type });
 
-                ctx.fillStyle = "#94a3b8";
-                ctx.font = "16px sans-serif";
-                ctx.fillText(saveArtist.substring(0, 20) || "Me", 150, 160);
+                // Add to ZIP
+                zip.file(`cover.${saveImage.name.split('.').pop()}`, blob);
 
-                ctx.fillStyle = "#64748b";
-                ctx.font = "12px sans-serif";
-                ctx.fillText("VocalHarmony Pro", 150, 260);
+                // Create Data URL for DB
+                coverUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } else {
+                // GENERATE CANVAS IMAGE
+                const canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    const gradient = ctx.createLinearGradient(0, 0, 300, 300);
+                    gradient.addColorStop(0, "#1e293b");
+                    gradient.addColorStop(1, "#0f172a");
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 300, 300);
 
-                ctx.beginPath();
-                ctx.arc(150, 80, 20, 0, 2 * Math.PI);
-                ctx.fillStyle = "#f97316";
-                ctx.fill();
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 24px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(saveTitle.substring(0, 20), 150, 130);
+
+                    ctx.fillStyle = "#94a3b8";
+                    ctx.font = "16px sans-serif";
+                    ctx.fillText(saveArtist.substring(0, 20) || "Me", 150, 160);
+
+                    ctx.fillStyle = "#64748b";
+                    ctx.font = "12px sans-serif";
+                    ctx.fillText("VocalHarmony Pro", 150, 260);
+
+                    ctx.beginPath();
+                    ctx.arc(150, 80, 20, 0, 2 * Math.PI);
+                    ctx.fillStyle = "#f97316";
+                    ctx.fill();
+                }
+                coverUrl = canvas.toDataURL('image/jpeg', 0.7);
             }
-            const coverUrl = canvas.toDataURL('image/jpeg', 0.7);
+
             const zipContent = await zip.generateAsync({ type: "blob" });
 
             // 5. SAVE TO DEXIE DB
@@ -1332,7 +1354,14 @@ export default function App() {
 
 
                     <button
-                        onClick={() => { vibrate(10); setSaveTitle(`Project ${new Date().toLocaleDateString()}`); setSaveArtist("Me"); setShowSaveModal(true); }}
+                        onClick={() => {
+                            vibrate(10);
+                            setSaveTitle(`Project ${new Date().toLocaleDateString()}`);
+                            setSaveArtist("Me");
+                            setSaveImage(null);
+                            setSaveImagePreview(null);
+                            setShowSaveModal(true);
+                        }}
                         className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full text-xs font-bold flex items-center gap-2 border border-slate-700 transition-all active:scale-95"
                     >
                         <Archive size={14} className="text-orange-500" /> Save
@@ -2129,6 +2158,45 @@ export default function App() {
                                 onChange={(e) => setSaveArtist(e.target.value)}
                                 className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
                                 placeholder="Enter artist name..."
+                            />
+                        </div>
+
+
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase">Cover Image (Optional)</label>
+                            <div
+                                onClick={() => document.getElementById('cover-upload')?.click()}
+                                className="w-full h-32 bg-slate-950 border border-slate-800 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-900 overflow-hidden relative group"
+                            >
+                                {saveImagePreview ? (
+                                    <>
+                                        <img src={saveImagePreview} alt="Cover Preview" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-xs font-bold text-white">Change Image</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-2 text-slate-500">
+                                        <Upload size={24} />
+                                        <span className="text-xs">Click to Upload Cover</span>
+                                    </div>
+                                )}
+                            </div>
+                            <input
+                                type="file"
+                                id="cover-upload"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        const file = e.target.files[0];
+                                        setSaveImage(file);
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => setSaveImagePreview(reader.result as string);
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
                             />
                         </div>
 
