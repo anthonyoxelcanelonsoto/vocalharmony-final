@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2 } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -1347,7 +1347,7 @@ export default function App() {
                                         key={track.id}
                                         onClick={() => { vibrate(5); setSelectedTrackId(track.id); }}
                                         className={`
-                            snap-center shrink-0 w-[110px] h-[90%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
+                            snap-center shrink-0 w-[110px] h-[96%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
                             ${selectedTrackId === track.id
                                                 ? (appMode === 'ULTRA'
                                                     ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
@@ -1357,19 +1357,48 @@ export default function App() {
                                             }
                         `}
                                     >
-                                        <div className="flex justify-between items-center mb-1 px-1">
-                                            <div className={`w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
-                                            <div className="text-[10px] font-bold text-slate-300 truncate max-w-[65px] tracking-tight">{track.name}</div>
+                                        <div className="flex flex-col gap-1 mb-1 w-full">
+                                            <div className="flex items-center gap-1.5 px-1">
+                                                <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
+                                                <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
+                                            </div>
 
                                             {!isRecording && (
-                                                <div className="flex items-center">
+                                                <div className="flex items-center justify-end gap-1 px-1">
                                                     {/* MODE/MIC BUTTON */}
                                                     <button
                                                         onClick={(e) => handleTrackModeClick(track.id, e)}
-                                                        className={`p-1 transition-colors ${track.isArmed ? 'text-red-500 animate-pulse' : (track.isTuning ? 'text-orange-500 animate-pulse' : 'text-slate-500 hover:text-white')}`}
+                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                            ${track.isArmed
+                                                                ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                                                                : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500'
+                                                            }
+                                                        `}
+                                                        title="Arm for Recording"
                                                     >
-                                                        {track.isTuning ? <Music2 size={12} fill="currentColor" /> : <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />}
+                                                        <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />
                                                     </button>
+
+                                                    {/* TUNING BUTTON - ULTRA MODE ONLY */}
+                                                    {appMode === 'ULTRA' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                if (track.hasFile) openPitchModal(track.id, track.pitchShift || 0, e);
+                                                            }}
+                                                            disabled={!track.hasFile}
+                                                            className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                                ${track.hasFile
+                                                                    ? (track.isTuning
+                                                                        ? 'bg-orange-500/20 border-orange-500 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+                                                                        : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500')
+                                                                    : 'bg-slate-900 border-slate-800 text-slate-700 cursor-not-allowed opacity-50'
+                                                                }
+                                                            `}
+                                                            title={track.hasFile ? "Pitch Tuning" : "Record audio to enable Tuning"}
+                                                        >
+                                                            <Wand2 size={12} />
+                                                        </button>
+                                                    )}
 
                                                     {/* DELETE BUTTON - ALL MODES */}
                                                     <button
@@ -1378,9 +1407,10 @@ export default function App() {
                                                             vibrate(10);
                                                             setDeleteTrackId(track.id);
                                                         }}
-                                                        className="p-1 -mr-1 text-slate-600 hover:text-red-500 transition-colors"
+                                                        className="h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-red-500/20 hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
+                                                        title="Delete Track"
                                                     >
-                                                        <X size={12} />
+                                                        <Trash2 size={12} />
                                                     </button>
                                                 </div>
                                             )}
@@ -1476,7 +1506,7 @@ export default function App() {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="flex-1 flex flex-col gap-2">
+                                                <div className="flex-1 flex flex-col gap-1">
                                                     <div className="flex gap-1 relative z-10">
                                                         <button
                                                             onClick={(e) => {
@@ -1500,7 +1530,7 @@ export default function App() {
                                                         >S</button>
                                                     </div>
 
-                                                    <div className="flex-1 flex items-end justify-between px-1 pb-3 relative z-10">
+                                                    <div className="flex-1 flex items-end justify-between px-1 pb-1 relative z-10">
                                                         <div className="h-full flex items-center justify-center pb-1">
                                                             <MiniFader
                                                                 value={track.vol}
