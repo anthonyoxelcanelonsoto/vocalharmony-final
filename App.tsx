@@ -3,6 +3,7 @@ import { Mic, Play, Pause, SkipBack, SkipForward, Settings, Archive, Loader2, In
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
+import { db } from './src/db';
 import * as Tone from 'tone';
 import { Track, LyricLine, NoteBlock, AppMode, NoteData } from './types';
 import { getNoteFromPitch, autoCorrelate, parseLRC, loadJSZip, audioBufferToMp3, audioBufferToWav, analyzeAudioBlocks } from './utils';
@@ -145,6 +146,12 @@ export default function App() {
     const loopEndRef = useRef<number | null>(null);
 
     const REC_BUFFER_SIZE = 4096;
+
+    // SAVE PROJECT STATE
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [saveTitle, setSaveTitle] = useState("");
+    const [saveGenre, setSaveGenre] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         noteBlocksRef.current = noteBlocks;
@@ -877,6 +884,107 @@ export default function App() {
         setIsLoading(false);
     };
 
+    const handleSaveProject = async () => {
+        if (!saveTitle.trim()) {
+            alert("Please enter a title for your project.");
+            return;
+        }
+
+        setIsSaving(true);
+        vibrate(20);
+
+        try {
+            const JSZip = await loadJSZip();
+            const zip = new JSZip();
+
+            // 1. SAVE AUDIO TRACKS
+            const activeTracks = tracks.filter(t => audioBuffersRef.current[t.id] || processedBuffersRef.current[t.id]);
+
+            for (const track of activeTracks) {
+                const buffer = processedBuffersRef.current[track.id] || audioBuffersRef.current[track.id];
+                if (buffer) {
+                    const mp3Blob = await audioBufferToMp3(buffer);
+                    zip.file(`${track.id}_${track.name}.mp3`, mp3Blob);
+                }
+            }
+
+            // 2. SAVE PROJECT METADATA (project.json)
+            const projectData = {
+                version: "1.0",
+                title: saveTitle,
+                genre: saveGenre,
+                created: new Date().toISOString(),
+                trackState: tracks.map(t => ({
+                    id: t.id,
+                    name: t.name,
+                    color: t.color,
+                    vol: t.vol,
+                    pan: t.pan,
+                    mute: t.mute,
+                    solo: t.solo,
+                    isArmed: t.isArmed, // Store armed state preference
+                    pitchShift: t.pitchShift,
+                })),
+                global: {
+                    keySignature,
+                    maxDuration,
+                    loopStart: loopStartRef.current,
+                    loopEnd: loopEndRef.current
+                }
+            };
+
+            zip.file("project.json", JSON.stringify(projectData, null, 2));
+
+            // 3. GENERATE COVER IMAGE
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                const gradient = ctx.createLinearGradient(0, 0, 300, 300);
+                gradient.addColorStop(0, "#1e293b");
+                gradient.addColorStop(1, "#0f172a");
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 300, 300);
+
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 24px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(saveTitle.substring(0, 20), 150, 140);
+
+                ctx.fillStyle = "#94a3b8";
+                ctx.font = "16px sans-serif";
+                ctx.fillText("VocalHarmony Pro", 150, 170);
+
+                ctx.beginPath();
+                ctx.arc(150, 80, 20, 0, 2 * Math.PI);
+                ctx.fillStyle = "#f97316";
+                ctx.fill();
+            }
+            const coverUrl = canvas.toDataURL('image/jpeg', 0.7);
+            const zipContent = await zip.generateAsync({ type: "blob" });
+
+            // 5. SAVE TO DEXIE DB
+            await db.myLibrary.add({
+                title: saveTitle,
+                artist: "Me",
+                genre: saveGenre || "User Project",
+                cover_url: coverUrl,
+                fileBlob: zipContent,
+                createdAt: new Date()
+            });
+
+            alert("Project Saved Successfully!");
+            setShowSaveModal(false);
+
+        } catch (err) {
+            console.error("Save Failed", err);
+            alert("Failed to save project: " + err);
+        }
+        setIsSaving(false);
+    };
+
     const handleResetClick = () => {
         vibrate(20);
         setShowResetConfirm(true);
@@ -994,7 +1102,7 @@ export default function App() {
 
         vibrate(20);
         setIsLoading(true);
-        setMainView('studio'); // Switch to studio immediately
+        setMainView('studio');
 
         // --- RESET SESSION FOR NEW SONG ---
         stopAudio();
@@ -1015,48 +1123,101 @@ export default function App() {
         const ctx = await initAudioContext();
         if (!ctx) return;
 
-        // Start with fresh tracks instead of appending
-        const newTracks = getInitialTracks();
+        let newTracks = getInitialTracks();
         let maxDur = 0;
         const colors = ["#f97316", "#84cc16", "#eab308", "#10b981", "#06b6d4", "#ec4899"];
-
-        const processBuffer = (buffer: AudioBuffer, fileName: string) => {
-            // Sanitize name: remove path, remove extension, limit to 20 chars
-            const cleanName = (fileName.split('/').pop() || fileName).replace(/\.[^/.]+$/, "").substring(0, 20);
-
-            let track = newTracks.find(t => !t.hasFile && t.id !== 99);
-            if (!track) {
-                const id = Math.max(...newTracks.map(t => t.id), 0) + 1;
-                track = {
-                    id,
-                    name: cleanName,
-                    color: colors[id % colors.length],
-                    vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0
-                };
-                newTracks.push(track);
-            } else {
-                track.name = cleanName;
-                track.hasFile = true;
-                track.duration = buffer.duration;
-                track.pitchShift = 0;
-                track.isTuning = false;
-                delete processedBuffersRef.current[track.id];
-            }
-            audioBuffersRef.current[track.id] = buffer;
-            if (buffer.duration > maxDur) maxDur = buffer.duration;
-        };
 
         try {
             const JSZip = await loadJSZip();
             const zip = new JSZip();
             const content = await zip.loadAsync(song.fileBlob);
 
+            // CHECK FOR PROJECT.JSON FIRST
+            let projectData: any = null;
+            if (content.files["project.json"]) {
+                const text = await content.files["project.json"].async('string');
+                projectData = JSON.parse(text);
+                console.log("Project Data Loaded:", projectData);
+
+                // Restore Global Settings
+                if (projectData.global) {
+                    if (projectData.global.keySignature) setKeySignature(projectData.global.keySignature);
+                    if (projectData.global.loopStart) setLoopStart(projectData.global.loopStart);
+                    if (projectData.global.loopEnd) setLoopEnd(projectData.global.loopEnd);
+                }
+
+                // Prepare tracks from metadata
+                if (projectData.trackState && Array.isArray(projectData.trackState)) {
+                    // Start with empty tracks based on saved state, but map over them
+                    // We will reconstruct the track objects, ensuring they have all required fields
+                    newTracks = projectData.trackState.map((savedTrack: any) => ({
+                        ...savedTrack,
+                        hasFile: false, // Will set to true if file found
+                        duration: 0,
+                        isTuning: false,
+                        isArmed: savedTrack.isArmed || false // Maintain armed preference if possible
+                    }));
+                }
+            }
+
             for (const filename of Object.keys(content.files)) {
                 if (filename.match(/\.(mp3|wav|ogg|m4a)$/i)) {
                     const u8 = await content.files[filename].async('uint8array');
                     const buffer = await ctx.decodeAudioData(u8.buffer);
-                    processBuffer(buffer, filename);
+
+                    if (projectData) {
+                        // Match file to track by ID prefix "ID_Name.mp3"
+                        const match = filename.match(/^(\d+)_/);
+                        if (match) {
+                            const trackId = parseInt(match[1]);
+                            const track = newTracks.find(t => t.id === trackId);
+                            if (track) {
+                                track.hasFile = true;
+                                track.duration = buffer.duration;
+                                audioBuffersRef.current[trackId] = buffer;
+                                if (buffer.duration > maxDur) maxDur = buffer.duration;
+                            }
+                        } else {
+                            // Fallback if naming convention fails but project.json exists
+                            // Try to find by name match
+                            const cleanName = filename.replace(/\.[^/.]+$/, "");
+                            const track = newTracks.find(t => t.name === cleanName);
+                            if (track) {
+                                track.hasFile = true;
+                                track.duration = buffer.duration;
+                                audioBuffersRef.current[track.id] = buffer;
+                                if (buffer.duration > maxDur) maxDur = buffer.duration;
+                            }
+                        }
+                    } else {
+                        // LEGACY IMPORT (No project.json)
+                        // Sanitize name
+                        const cleanName = (filename.split('/').pop() || filename).replace(/\.[^/.]+$/, "").substring(0, 20);
+
+                        let track = newTracks.find(t => !t.hasFile && t.id !== 99);
+                        if (!track) {
+                            const id = Math.max(...newTracks.map(t => t.id), 0) + 1;
+                            track = {
+                                id,
+                                name: cleanName,
+                                color: colors[id % colors.length],
+                                vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0
+                            };
+                            newTracks.push(track);
+                        } else {
+                            track.name = cleanName;
+                            track.hasFile = true;
+                            track.duration = buffer.duration;
+                            track.pitchShift = 0;
+                            track.isTuning = false;
+                            delete processedBuffersRef.current[track.id];
+                        }
+                        audioBuffersRef.current[track.id] = buffer;
+                        if (buffer.duration > maxDur) maxDur = buffer.duration;
+                    }
                 }
+
+                // Keep LRC/Chord logic
                 if (filename.match(/\.lrc$/i)) {
                     const lrcText = await content.files[filename].async('string');
                     const parsedLyrics = parseLRC(lrcText);
@@ -1073,7 +1234,7 @@ export default function App() {
                     }
                 }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error loading song from library:", err);
             alert("Error al cargar la canción: " + err.message);
         }
@@ -1163,6 +1324,13 @@ export default function App() {
                     </button>
 
 
+
+                    <button
+                        onClick={() => { vibrate(10); setSaveTitle(`Project ${new Date().toLocaleDateString()}`); setShowSaveModal(true); }}
+                        className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full text-xs font-bold flex items-center gap-2 border border-slate-700 transition-all active:scale-95"
+                    >
+                        <Archive size={14} className="text-orange-500" /> Save
+                    </button>
 
                     <button
                         onClick={() => { vibrate(10); document.querySelector('input[type="file"]')?.dispatchEvent(new MouseEvent('click')); }}
@@ -2069,6 +2237,63 @@ export default function App() {
                           `}
                             >
                                 Switch Mode <ArrowRight size={16} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SAVE PROJECT MODAL */}
+            {showSaveModal && (
+                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 space-y-4">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Archive className="text-orange-500" /> Save Project
+                        </h2>
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase">Project Title</label>
+                            <input
+                                type="text"
+                                value={saveTitle}
+                                onChange={(e) => setSaveTitle(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                                placeholder="Enter song title..."
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase">Genre / Tag</label>
+                            <select
+                                value={saveGenre}
+                                onChange={(e) => setSaveGenre(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                            >
+                                <option value="">Select Genre...</option>
+                                <option value="Pop">Pop</option>
+                                <option value="Rock">Rock</option>
+                                <option value="Hip Hop">Hip Hop</option>
+                                <option value="Electronic">Electronic</option>
+                                <option value="Acoustic">Acoustic</option>
+                                <option value="Vocal">Vocal</option>
+                                <option value="Demo">Demo</option>
+                            </select>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => setShowSaveModal(false)}
+                                className="flex-1 py-3 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveProject}
+                                disabled={isSaving || !saveTitle.trim()}
+                                className="flex-1 py-3 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-500 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                                {isSaving ? "Saving..." : "Save to Library"}
                             </button>
                         </div>
                     </div>
