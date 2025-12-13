@@ -1497,7 +1497,9 @@ export default function App() {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
+                                                                e.stopPropagation();
                                                                 vibrate(20);
+                                                                setSelectedTrackId(track.id);
                                                                 setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
                                                             }}
                                                             className={`
@@ -1522,6 +1524,7 @@ export default function App() {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 vibrate(20);
+                                                                setSelectedTrackId(track.id);
                                                                 // Exclusive Solo Logic
                                                                 setTracks(tracks.map(t => {
                                                                     if (t.id === track.id) {
@@ -1550,6 +1553,7 @@ export default function App() {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 vibrate(5);
+                                                                setSelectedTrackId(track.id);
                                                                 setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
                                                             }}
                                                             className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
@@ -1560,6 +1564,7 @@ export default function App() {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 vibrate(5);
+                                                                setSelectedTrackId(track.id);
                                                                 setTracks(tracks.map(t => t.id === track.id ? { ...t, solo: !t.solo } : t));
                                                             }}
                                                             className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
@@ -1578,6 +1583,7 @@ export default function App() {
                                                                     const t = newTracks.find(x => x.id === track.id);
                                                                     if (t) t.vol = val;
                                                                     setTracks(newTracks);
+                                                                    setSelectedTrackId(track.id);
                                                                 }}
                                                             />
                                                         </div>
@@ -1592,6 +1598,7 @@ export default function App() {
                                                                     const t = newTracks.find(x => x.id === track.id);
                                                                     if (t) t.pan = val;
                                                                     setTracks(newTracks);
+                                                                    setSelectedTrackId(track.id);
                                                                 }}
                                                             />
                                                             <VuMeter isPlaying={isPlaying} analyser={trackAnalysersRef.current[track.id]} />
