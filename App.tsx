@@ -21,9 +21,6 @@ const vibrate = (ms: number = 10) => {
 
 const getInitialTracks = (): Track[] => [
     { id: 99, name: "VOX REC", color: "#ef4444", vol: 1.0, pan: 0.5, mute: false, solo: false, hasFile: false, isArmed: true, isTuning: false, duration: 0, pitchShift: 0 },
-    { id: 1, name: "Lead Vocal", color: "#f97316", vol: 0.8, pan: 0.5, mute: false, solo: false, hasFile: false, isArmed: false, isTuning: false, duration: 0, pitchShift: 0 },
-    { id: 2, name: "Harmony 1", color: "#84cc16", vol: 0.6, pan: 0.7, mute: false, solo: false, hasFile: false, isArmed: false, isTuning: false, duration: 0, pitchShift: 0 },
-    { id: 3, name: "Harmony 2", color: "#eab308", vol: 0.6, pan: 0.3, mute: false, solo: false, hasFile: false, isArmed: false, isTuning: false, duration: 0, pitchShift: 0 },
 ];
 
 export default function App() {
@@ -60,6 +57,29 @@ export default function App() {
     const [isAdminMode, setIsAdminMode] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false); // Modal state for reset
     const [loadingAuth, setLoadingAuth] = useState(false);
+    const [deleteTrackId, setDeleteTrackId] = useState<number | null>(null); // State for track deletion confirmation
+
+    // Derived state for selected track (safe access)
+    const selectedTrack = tracks.find(t => t.id === selectedTrackId);
+    const activeTrackName = selectedTrack ? selectedTrack.name : "No Tracks";
+    const activeTrackColor = selectedTrack ? selectedTrack.color : "#475569";
+
+    const confirmDeleteTrack = () => {
+        if (deleteTrackId !== null) {
+            vibrate(20);
+            setTracks(prev => prev.filter(t => t.id !== deleteTrackId));
+            // Cleanup buffers
+            delete audioBuffersRef.current[deleteTrackId];
+            delete processedBuffersRef.current[deleteTrackId];
+            delete activeSourcesRef.current[deleteTrackId];
+
+            // If deleting the selected track, select another or none
+            if (selectedTrackId === deleteTrackId) {
+                setSelectedTrackId(99);
+            }
+            setDeleteTrackId(null);
+        }
+    };
 
     // --- AUTH LISTENER ---
     useEffect(() => {
@@ -928,7 +948,7 @@ export default function App() {
         ? micAnalyser
         : (tracks.find(t => t.id === selectedTrackId)?.hasFile && isPlaying ? trackAnalysersRef.current[selectedTrackId] : null);
 
-    const selectedTrack = tracks.find(t => t.id === selectedTrackId) || tracks[0];
+
 
     const handleLoadFromLibrary = async (song: any) => {
         if (!song.fileBlob) {
@@ -1129,7 +1149,7 @@ export default function App() {
             `}>
                             <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : (appMode === 'ULTRA' ? 'bg-orange-500' : 'bg-lime-400')}`}></div>
                             <span className={`text-[10px] font-bold tracking-wider uppercase ${appMode === 'ULTRA' ? 'text-orange-100' : 'text-orange-100'}`}>
-                                {isRecording ? "Recording Input" : (appMode === 'ULTRA' ? `EDIT: ${selectedTrack.name}` : selectedTrack.name)}
+                                {isRecording ? "Recording Input" : (appMode === 'ULTRA' ? `EDIT: ${activeTrackName}` : activeTrackName)}
                             </span>
                         </div>
                     </div>
@@ -1186,14 +1206,14 @@ export default function App() {
                                 ctx={audioContext}
                                 analyser={activeAnalyser || null}
                                 isActive={true}
-                                color={isRecording ? '#f43f5e' : (appMode === 'ULTRA' ? '#f97316' : selectedTrack.color)}
+                                color={isRecording ? '#f43f5e' : (appMode === 'ULTRA' ? '#f97316' : activeTrackColor)}
                                 viewMode={viewMode}
                                 isFullscreen={!showControls}
                                 isUltraMode={appMode === 'ULTRA'}
                                 appMode={appMode}
                                 noteBlocks={noteBlocks}
                                 currentTime={currentTime}
-                                pitchShift={selectedTrack.pitchShift}
+                                pitchShift={selectedTrack ? selectedTrack.pitchShift : 0}
                                 onBlockChange={(id, shift) => {
                                     setNoteBlocks(prev => prev.map(b => b.id === id ? { ...b, shiftCents: shift } : b));
                                 }}
@@ -1322,7 +1342,6 @@ export default function App() {
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
                             {tracks
-                                .filter(track => !(appMode === 'SIMPLE' && track.id === 99))
                                 .map(track => (
                                     <div
                                         key={track.id}
@@ -1342,13 +1361,28 @@ export default function App() {
                                             <div className={`w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
                                             <div className="text-[10px] font-bold text-slate-300 truncate max-w-[65px] tracking-tight">{track.name}</div>
 
-                                            {!isRecording && appMode !== 'SIMPLE' && (
-                                                <button
-                                                    onClick={(e) => handleTrackModeClick(track.id, e)}
-                                                    className={`p-1 -mr-1 transition-colors ${track.isArmed ? 'text-red-500 animate-pulse' : (track.isTuning ? 'text-orange-500 animate-pulse' : 'text-slate-500 hover:text-white')}`}
-                                                >
-                                                    {track.isTuning ? <Music2 size={12} fill="currentColor" /> : <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />}
-                                                </button>
+                                            {!isRecording && (
+                                                <div className="flex items-center">
+                                                    {/* MODE/MIC BUTTON */}
+                                                    <button
+                                                        onClick={(e) => handleTrackModeClick(track.id, e)}
+                                                        className={`p-1 transition-colors ${track.isArmed ? 'text-red-500 animate-pulse' : (track.isTuning ? 'text-orange-500 animate-pulse' : 'text-slate-500 hover:text-white')}`}
+                                                    >
+                                                        {track.isTuning ? <Music2 size={12} fill="currentColor" /> : <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />}
+                                                    </button>
+
+                                                    {/* DELETE BUTTON - ALL MODES */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            vibrate(10);
+                                                            setDeleteTrackId(track.id);
+                                                        }}
+                                                        className="p-1 -mr-1 text-slate-600 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
 
@@ -1502,7 +1536,30 @@ export default function App() {
                                 ))}
 
                             <div
-                                onClick={() => { vibrate(10); document.querySelector('input[type="file"]')?.dispatchEvent(new MouseEvent('click')); }}
+                                onClick={() => {
+                                    vibrate(10);
+                                    // ADD NEW VOX REC TRACK
+                                    const newId = Math.max(...tracks.map(t => t.id), 0) + 1;
+                                    const colors = ["#f97316", "#84cc16", "#eab308", "#10b981", "#06b6d4", "#ec4899"];
+
+                                    const newTrack: Track = {
+                                        id: newId,
+                                        name: `Track ${newId}`,
+                                        color: colors[newId % colors.length],
+                                        vol: 1.0,
+                                        pan: 0.5,
+                                        mute: false,
+                                        solo: false,
+                                        hasFile: false,
+                                        isArmed: true, // Auto-arm
+                                        isTuning: false,
+                                        duration: 0,
+                                        pitchShift: 0
+                                    };
+
+                                    // Disarm others and add new track
+                                    setTracks([...tracks.map(t => ({ ...t, isArmed: false })), newTrack]);
+                                }}
                                 className={`snap-center shrink-0 w-[80px] h-[90%] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 active:bg-slate-800 transition-colors
                          ${appMode === 'SIMPLE' ? 'border-slate-600' : 'border-slate-800'}
                     `}
@@ -1798,6 +1855,38 @@ export default function App() {
                                 className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:bg-red-500"
                             >
                                 Reset All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE TRACK CONFIRMATION MODAL */}
+            {deleteTrackId !== null && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-200">
+                        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                            <AlertTriangle size={32} className="text-red-500" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-bold text-white">Delete Track?</h3>
+                            <p className="text-slate-400 text-sm">
+                                Are you sure you want to delete <br />
+                                <span className="text-white font-bold">"{tracks.find(t => t.id === deleteTrackId)?.name}"</span>?
+                            </p>
+                        </div>
+                        <div className="flex w-full gap-3 mt-2">
+                            <button
+                                onClick={() => setDeleteTrackId(null)}
+                                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold active:scale-95 transition-transform hover:bg-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDeleteTrack}
+                                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:bg-red-500"
+                            >
+                                Delete
                             </button>
                         </div>
                     </div>
