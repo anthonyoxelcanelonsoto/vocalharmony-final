@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Play, Pause, SkipBack, SkipForward, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2 } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
 import * as Tone from 'tone';
-import { Track, LyricLine, NoteBlock, AppMode } from './types';
-import { loadJSZip, parseLRC, audioBufferToWav, analyzeAudioBlocks } from './utils';
+import { Track, LyricLine, NoteBlock, AppMode, NoteData } from './types';
+import { getNoteFromPitch, autoCorrelate, parseLRC, loadJSZip, audioBufferToMp3, audioBufferToWav, analyzeAudioBlocks } from './utils';
 import { Knob, VuMeter, MiniFader, SignalLight } from './components/Controls';
 import { PitchVisualizer } from './components/Visualizer';
 import { Timeline } from './components/Timeline';
@@ -132,7 +131,7 @@ export default function App() {
     const masterGainRef = useRef<GainNode | null>(null);
     const startTimeRef = useRef<number>(0);
     const pauseOffsetRef = useRef<number>(0);
-    const animationFrameRef = useRef<number>();
+    const animationFrameRef = useRef<number | undefined>(undefined);
 
     const isPlayingRef = useRef(false);
     const isRecordingRef = useRef(false);
@@ -841,6 +840,43 @@ export default function App() {
         setIsLoading(false);
     };
 
+    const handleExportMultitrack = async () => {
+        const tracksToExport = tracks.filter(t => t.hasFile && (audioBuffersRef.current[t.id] || processedBuffersRef.current[t.id]));
+        if (tracksToExport.length === 0) {
+            alert("No audio tracks to export.");
+            return;
+        }
+
+        vibrate(20);
+        setIsLoading(true);
+        try {
+            const JSZip = await loadJSZip();
+            const zip = new JSZip();
+
+            // Iterate tracks
+            for (const track of tracksToExport) {
+                const buffer = processedBuffersRef.current[track.id] || audioBuffersRef.current[track.id];
+                if (buffer) {
+                    const mp3Blob = await audioBufferToMp3(buffer);
+                    zip.file(`${track.name}.mp3`, mp3Blob);
+                }
+            }
+
+            const content = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Project_Multitrack_${new Date().toISOString().slice(0, 10)}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error("Export Failed", err);
+            alert("Export Failed: " + err);
+        }
+        setIsLoading(false);
+    };
+
     const handleResetClick = () => {
         vibrate(20);
         setShowResetConfirm(true);
@@ -1125,6 +1161,8 @@ export default function App() {
                     >
                         <Settings size={20} />
                     </button>
+
+
 
                     <button
                         onClick={() => { vibrate(10); document.querySelector('input[type="file"]')?.dispatchEvent(new MouseEvent('click')); }}
@@ -1613,7 +1651,7 @@ export default function App() {
                 <main className="flex-1 relative overflow-hidden bg-slate-950">
                     {mainView === 'library' && (
                         <div className="absolute inset-0 z-20 animate-in fade-in duration-300">
-                            <Library onLoadSong={handleLoadFromLibrary} onDeleteSong={() => { }} />
+                            <Library onLoadSong={handleLoadFromLibrary} />
                         </div>
                     )}
 
@@ -1777,6 +1815,29 @@ export default function App() {
 
                                     <p className="text-[10px] text-slate-500 text-center">
                                         Exports active tracks (Volume, Pan & Mute settings applied).
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="h-[1px] bg-slate-800 my-4" />
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-bold text-orange-400 uppercase tracking-widest flex items-center gap-2">
+                                    <Folder size={14} /> Export Multitrack
+                                </label>
+
+                                <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-3">
+                                    <button
+                                        onClick={handleExportMultitrack}
+                                        disabled={isLoading}
+                                        className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 rounded flex items-center justify-center gap-2 transition-all active:scale-95"
+                                    >
+                                        {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                                        {isLoading ? "Zipping..." : "Download MP3 Stems (.zip)"}
+                                    </button>
+
+                                    <p className="text-[10px] text-slate-500 text-center">
+                                        Creates a ZIP file containing each track as a separate high-quality MP3 file.
                                     </p>
                                 </div>
                             </div>

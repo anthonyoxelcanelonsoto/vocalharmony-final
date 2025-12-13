@@ -48,7 +48,8 @@ export const autoCorrelate = (buf: Float32Array, sampleRate: number): { pitch: n
     }
   }
 
-  let d = 0; while (c[d] > c[d + 1]) d++;
+  let d = 0;
+  while (c[d] > c[d + 1]) d++;
   let maxval = -1, maxpos = -1;
   for (let i = d; i < SIZE; i++) {
     if (c[i] > maxval) {
@@ -58,134 +59,33 @@ export const autoCorrelate = (buf: Float32Array, sampleRate: number): { pitch: n
   }
   let T0 = maxpos;
 
+  let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+  let a = (x1 + x3 - 2 * x2) / 2;
+  let b = (x3 - x1) / 2;
+  if (a) T0 = T0 - b / (2 * a);
+
   return { pitch: sampleRate / T0, volume: rms };
 };
 
-export const analyzeAudioBlocks = (audioBuffer: AudioBuffer): NoteBlock[] => {
-  const channelData = audioBuffer.getChannelData(0);
-  const sampleRate = audioBuffer.sampleRate;
-  const chunkSize = 2048; // Window size
-  const blocks: NoteBlock[] = [];
-
-  let currentBlock: Partial<NoteBlock> | null = null;
-  let framesInBlock = 0;
-  let freqSum = 0;
-
-  // Process in chunks
-  for (let i = 0; i < channelData.length; i += chunkSize) {
-    const chunk = channelData.slice(i, i + chunkSize);
-    if (chunk.length < chunkSize) break; // Skip last partial chunk
-
-    const { pitch, volume } = autoCorrelate(chunk, sampleRate);
-    const time = i / sampleRate;
-
-    const hasSignal = pitch !== -1 && volume > 0.01;
-
-    if (hasSignal) {
-      // If we have a current block, check if pitch is consistent (within a semitone approx)
-      if (currentBlock) {
-        // approx 6% difference is a semitone
-        const freqDiff = Math.abs(currentBlock.frequency! - pitch) / currentBlock.frequency!;
-
-        if (freqDiff < 0.06) {
-          // Continue block
-          currentBlock.end = time + (chunkSize / sampleRate);
-          freqSum += pitch;
-          framesInBlock++;
-          // Update average frequency on the fly
-          currentBlock.frequency = freqSum / framesInBlock;
-        } else {
-          // Pitch changed significantly, finalize block and start new
-          const midi = Math.round(69 + 12 * Math.log2(currentBlock.frequency! / 440));
-          if (currentBlock.end! - currentBlock.start! > 0.1) { // Min duration 100ms
-            blocks.push({
-              id: crypto.randomUUID(),
-              start: currentBlock.start!,
-              end: currentBlock.end!,
-              duration: currentBlock.end! - currentBlock.start!,
-              frequency: currentBlock.frequency!,
-              originalMidi: midi,
-              currentMidi: midi,
-              shiftCents: 0
-            });
-          }
-
-          // Start new
-          currentBlock = { start: time, end: time, frequency: pitch };
-          freqSum = pitch;
-          framesInBlock = 1;
-        }
-      } else {
-        // Start new block
-        currentBlock = { start: time, end: time, frequency: pitch };
-        freqSum = pitch;
-        framesInBlock = 1;
-      }
-    } else {
-      // Silence
-      if (currentBlock) {
-        const midi = Math.round(69 + 12 * Math.log2(currentBlock.frequency! / 440));
-        if (currentBlock.end! - currentBlock.start! > 0.1) {
-          blocks.push({
-            id: crypto.randomUUID(),
-            start: currentBlock.start!,
-            end: currentBlock.end!,
-            duration: currentBlock.end! - currentBlock.start!,
-            frequency: currentBlock.frequency!,
-            originalMidi: midi,
-            currentMidi: midi,
-            shiftCents: 0
-          });
-        }
-        currentBlock = null;
-        framesInBlock = 0;
-        freqSum = 0;
-      }
-    }
-  }
-
-  return blocks;
-};
-
-export const formatTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 100);
-  return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-};
-
-export const loadJSZip = (): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    // @ts-ignore
-    if (window.JSZip) return resolve(window.JSZip);
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    // @ts-ignore
-    script.onload = () => resolve(window.JSZip);
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
-
-export const parseLRC = (lrcContent: string): LyricLine[] => {
-  const lines = lrcContent.split('\n');
+export const parseLRC = (lrcString: string): LyricLine[] => {
+  const lines = lrcString.split('\n');
   const result: LyricLine[] = [];
-
-  // Regex to match [mm:ss.xx] or [mm:ss.xxx]
   const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
-  // Regex to match [offset: +/-ms]
-  const offsetRegex = /\[offset:\s*([+-]?\d+)\]/i;
+  const offsetRegex = /\[offset:\s*(-?\d+)\]/i;
 
   let globalOffset = 0;
 
-  // First pass: find offset if exists
+  // First pass: Find offset
   for (const line of lines) {
     const offsetMatch = line.match(offsetRegex);
     if (offsetMatch) {
-      // Offset is in milliseconds. 
-      // User Logic: "Negative value" moves timestamps earlier (to fix lagging lyrics). 
-      // Implementation: Time + (Offset / 1000). 
-      // If Offset = -1000, Timestamp reduces by 1s.
+      // Offset in LRC is usually in milliseconds. 
+      // Positive value means lyrics come SOONER (shift time SUBTRACT).
+      // effectively: displayed time = tag time - offset
+      // BUT, usually [offset: +ms] means shift lyrics later? 
+      // Standard spec: "Positive value implies music is ahead of lyrics" -> Lyrics need to be delayed?
+      // Actually, usually: Time = TagTime + Offset.
+      // Let's assume standard behavior: we ADD the offset (converted to seconds).
       globalOffset = parseInt(offsetMatch[1], 10) / 1000;
     }
   }
@@ -193,10 +93,12 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
   for (const line of lines) {
     const match = line.match(timeRegex);
     if (match) {
-      const minutes = parseInt(match[1], 10);
-      const seconds = parseInt(match[2], 10);
+      const minStr = match[1];
+      const secStr = match[2];
       const msStr = match[3];
-      // Normalize ms to fraction of second. If 2 digits, it's 10ms units. If 3, it's 1ms.
+
+      const minutes = parseInt(minStr, 10);
+      const seconds = parseInt(secStr, 10);
       const ms = msStr.length === 3 ? parseInt(msStr, 10) / 1000 : parseInt(msStr, 10) / 100;
 
       const adjustedTime = Math.max(0, (minutes * 60 + seconds + ms) + globalOffset);
@@ -212,6 +114,69 @@ export const parseLRC = (lrcContent: string): LyricLine[] => {
 };
 
 // --- AUDIO EXPORT UTILS ---
+
+export const loadJSZip = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    // @ts-ignore
+    if (window.JSZip) { resolve(window.JSZip); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    script.onload = () => {
+      // @ts-ignore
+      resolve(window.JSZip);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
+export const loadLameJS = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    // @ts-ignore
+    if (window.lamejs) { resolve(window.lamejs); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js';
+    script.onload = () => {
+      // @ts-ignore
+      resolve(window.lamejs);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
+export const audioBufferToMp3 = async (buffer: AudioBuffer): Promise<Blob> => {
+  const lamejs = await loadLameJS();
+  const channels = buffer.numberOfChannels || 1;
+  const sampleRate = buffer.sampleRate || 44100;
+  const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
+  const samples = buffer.getChannelData(0);
+  const sampleBlockSize = 1152;
+  const mp3Data = [];
+
+  // Float to Short
+  const samples16 = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    samples16[i] = samples[i] < 0 ? samples[i] * 0x8000 : samples[i] * 0x7FFF;
+  }
+
+  let remaining = samples16.length;
+  for (let i = 0; remaining >= sampleBlockSize; i += sampleBlockSize) {
+    const left = samples16.subarray(i, i + sampleBlockSize);
+    // Mono encoding for now to simplify
+    const mp3buf = mp3encoder.encodeBuffer(left);
+    if (mp3buf.length > 0) {
+      mp3Data.push(mp3buf);
+    }
+    remaining -= sampleBlockSize;
+  }
+  const mp3buf = mp3encoder.flush();
+  if (mp3buf.length > 0) {
+    mp3Data.push(mp3buf);
+  }
+
+  return new Blob(mp3Data, { type: 'audio/mp3' });
+};
 
 const writeString = (view: DataView, offset: number, string: string) => {
   for (let i = 0; i < string.length; i++) {
@@ -285,4 +250,42 @@ export const audioBufferToWav = (buffer: AudioBuffer): Blob => {
   floatTo16BitPCM(view, 44, resultBuffer);
 
   return new Blob([view], { type: 'audio/wav' });
+};
+
+export const analyzeAudioBlocks = (audioBuffer: AudioBuffer, blockSize: number = 4096): NoteBlock[] => {
+  const blocks: NoteBlock[] = [];
+  const channelData = audioBuffer.getChannelData(0);
+  const sampleRate = audioBuffer.sampleRate;
+
+  // Process in chunks
+  for (let i = 0; i < channelData.length; i += blockSize) {
+    const chunk = channelData.slice(i, i + blockSize); // Slice creates a copy, acceptable for analysis
+    const { pitch, volume } = autoCorrelate(chunk, sampleRate);
+
+    if (volume > 0.01 && pitch > 50 && pitch < 3000) {
+      const time = i / sampleRate;
+      const duration = blockSize / sampleRate;
+      const noteData = getNoteFromPitch(pitch);
+      if (noteData) {
+        blocks.push({
+          id: Math.random().toString(36).substr(2, 9),
+          start: time,
+          end: time + duration,
+          duration: duration,
+          originalMidi: noteData.midi,
+          currentMidi: noteData.midi,
+          frequency: pitch,
+          shiftCents: 0
+        });
+      }
+    }
+  }
+  return blocks;
+};
+
+export const formatTime = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) return "0:00";
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
