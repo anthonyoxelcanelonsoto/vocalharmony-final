@@ -150,6 +150,7 @@ export default function App() {
     // SAVE PROJECT STATE
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [saveTitle, setSaveTitle] = useState("");
+    const [saveArtist, setSaveArtist] = useState("");
     const [saveGenre, setSaveGenre] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
@@ -912,6 +913,7 @@ export default function App() {
             const projectData = {
                 version: "1.0",
                 title: saveTitle,
+                artist: saveArtist || "Unknown Artist",
                 genre: saveGenre,
                 created: new Date().toISOString(),
                 trackState: tracks.map(t => ({
@@ -951,11 +953,15 @@ export default function App() {
                 ctx.font = "bold 24px sans-serif";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.fillText(saveTitle.substring(0, 20), 150, 140);
+                ctx.fillText(saveTitle.substring(0, 20), 150, 130);
 
                 ctx.fillStyle = "#94a3b8";
                 ctx.font = "16px sans-serif";
-                ctx.fillText("VocalHarmony Pro", 150, 170);
+                ctx.fillText(saveArtist.substring(0, 20) || "Me", 150, 160);
+
+                ctx.fillStyle = "#64748b";
+                ctx.font = "12px sans-serif";
+                ctx.fillText("VocalHarmony Pro", 150, 260);
 
                 ctx.beginPath();
                 ctx.arc(150, 80, 20, 0, 2 * Math.PI);
@@ -968,7 +974,7 @@ export default function App() {
             // 5. SAVE TO DEXIE DB
             await db.myLibrary.add({
                 title: saveTitle,
-                artist: "Me",
+                artist: saveArtist || "Me",
                 genre: saveGenre || "User Project",
                 cover_url: coverUrl,
                 fileBlob: zipContent,
@@ -1326,7 +1332,7 @@ export default function App() {
 
 
                     <button
-                        onClick={() => { vibrate(10); setSaveTitle(`Project ${new Date().toLocaleDateString()}`); setShowSaveModal(true); }}
+                        onClick={() => { vibrate(10); setSaveTitle(`Project ${new Date().toLocaleDateString()}`); setSaveArtist("Me"); setShowSaveModal(true); }}
                         className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full text-xs font-bold flex items-center gap-2 border border-slate-700 transition-all active:scale-95"
                     >
                         <Archive size={14} className="text-orange-500" /> Save
@@ -2095,6 +2101,75 @@ export default function App() {
                 </div>
             )}
 
+            {/* SAVE PROJECT MODAL */}
+            {showSaveModal && (
+                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Archive size={24} className="text-orange-500" /> Save Project
+                        </h2>
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase">Project Title</label>
+                            <input
+                                type="text"
+                                value={saveTitle}
+                                onChange={(e) => setSaveTitle(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                                placeholder="Enter song title..."
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase">Artist Name</label>
+                            <input
+                                type="text"
+                                value={saveArtist}
+                                onChange={(e) => setSaveArtist(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                                placeholder="Enter artist name..."
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs text-slate-400 font-bold uppercase">Genre / Tag</label>
+                            <select
+                                value={saveGenre}
+                                onChange={(e) => setSaveGenre(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                            >
+                                <option value="">Select Genre...</option>
+                                <option value="Pop">Pop</option>
+                                <option value="Rock">Rock</option>
+                                <option value="Hip Hop">Hip Hop</option>
+                                <option value="Electronic">Electronic</option>
+                                <option value="Acoustic">Acoustic</option>
+                                <option value="Vocal">Vocal</option>
+                                <option value="Demo">Demo</option>
+                            </select>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => setShowSaveModal(false)}
+                                className="flex-1 py-3 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveProject}
+                                disabled={isSaving || !saveTitle.trim()}
+                                className="flex-1 py-3 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-500 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-orange-900/20"
+                            >
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                                {isSaving ? "Saving..." : "Save to Library"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* RESET CONFIRMATION MODAL */}
             {showResetConfirm && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -2243,62 +2318,7 @@ export default function App() {
                 </div>
             )}
 
-            {/* SAVE PROJECT MODAL */}
-            {showSaveModal && (
-                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 space-y-4">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Archive className="text-orange-500" /> Save Project
-                        </h2>
 
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-400 font-bold uppercase">Project Title</label>
-                            <input
-                                type="text"
-                                value={saveTitle}
-                                onChange={(e) => setSaveTitle(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
-                                placeholder="Enter song title..."
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-400 font-bold uppercase">Genre / Tag</label>
-                            <select
-                                value={saveGenre}
-                                onChange={(e) => setSaveGenre(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
-                            >
-                                <option value="">Select Genre...</option>
-                                <option value="Pop">Pop</option>
-                                <option value="Rock">Rock</option>
-                                <option value="Hip Hop">Hip Hop</option>
-                                <option value="Electronic">Electronic</option>
-                                <option value="Acoustic">Acoustic</option>
-                                <option value="Vocal">Vocal</option>
-                                <option value="Demo">Demo</option>
-                            </select>
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                onClick={() => setShowSaveModal(false)}
-                                className="flex-1 py-3 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveProject}
-                                disabled={isSaving || !saveTitle.trim()}
-                                className="flex-1 py-3 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-500 disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
-                                {isSaving ? "Saving..." : "Save to Library"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* HIDDEN FILE INPUT */}
             <input
