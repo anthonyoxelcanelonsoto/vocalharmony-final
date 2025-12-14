@@ -1,7 +1,7 @@
 import React from 'react';
 import { db } from './db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Trash2, Play, Music } from 'lucide-react';
+import { Trash2, Play, Music, Share2 } from 'lucide-react';
 
 const Library = ({ onLoadSong }) => {
     const songs = useLiveQuery(() => db.myLibrary.toArray());
@@ -41,11 +41,39 @@ const Library = ({ onLoadSong }) => {
                     <div key={song.id} className="group bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition-all hover:shadow-xl hover:shadow-black/50 hover:-translate-y-1 relative overflow-hidden">
 
                         <button
-                            onClick={() => handleDelete(song.id)}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(song.id); }}
                             className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all z-10"
                             title="Borrar canción"
                         >
                             <Trash2 size={14} />
+                        </button>
+
+                        <button
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                if (navigator.share) {
+                                    try {
+                                        const file = new File([song.fileBlob], `${song.title}.zip`, { type: 'application/zip' });
+                                        if (navigator.canShare({ files: [file] })) {
+                                            await navigator.share({
+                                                files: [file],
+                                                title: song.title,
+                                                text: `Check out my song "${song.title}" created with VocalHarmony Pro!`
+                                            });
+                                        } else {
+                                            alert("System does not support sharing this file type.");
+                                        }
+                                    } catch (err) {
+                                        console.error("Share failed:", err);
+                                    }
+                                } else {
+                                    alert("Sharing not supported on this device/browser.");
+                                }
+                            }}
+                            className="absolute top-2 left-2 p-2 bg-black/50 hover:bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all z-10"
+                            title="Compartir Proyecto (ZIP)"
+                        >
+                            <Share2 size={14} />
                         </button>
 
                         <div className="relative aspect-square mb-3 shadow-md rounded-lg overflow-hidden bg-slate-950">
