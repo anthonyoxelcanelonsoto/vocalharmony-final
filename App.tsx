@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2 } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -158,6 +158,7 @@ export default function App() {
 
     // SHARE STATE
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
 
     useEffect(() => {
@@ -1427,45 +1428,73 @@ export default function App() {
 
                 {/* RIGHT ACTIONS */}
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleResetClick}
-                        className="p-2 rounded-full hover:bg-slate-800 transition-colors active:scale-95 text-slate-400"
-                        title="Reset Session"
-                    >
-                        <RotateCcw size={20} />
-                    </button>
-
-                    <button
-                        onClick={() => { vibrate(10); setShowSettings(true); }}
-                        className="p-2 rounded-full hover:bg-slate-800 transition-colors active:scale-95 text-slate-400"
-                    >
-                        <Settings size={20} />
-                    </button>
-
-
-
-                    <button
-                        onClick={() => { vibrate(10); setSaveTitle(`Project ${new Date().toLocaleDateString()}`); setSaveArtist("Me"); setShowSaveModal(true); }}
-                        className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-full text-xs font-bold flex items-center gap-2 border border-slate-700 transition-all active:scale-95"
-                    >
-                        <Archive size={14} className="text-orange-500" /> Save
-                    </button>
 
                     <button
                         onClick={() => { vibrate(10); setShowShareModal(true); }}
                         className="p-2 rounded-full hover:bg-slate-800 transition-colors active:scale-95 text-slate-400"
-                        title="Share Project"
+                        title="Compartir / Share"
                     >
                         <Share2 size={20} />
                     </button>
 
-                    <button
-                        onClick={() => { vibrate(10); document.querySelector('input[type="file"]')?.dispatchEvent(new MouseEvent('click')); }}
-                        className="p-2 rounded-full hover:bg-slate-800 transition-colors active:scale-95 text-slate-400"
-                        title="Import Audio/Zip"
-                    >
-                        <Upload size={20} />
-                    </button>
+                    <div className="relative">
+                        <button
+                            onClick={() => { vibrate(10); setShowMenu(!showMenu); }}
+                            className={`p-2 rounded-full transition-colors active:scale-95 ${showMenu ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <Menu size={24} />
+                        </button>
+
+                        {showMenu && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)}></div>
+                                <div className="absolute right-0 top-12 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col py-2">
+
+                                    <button
+                                        onClick={() => { vibrate(10); setSaveTitle(`Project ${new Date().toLocaleDateString()}`); setSaveArtist("Me"); setShowSaveModal(true); setShowMenu(false); }}
+                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-white transition-colors"
+                                    >
+                                        <Archive size={18} className="text-orange-500" />
+                                        <span>Guardar Proyecto</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => { vibrate(10); handleExport(); setShowMenu(false); }}
+                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-white transition-colors"
+                                    >
+                                        <Download size={18} className="text-blue-500" />
+                                        <span>Descargar Audio (MP3)</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => { vibrate(10); document.querySelector('input[type="file"]')?.dispatchEvent(new MouseEvent('click')); setShowMenu(false); }}
+                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-white transition-colors"
+                                    >
+                                        <Upload size={18} className="text-green-500" />
+                                        <span>Importar Audio/Zip</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => { vibrate(10); setShowSettings(true); setShowMenu(false); }}
+                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-white transition-colors"
+                                    >
+                                        <Settings size={18} className="text-gray-400" />
+                                        <span>Configuración</span>
+                                    </button>
+
+                                    <div className="h-px bg-slate-800 my-1"></div>
+
+                                    <button
+                                        onClick={() => { vibrate(10); handleResetClick(); setShowMenu(false); }}
+                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-red-400 transition-colors"
+                                    >
+                                        <RotateCcw size={18} />
+                                        <span>Reiniciar Sesión</span>
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
             </header>
 
