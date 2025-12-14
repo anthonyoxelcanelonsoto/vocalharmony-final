@@ -63,7 +63,15 @@ const Library = ({ onLoadSong }) => {
                                                 });
                                             } catch (shareErr) {
                                                 if (shareErr.name !== 'AbortError') {
-                                                    alert("Error al compartir: " + shareErr);
+                                                    alert("Error al compartir: " + shareErr + ". Iniciando descarga...");
+                                                    // Fallback
+                                                    const url = URL.createObjectURL(song.fileBlob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = `${song.title}.zip`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
                                                 }
                                             }
                                         } else {

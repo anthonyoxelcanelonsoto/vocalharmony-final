@@ -522,10 +522,17 @@ export default function App() {
     };
 
     const generateProjectZipBlob = async (): Promise<Blob> => {
+        // Deep Debugging
+        const bufferKeys = Object.keys(audioBuffersRef.current).join(", ");
+        const processedKeys = Object.keys(processedBuffersRef.current).join(", ");
+        const trackDebug = tracks.map(t => `${t.id}:${t.name}(HasFile:${t.hasFile})`).join("; ");
+
+        console.log("DEBUG EXPORT:", { bufferKeys, processedKeys, tracks });
+
         const tracksToExport = tracks.filter(t => (audioBuffersRef.current[t.id] || processedBuffersRef.current[t.id]));
 
         if (tracksToExport.length === 0) {
-            throw new Error(`No se encontraron pistas de audio para exportar. Pistas totales: ${tracks.length}`);
+            throw new Error(`DEBUG INFO:\nBuffers: [${bufferKeys}]\nProcessed: [${processedKeys}]\nTracks: [${trackDebug}]\n\nNo se encontraron pistas con audio. Graba o importa algo primero.`);
         }
 
         const JSZip = await loadJSZip();
