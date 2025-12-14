@@ -902,6 +902,11 @@ export default function App() {
         setIsSharing(true);
         vibrate(20);
 
+        // Debug: Check support
+        if (!navigator.share) {
+            alert("Tu navegador no soporta la función 'Compartir'. Se descargará el archivo.");
+        }
+
         try {
             let blob: Blob | null = null;
             let filename = "";
@@ -915,15 +920,30 @@ export default function App() {
             }
 
             if (blob) {
-                const file = new File([blob], filename, { type: blob.type });
+                const file = new File([blob], filename, { type: type === 'mix' ? 'audio/mpeg' : 'application/zip' });
 
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        title: saveTitle || "VocalHarmony Project",
-                        text: `Check out my music created with VocalHarmony Pro!`
-                    });
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: saveTitle || "VocalHarmony Project",
+                            text: `Check out my music created with VocalHarmony Pro!`
+                        });
+                    } catch (shareError) {
+                        if (shareError.name !== 'AbortError') {
+                            alert("Error al abrir menú compartir: " + shareError.message);
+                            // Fallback
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        }
+                    }
                 } else {
+                    alert("Tu dispositivo no permite compartir este tipo de archivo directamente. Iniciando descarga...");
                     // Fallback to Download
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -933,10 +953,12 @@ export default function App() {
                     a.click();
                     document.body.removeChild(a);
                 }
+            } else {
+                alert("Error: No se pudo generar el archivo.");
             }
         } catch (err) {
             console.error("Share Failed", err);
-            alert("Share Failed: " + err);
+            alert("Error general: " + err);
         }
         setIsSharing(false);
         setShowShareModal(false);

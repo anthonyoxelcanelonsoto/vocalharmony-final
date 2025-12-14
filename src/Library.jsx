@@ -54,20 +54,43 @@ const Library = ({ onLoadSong }) => {
                                 if (navigator.share) {
                                     try {
                                         const file = new File([song.fileBlob], `${song.title}.zip`, { type: 'application/zip' });
-                                        if (navigator.canShare({ files: [file] })) {
-                                            await navigator.share({
-                                                files: [file],
-                                                title: song.title,
-                                                text: `Check out my song "${song.title}" created with VocalHarmony Pro!`
-                                            });
+                                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                            try {
+                                                await navigator.share({
+                                                    files: [file],
+                                                    title: song.title,
+                                                    text: `Check out my song "${song.title}" created with VocalHarmony Pro!`
+                                                });
+                                            } catch (shareErr) {
+                                                if (shareErr.name !== 'AbortError') {
+                                                    alert("Error al compartir: " + shareErr);
+                                                }
+                                            }
                                         } else {
-                                            alert("System does not support sharing this file type.");
+                                            alert("Tu dispositivo no admite compartir este archivo. Descargando...");
+                                            // Fallback
+                                            const url = URL.createObjectURL(song.fileBlob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = `${song.title}.zip`;
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            document.body.removeChild(a);
                                         }
                                     } catch (err) {
                                         console.error("Share failed:", err);
+                                        alert("Error al preparar archivo para compartir: " + err);
                                     }
                                 } else {
-                                    alert("Sharing not supported on this device/browser.");
+                                    alert("Tu navegador no soporta la función Compartir. Descargando...");
+                                    // Fallback
+                                    const url = URL.createObjectURL(song.fileBlob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `${song.title}.zip`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
                                 }
                             }}
                             className="absolute top-2 left-2 p-2 bg-black/50 hover:bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all z-10"
