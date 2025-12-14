@@ -53,7 +53,14 @@ const Library = ({ onLoadSong }) => {
                                 e.stopPropagation();
                                 if (navigator.share) {
                                     try {
-                                        const file = new File([song.fileBlob], `${song.title}.zip`, { type: 'application/zip' });
+                                        // Sanitize filename
+                                        const safeTitle = song.title.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+                                        const filename = `${safeTitle || 'project'}.zip`;
+
+                                        // Refresh Blob
+                                        const freshBlob = song.fileBlob.slice(0, song.fileBlob.size, 'application/zip');
+                                        const file = new File([freshBlob], filename, { type: 'application/zip' });
+
                                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
                                             try {
                                                 await navigator.share({
