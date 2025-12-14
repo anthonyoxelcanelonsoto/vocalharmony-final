@@ -292,15 +292,13 @@ export default function App() {
             const player = new Tone.GrainPlayer(originalBuffer).toDestination();
             player.detune = semitones * 100;
 
-            // Performance Optimization:
-            // grainSize 0.2s = 200ms. Standard is 0.05-0.1.
-            // Larger grains mean 4x fewer scheduling events, drastically speeding up offline render.
-            // It also sounds less "robotic" and smoother for full mixes/vocals, though may have slight "slap" on transients.
-            player.grainSize = 0.2;
-            player.overlap = 0.1;
+            // Optimized for vocals (Smoother, less robotic)
+            // grainSize 0.05s = 50ms. Tighter timing for rhythmic vocals.
+            player.grainSize = 0.05;
+            player.overlap = 0.025;
 
             player.start(0);
-        }, originalBuffer.duration, 2, 44100); // Render at 44.1k to save resources if system is 48k/96k
+        }, originalBuffer.duration, 2, originalBuffer.sampleRate); // Match source sample rate to avoid timing drift
 
         // Tone.Offline returns a ToneAudioBuffer wrapper, we need the native AudioBuffer
         // @ts-ignore

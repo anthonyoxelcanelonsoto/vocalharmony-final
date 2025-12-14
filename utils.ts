@@ -253,21 +253,21 @@ export const audioBufferToWav = (buffer: AudioBuffer): Blob => {
 };
 
 export const analyzeAudioBlocks = (audioBuffer: AudioBuffer, blockSize: number = 4096): NoteBlock[] => {
-  const blocks: NoteBlock[] = [];
+  const rawBlocks: NoteBlock[] = [];
   const channelData = audioBuffer.getChannelData(0);
   const sampleRate = audioBuffer.sampleRate;
 
-  // Process in chunks
+  // 1. Initial Analysis
   for (let i = 0; i < channelData.length; i += blockSize) {
-    const chunk = channelData.slice(i, i + blockSize); // Slice creates a copy, acceptable for analysis
+    const chunk = channelData.slice(i, i + blockSize);
     const { pitch, volume } = autoCorrelate(chunk, sampleRate);
 
-    if (volume > 0.01 && pitch > 50 && pitch < 3000) {
+    if (volume > 0.015 && pitch > 50 && pitch < 3000) {
       const time = i / sampleRate;
       const duration = blockSize / sampleRate;
       const noteData = getNoteFromPitch(pitch);
       if (noteData) {
-        blocks.push({
+        rawBlocks.push({
           id: Math.random().toString(36).substr(2, 9),
           start: time,
           end: time + duration,
@@ -280,7 +280,33 @@ export const analyzeAudioBlocks = (audioBuffer: AudioBuffer, blockSize: number =
       }
     }
   }
-  return blocks;
+
+  // 2. Merge Blocks & Filter Noise
+  const mergedBlocks: NoteBlock[] = [];
+  if (rawBlocks.length === 0) return [];
+
+  let currentBlock = { ...rawBlocks[0] };
+
+  for (let i = 1; i < rawBlocks.length; i++) {
+    const nextBlock = rawBlocks[i];
+    const timeGap = nextBlock.start - currentBlock.end;
+    const isSameNote = nextBlock.originalMidi === currentBlock.originalMidi;
+
+    // Merge if same note and close enough (allowing small gaps < 100ms)
+    if (isSameNote && timeGap < 0.1) {
+      currentBlock.end = nextBlock.end;
+      currentBlock.duration = currentBlock.end - currentBlock.start;
+      // Weighted average or keep visible pitch? Keep original for now.
+    } else {
+      // Finish current block
+      mergedBlocks.push(currentBlock);
+      currentBlock = { ...nextBlock };
+    }
+  }
+  mergedBlocks.push(currentBlock);
+
+  // 3. Filter Short Blocks (< 50ms) to remove "dots"
+  return mergedBlocks.filter(b => b.duration > 0.05);
 };
 
 export const formatTime = (seconds: number): string => {

@@ -1,89 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>VocalHarmony Pro</title>
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-    <meta name="theme-color" content="#020617" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              mono: ['JetBrains Mono', 'monospace'],
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>VocalHarmony Pro</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <meta name="theme-color" content="#020617" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            gray: {
+              950: '#020617',
             },
-            colors: {
-              gray: {
-                950: '#020617',
-              },
-              orange: {
-                450: '#fdba74',
-                550: '#f97316',
-              },
-              lime: {
-                350: '#bef264',
-                450: '#84cc16',
-              }
+            orange: {
+              450: '#fdba74',
+              550: '#f97316',
             },
-            animation: {
-              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            lime: {
+              350: '#bef264',
+              450: '#84cc16',
             }
+          },
+          animation: {
+            'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
           }
         }
       }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
-    <style>
-      :root {
-        --sat: env(safe-area-inset-top);
-        --sab: env(safe-area-inset-bottom);
-        --sal: env(safe-area-inset-left);
-        --sar: env(safe-area-inset-right);
-      }
+    }
+  </script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <style>
+    :root {
+      --sat: env(safe-area-inset-top);
+      --sab: env(safe-area-inset-bottom);
+      --sal: env(safe-area-inset-left);
+      --sar: env(safe-area-inset-right);
+    }
 
-      body { 
-        background-color: #020617; 
-        color: white; 
-        overflow: hidden; 
-        overscroll-behavior: none; 
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-tap-highlight-color: transparent;
-        font-family: 'Inter', sans-serif;
-      }
-      
-      /* Safe Area Utilities */
-      .pt-safe { padding-top: var(--sat); }
-      .pb-safe { padding-bottom: var(--sab); }
-      .pl-safe { padding-left: var(--sal); }
-      .pr-safe { padding-right: var(--sar); }
-      
-      .h-safe-screen { height: 100dvh; }
+    body {
+      background-color: #020617;
+      color: white;
+      overflow: hidden;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Inter', sans-serif;
+    }
 
-      /* Hide Scrollbar but keep functionality */
-      .no-scrollbar::-webkit-scrollbar { display: none; }
-      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* Safe Area Utilities */
+    .pt-safe {
+      padding-top: var(--sat);
+    }
 
-      /* Snap scrolling for mixer */
-      .snap-x-mandatory {
-        scroll-snap-type: x mandatory;
-      }
-      .snap-center {
-        scroll-snap-align: center;
-      }
-      
-      /* Smooth styling for range inputs if needed */
-      input[type=range] {
-        accent-color: #84cc16; 
-      }
-    </style>
+    .pb-safe {
+      padding-bottom: var(--sab);
+    }
+
+    .pl-safe {
+      padding-left: var(--sal);
+    }
+
+    .pr-safe {
+      padding-right: var(--sar);
+    }
+
+    .h-safe-screen {
+      height: 100dvh;
+    }
+
+    /* Hide Scrollbar but keep functionality */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Snap scrolling for mixer */
+    .snap-x-mandatory {
+      scroll-snap-type: x mandatory;
+    }
+
+    .snap-center {
+      scroll-snap-align: center;
+    }
+
+    /* Smooth styling for range inputs if needed */
+    input[type=range] {
+      accent-color: #84cc16;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -95,10 +119,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>
