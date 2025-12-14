@@ -472,8 +472,10 @@ export default function App() {
         return new Blob(mp3Data, { type: 'audio/mp3' });
     };
 
-    const generateMixdownBlob = async (format: 'wav' | 'mp3'): Promise<Blob | null> => {
-        if (!audioContext) return null;
+    const generateMixdownBlob = async (format: 'wav' | 'mp3'): Promise<Blob> => {
+        if (!audioContext) {
+            throw new Error("El sistema de audio no está activo. Por favor, pulsa 'Play' o toca la pantalla para iniciarlo.");
+        }
 
         // 1. OFFLINE RENDER
         const offlineCtx = new OfflineAudioContext(
@@ -484,6 +486,10 @@ export default function App() {
 
         // Recreate tracks in Offline Context
         const activeTracks = tracks.filter(t => !t.mute && (audioBuffersRef.current[t.id] || processedBuffersRef.current[t.id]));
+
+        if (activeTracks.length === 0) {
+            throw new Error("No hay pistas activas (con audio y sin silencio) para exportar.");
+        }
 
         for (const track of activeTracks) {
             const buffer = processedBuffersRef.current[track.id] || audioBuffersRef.current[track.id];
@@ -509,16 +515,111 @@ export default function App() {
 
         // 2. CONVERT TO FORMAT
         if (format === 'mp3') {
-            // Assuming audioBufferToMp3 is defined elsewhere or convertBufferToMp3 is renamed
-            // For this change, we'll use the existing convertBufferToMp3
-            return convertBufferToMp3(renderedBuffer);
+            return await audioBufferToMp3(renderedBuffer);
         } else {
-            // Assuming audioBufferToWav is defined elsewhere
-            // Placeholder for now, as it's not provided in the snippet
-            // return await audioBufferToWav(renderedBuffer);
-            console.warn("WAV export not fully implemented in this snippet.");
-            return null; // Or throw an error
+            return await audioBufferToWav(renderedBuffer);
         }
+    };
+
+    const generateProjectZipBlob = async (): Promise<Blob> => {
+        const tracksToExport = tracks.filter(t => (audioBuffersRef.current[t.id] || processedBuffersRef.current[t.id]));
+
+        if (tracksToExport.length === 0) {
+            throw new Error(`No se encontraron pistas de audio para exportar. Pistas totales: ${tracks.length}`);
+        }
+
+        const JSZip = await loadJSZip();
+        const zip = new JSZip();
+
+        try {
+            // 1. ADD AUDIO TRACKS
+            for (const track of tracksToExport) {
+                const buffer = processedBuffersRef.current[track.id] || audioBuffersRef.current[track.id];
+                if (buffer) {
+                    const mp3Blob = await audioBufferToMp3(buffer);
+                    zip.file(`${track.id}_${track.name}.mp3`, mp3Blob);
+                }
+            }
+            // 2. ADD PROJECT METADATA
+            const metadata = {
+                title: saveTitle || "Untitled Project",
+                created: new Date().toISOString(),
+                tracks: tracks.map(t => ({ id: t.id, name: t.name, vol: t.vol, pan: t.pan, mute: t.mute, solo: t.solo }))
+            };
+            zip.file("project.json", JSON.stringify(metadata, null, 2));
+
+            // 3. ADD COVER IMAGE IF EXISTS
+            if (saveImage) {
+                zip.file(`cover.${saveImage.name.split('.').pop()}`, saveImage);
+            }
+
+            return await zip.generateAsync({ type: "blob" });
+        } catch (err) {
+            console.error("Zip Gen Error: ", err);
+            throw new Error("Error interno generando ZIP: " + err);
+        }
+    };
+
+    const handleShare = async (type: 'mix' | 'project') => {
+        setIsSharing(true);
+        vibrate(20);
+
+        // Debug: Check support
+        if (!navigator.share) {
+            alert("Aviso: Tu navegador no soporta la función nativa 'Compartir'. Se usará descarga directa.");
+        }
+
+        try {
+            let blob: Blob | null = null;
+            let filename = "";
+
+            if (type === 'mix') {
+                blob = await generateMixdownBlob(exportFormat);
+                filename = `VocalHarmony_Mix_${new Date().toISOString().slice(0, 10)}.${exportFormat}`;
+            } else {
+                blob = await generateProjectZipBlob();
+                filename = `VocalHarmony_Project_${new Date().toISOString().slice(0, 10)}.zip`;
+            }
+
+            // At this point blob MUST exist or function threw error
+            const file = new File([blob], filename, { type: type === 'mix' ? 'audio/mpeg' : 'application/zip' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: saveTitle || "VocalHarmony Project",
+                        text: `Check out my music created with VocalHarmony Pro!`
+                    });
+                } catch (shareError) {
+                    if (shareError.name !== 'AbortError') {
+                        // Fallback silently if share fails but wasn't aborted
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+                }
+            } else {
+                // Fallback to Download
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+
+        } catch (err) {
+            console.error("Share Failed", err);
+            alert(err.message || err);
+        }
+        setIsSharing(false);
+        setShowShareModal(false);
     };
 
     const handleExport = async () => {
@@ -812,21 +913,6 @@ export default function App() {
                             const buffer = await ctx.decodeAudioData(u8.buffer);
                             processBuffer(buffer, filename);
                         }
-                        if (filename.match(/\.lrc$/i)) {
-                            const lrcText = await content.files[filename].async('string');
-                            const parsedLyrics = parseLRC(lrcText);
-                            if (filename.match(/chord|acorde|harmony/i)) {
-                                if (parsedLyrics.length > 0) setImportedChords(parsedLyrics);
-                            } else {
-                                if (parsedLyrics.length > 0) setImportedLyrics(parsedLyrics);
-                            }
-                        }
-                        if (filename.match(/(tonalidad|tonality|key)\.txt$/i)) {
-                            const text = await content.files[filename].async('string');
-                            if (text) {
-                                setKeySignature(text.trim().substring(0, 3));
-                            }
-                        }
                     }
                 } catch (err) { console.error(err); }
             } else {
@@ -834,42 +920,27 @@ export default function App() {
                     if (file.name.match(/\.(mp3|wav|ogg|m4a)$/i)) {
                         const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
                         processBuffer(buffer, file.name);
-                    } else if (file.name.match(/\.lrc$/i)) {
-                        const text = await file.text();
-                        const parsedLyrics = parseLRC(text);
-                        if (file.name.match(/chord|acorde|harmony/i)) {
-                            if (parsedLyrics.length > 0) setImportedChords(parsedLyrics);
-                        } else {
-                            if (parsedLyrics.length > 0) setImportedLyrics(parsedLyrics);
-                        }
                     }
                 } catch (err) { console.error(err); }
             }
         }
 
-        setTracks(newTracks);
+        // Helper to find the newly imported tracks and mark them as having files
+        const updatedTracksWithFiles = newTracks.map(t => {
+            // If the track was just created/imported and has a buffer in ref, mark hasFile=true
+            // We can approximate this by checking if it's a new track ID (not in initial) or by name
+            if (audioBuffersRef.current[t.id]) {
+                return { ...t, hasFile: true };
+            }
+            return t;
+        });
+
+        setTracks(updatedTracksWithFiles);
         setMaxDuration(maxDur);
         setIsLoading(false);
     };
 
-    const generateProjectZipBlob = async (): Promise<Blob | null> => {
-        const tracksToExport = tracks.filter(t => t.hasFile && (audioBuffersRef.current[t.id] || processedBuffersRef.current[t.id]));
-        if (tracksToExport.length === 0) return null;
 
-        const JSZip = await loadJSZip();
-        const zip = new JSZip();
-
-        // Iterate tracks
-        for (const track of tracksToExport) {
-            const buffer = processedBuffersRef.current[track.id] || audioBuffersRef.current[track.id];
-            if (buffer) {
-                const mp3Blob = await audioBufferToMp3(buffer);
-                zip.file(`${track.name}.mp3`, mp3Blob);
-            }
-        }
-
-        return await zip.generateAsync({ type: "blob" });
-    };
 
     const handleExportMultitrack = async () => {
         const tracksToExport = tracks.filter(t => t.hasFile && (audioBuffersRef.current[t.id] || processedBuffersRef.current[t.id]));
@@ -898,71 +969,7 @@ export default function App() {
         setIsLoading(false);
     };
 
-    const handleShare = async (type: 'mix' | 'project') => {
-        setIsSharing(true);
-        vibrate(20);
 
-        // Debug: Check support
-        if (!navigator.share) {
-            alert("Tu navegador no soporta la función 'Compartir'. Se descargará el archivo.");
-        }
-
-        try {
-            let blob: Blob | null = null;
-            let filename = "";
-
-            if (type === 'mix') {
-                blob = await generateMixdownBlob(exportFormat);
-                filename = `VocalHarmony_Mix_${new Date().toISOString().slice(0, 10)}.${exportFormat}`;
-            } else {
-                blob = await generateProjectZipBlob();
-                filename = `VocalHarmony_Project_${new Date().toISOString().slice(0, 10)}.zip`;
-            }
-
-            if (blob) {
-                const file = new File([blob], filename, { type: type === 'mix' ? 'audio/mpeg' : 'application/zip' });
-
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            files: [file],
-                            title: saveTitle || "VocalHarmony Project",
-                            text: `Check out my music created with VocalHarmony Pro!`
-                        });
-                    } catch (shareError) {
-                        if (shareError.name !== 'AbortError') {
-                            alert("Error al abrir menú compartir: " + shareError.message);
-                            // Fallback
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = filename;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                        }
-                    }
-                } else {
-                    alert("Tu dispositivo no permite compartir este tipo de archivo directamente. Iniciando descarga...");
-                    // Fallback to Download
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }
-            } else {
-                alert("Error: No se pudo generar el archivo.");
-            }
-        } catch (err) {
-            console.error("Share Failed", err);
-            alert("Error general: " + err);
-        }
-        setIsSharing(false);
-        setShowShareModal(false);
-    };
 
     const handleSaveProject = async () => {
         if (!saveTitle.trim()) {
