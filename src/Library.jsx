@@ -57,9 +57,9 @@ const Library = ({ onLoadSong }) => {
                                         const safeTitle = song.title.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
                                         const filename = `${safeTitle || 'project'}.zip`;
 
-                                        // Refresh Blob
-                                        const freshBlob = song.fileBlob.slice(0, song.fileBlob.size, 'application/zip');
-                                        const file = new File([freshBlob], filename, { type: 'application/zip' });
+                                        // DEEP REFRESH: Read to buffer to detach from DB reference
+                                        const buffer = await song.fileBlob.arrayBuffer();
+                                        const file = new File([buffer], filename, { type: 'application/zip' });
 
                                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
                                             try {
