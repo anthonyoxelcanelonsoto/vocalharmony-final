@@ -8,7 +8,14 @@ import * as Tone from 'tone';
 import { Track, LyricLine, NoteBlock, AppMode, NoteData } from './types';
 import { getNoteFromPitch, autoCorrelate, parseLRC, loadJSZip, audioBufferToMp3, audioBufferToWav, analyzeAudioBlocks, getVoicedMap, resampleBuffer, timeStretchSOLA } from './utils';
 
-// ... (imports)
+// Fix LameJS Type Error
+declare global {
+    interface Window {
+        lamejs: any;
+    }
+}
+
+
 
 // --- OFFLINE PITCH SHIFT ENGINE (Tone.PitchShift + Automation) ---
 const processPitchShift = async (originalBuffer: AudioBuffer, semitones: number): Promise<AudioBuffer> => {
@@ -226,7 +233,7 @@ export default function App() {
     const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedInputId, setSelectedInputId] = useState<string>('');
     const [selectedOutputId, setSelectedOutputId] = useState<string>('');
-    const [exportFormat, setExportFormat] = useState<'wav' | 'mp3'>('wav');
+
 
     // Audio Playback State
     const [currentTime, setCurrentTime] = useState(0);
