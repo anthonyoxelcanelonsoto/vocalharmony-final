@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2 } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -63,6 +63,7 @@ const processPitchShift = async (originalBuffer: AudioBuffer, semitones: number)
 import { Knob, VuMeter, MiniFader, SignalLight } from './components/Controls';
 import { PitchVisualizer } from './components/Visualizer';
 import { WaveformEditor } from './components/WaveformEditor';
+import { PanEditor } from './components/PanEditor';
 import { Timeline } from './components/Timeline';
 import { LyricsOverlay } from './components/LyricsOverlay';
 
@@ -114,6 +115,7 @@ export default function App() {
     const [deleteTrackId, setDeleteTrackId] = useState<number | null>(null); // State for track deletion confirmation
     const [renamingTrackId, setRenamingTrackId] = useState<number | null>(null);
     const [waveEditTrackId, setWaveEditTrackId] = useState<number | null>(null); // ULTRA Waveform Editor
+    const [panEditTrackId, setPanEditTrackId] = useState<number | null>(null); // ULTRA Pan Automation
     const [renameText, setRenameText] = useState("");
 
     // Derived state for selected track (safe access)
@@ -161,6 +163,19 @@ export default function App() {
             }
 
             setWaveEditTrackId(null);
+            vibrate(50);
+        }
+    };
+
+    const handlePanSave = (newBuffer: AudioBuffer) => {
+        if (panEditTrackId !== null) {
+            audioBuffersRef.current[panEditTrackId] = newBuffer;
+            delete processedBuffersRef.current[panEditTrackId];
+            if (isPlaying) {
+                stopAudio();
+                playAudio(currentTime);
+            }
+            setPanEditTrackId(null);
             vibrate(50);
         }
     };
@@ -2562,17 +2577,28 @@ export default function App() {
                             }}
                         />
 
-                        {/* PRO & ULTRA MODE: WAVEFORM EDITOR OPTION */}
-                        {(appMode === 'ULTRA' || appMode === 'PRO') && tracks.find(t => t.id === renamingTrackId)?.hasFile && (
-                            <button
-                                onClick={() => {
-                                    setWaveEditTrackId(renamingTrackId);
-                                    setRenamingTrackId(null);
-                                }}
-                                className="w-full py-4 rounded-xl bg-zinc-950 border border-orange-500/30 text-orange-500 font-black tracking-wider uppercase hover:bg-orange-500/10 active:scale-95 transition flex items-center justify-center gap-2"
-                            >
-                                <Activity size={20} /> Open Wave Editor
-                            </button>
+                        {(appMode === 'ULTRA' || appMode === 'PRO' || appMode === 'SIMPLE') && tracks.find(t => t.id === renamingTrackId)?.hasFile && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        setWaveEditTrackId(renamingTrackId);
+                                        setRenamingTrackId(null);
+                                    }}
+                                    className="w-full py-4 rounded-xl bg-zinc-950 border border-orange-500/30 text-orange-500 font-black tracking-wider uppercase hover:bg-orange-500/10 active:scale-95 transition flex items-center justify-center gap-2"
+                                >
+                                    <Activity size={20} /> Open Wave Editor
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setPanEditTrackId(renamingTrackId);
+                                        setRenamingTrackId(null);
+                                    }}
+                                    className="w-full py-4 rounded-xl bg-zinc-950 border border-pink-500/30 text-pink-500 font-black tracking-wider uppercase hover:bg-pink-500/10 active:scale-95 transition flex items-center justify-center gap-2 mt-2"
+                                >
+                                    <MoveHorizontal size={20} /> Edit Panning
+                                </button>
+                            </>
                         )}
 
                         <div className="flex gap-3 pt-2">
@@ -2600,6 +2626,16 @@ export default function App() {
                     trackName={tracks.find(t => t.id === waveEditTrackId)?.name || "Track"}
                     onClose={() => setWaveEditTrackId(null)}
                     onSave={handleWaveformSave}
+                />
+            )}
+
+            {/* PAN AUTOMATION MODAL */}
+            {panEditTrackId !== null && audioBuffersRef.current[panEditTrackId] && (
+                <PanEditor
+                    buffer={audioBuffersRef.current[panEditTrackId]}
+                    trackName={tracks.find(t => t.id === panEditTrackId)?.name || "Track"}
+                    onClose={() => setPanEditTrackId(null)}
+                    onSave={handlePanSave}
                 />
             )}
 
