@@ -62,6 +62,7 @@ const processPitchShift = async (originalBuffer: AudioBuffer, semitones: number)
 };
 import { Knob, VuMeter, MiniFader, SignalLight } from './components/Controls';
 import { PitchVisualizer } from './components/Visualizer';
+import { WaveformEditor } from './components/WaveformEditor';
 import { Timeline } from './components/Timeline';
 import { LyricsOverlay } from './components/LyricsOverlay';
 
@@ -112,6 +113,7 @@ export default function App() {
     const [loadingAuth, setLoadingAuth] = useState(false);
     const [deleteTrackId, setDeleteTrackId] = useState<number | null>(null); // State for track deletion confirmation
     const [renamingTrackId, setRenamingTrackId] = useState<number | null>(null);
+    const [waveEditTrackId, setWaveEditTrackId] = useState<number | null>(null); // ULTRA Waveform Editor
     const [renameText, setRenameText] = useState("");
 
     // Derived state for selected track (safe access)
@@ -141,6 +143,25 @@ export default function App() {
             setTracks(prev => prev.map(t => t.id === renamingTrackId ? { ...t, name: renameText.trim() } : t));
             setRenamingTrackId(null);
             vibrate(20);
+        }
+    };
+
+    const handleWaveformSave = (newBuffer: AudioBuffer) => {
+        if (waveEditTrackId !== null) {
+            // Update Buffer
+            audioBuffersRef.current[waveEditTrackId] = newBuffer;
+
+            // Clear processed cache to force re-render of effects if any
+            delete processedBuffersRef.current[waveEditTrackId];
+
+            // Restart if playing to hear changes
+            if (isPlaying) {
+                stopAudio();
+                playAudio(currentTime);
+            }
+
+            setWaveEditTrackId(null);
+            vibrate(50);
         }
     };
 
@@ -2541,6 +2562,19 @@ export default function App() {
                             }}
                         />
 
+                        {/* ULTRA MODE: WAVEFORM EDITOR OPTION */}
+                        {appMode === 'ULTRA' && tracks.find(t => t.id === renamingTrackId)?.hasFile && (
+                            <button
+                                onClick={() => {
+                                    setWaveEditTrackId(renamingTrackId);
+                                    setRenamingTrackId(null);
+                                }}
+                                className="w-full py-4 rounded-xl bg-zinc-950 border border-orange-500/30 text-orange-500 font-black tracking-wider uppercase hover:bg-orange-500/10 active:scale-95 transition flex items-center justify-center gap-2"
+                            >
+                                <Activity size={20} /> Open Wave Editor
+                            </button>
+                        )}
+
                         <div className="flex gap-3 pt-2">
                             <button
                                 onClick={() => setRenamingTrackId(null)}
@@ -2557,6 +2591,16 @@ export default function App() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* WAVEFORM EDITOR MODAL */}
+            {waveEditTrackId !== null && audioBuffersRef.current[waveEditTrackId] && (
+                <WaveformEditor
+                    buffer={audioBuffersRef.current[waveEditTrackId]}
+                    trackName={tracks.find(t => t.id === waveEditTrackId)?.name || "Track"}
+                    onClose={() => setWaveEditTrackId(null)}
+                    onSave={handleWaveformSave}
+                />
             )}
 
             {/* MODE SWITCH CONFIRMATION MODAL */}
