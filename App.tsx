@@ -1,12 +1,65 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2 } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
 import { db } from './src/db';
 import * as Tone from 'tone';
 import { Track, LyricLine, NoteBlock, AppMode, NoteData } from './types';
-import { getNoteFromPitch, autoCorrelate, parseLRC, loadJSZip, audioBufferToMp3, audioBufferToWav, analyzeAudioBlocks } from './utils';
+import { getNoteFromPitch, autoCorrelate, parseLRC, loadJSZip, audioBufferToMp3, audioBufferToWav, analyzeAudioBlocks, getVoicedMap, resampleBuffer, timeStretchSOLA } from './utils';
+
+// ... (imports)
+
+// --- OFFLINE PITCH SHIFT ENGINE (Tone.PitchShift + Automation) ---
+const processPitchShift = async (originalBuffer: AudioBuffer, semitones: number): Promise<AudioBuffer> => {
+    if (semitones === 0) return originalBuffer;
+
+    // Use Tone.Offline as requested by user ("improve with this code")
+    // We utilize Tone.PitchShift which uses delay lines (smoother than granular for small shifts)
+    // And we AUTOMATE it to only affect voiced segments.
+
+    const result = await Tone.Offline(({ transport }) => {
+        const player = new Tone.Player(originalBuffer).toDestination();
+
+        const pitchShift = new Tone.PitchShift({
+            pitch: 0,
+            windowSize: 0.1, // User requested 0.1 ("NewTone style")
+            delayTime: 0,
+            feedback: 0
+        }).toDestination();
+
+        player.connect(pitchShift);
+
+        // Voiced Detection Automation
+        const voicedMap = getVoicedMap(originalBuffer);
+        const mapRes = originalBuffer.duration / voicedMap.length;
+
+        // Init automation
+        (pitchShift.pitch as any).setValueAtTime(0, 0);
+
+        voicedMap.forEach((isVoiced, i) => {
+            const time = i * mapRes;
+            // If VOICED: Ramp to target pitch
+            // If UNVOICED: Ramp to 0 (clean consonants)
+            if (isVoiced) {
+                (pitchShift.pitch as any).linearRampToValueAtTime(semitones, time + 0.02);
+            } else {
+                (pitchShift.pitch as any).linearRampToValueAtTime(0, time + 0.02);
+            }
+        });
+
+        player.start(0);
+    }, originalBuffer.duration, 2, originalBuffer.sampleRate);
+
+    // Turn Tone buffer to native buffer
+    // @ts-ignore
+    if (result && typeof result.get === 'function') {
+        // @ts-ignore
+        return result.get();
+    }
+
+    return result as unknown as AudioBuffer;
+};
 import { Knob, VuMeter, MiniFader, SignalLight } from './components/Controls';
 import { PitchVisualizer } from './components/Visualizer';
 import { Timeline } from './components/Timeline';
@@ -58,6 +111,8 @@ export default function App() {
     const [showResetConfirm, setShowResetConfirm] = useState(false); // Modal state for reset
     const [loadingAuth, setLoadingAuth] = useState(false);
     const [deleteTrackId, setDeleteTrackId] = useState<number | null>(null); // State for track deletion confirmation
+    const [renamingTrackId, setRenamingTrackId] = useState<number | null>(null);
+    const [renameText, setRenameText] = useState("");
 
     // Derived state for selected track (safe access)
     const selectedTrack = tracks.find(t => t.id === selectedTrackId);
@@ -78,6 +133,14 @@ export default function App() {
                 setSelectedTrackId(99);
             }
             setDeleteTrackId(null);
+        }
+    };
+
+    const handleRenameTrack = () => {
+        if (renamingTrackId !== null && renameText.trim()) {
+            setTracks(prev => prev.map(t => t.id === renamingTrackId ? { ...t, name: renameText.trim() } : t));
+            setRenamingTrackId(null);
+            vibrate(20);
         }
     };
 
@@ -279,35 +342,6 @@ export default function App() {
 
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         setIsPlaying(false);
-    };
-
-    // --- OFFLINE PITCH SHIFT ENGINE ---
-    const processPitchShift = async (originalBuffer: AudioBuffer, semitones: number): Promise<AudioBuffer> => {
-        if (semitones === 0) return originalBuffer;
-
-        // Use Tone.Offline with optimized GrainPlayer
-        // Using GrainPlayer provides better quality than PitchShift (which uses delay lines)
-        // We optimize performance by increasing grainSize (fewer grains to schedule)
-        const result = await Tone.Offline(({ transport }) => {
-            const player = new Tone.GrainPlayer(originalBuffer).toDestination();
-            player.detune = semitones * 100;
-
-            // Optimized for vocals (Smoother, less robotic)
-            // grainSize 0.05s = 50ms. Tighter timing for rhythmic vocals.
-            player.grainSize = 0.05;
-            player.overlap = 0.025;
-
-            player.start(0);
-        }, originalBuffer.duration, 2, originalBuffer.sampleRate); // Match source sample rate to avoid timing drift
-
-        // Tone.Offline returns a ToneAudioBuffer wrapper, we need the native AudioBuffer
-        // @ts-ignore
-        if (result && typeof result.get === 'function') {
-            // @ts-ignore
-            return result.get();
-        }
-
-        return result as unknown as AudioBuffer;
     };
 
     const playAudio = async (offset: number) => {
@@ -1721,6 +1755,16 @@ export default function App() {
                                             <div className="flex items-center gap-1.5 px-1">
                                                 <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
                                                 <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setRenamingTrackId(track.id);
+                                                        setRenameText(track.name);
+                                                    }}
+                                                    className="p-1 text-slate-500 hover:text-white transition-colors opacity-70 hover:opacity-100"
+                                                >
+                                                    <Edit2 size={10} />
+                                                </button>
                                             </div>
 
                                             {!isRecording && (
@@ -2470,6 +2514,45 @@ export default function App() {
                                 className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:bg-red-500"
                             >
                                 Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* RENAME TRACK MODAL */}
+            {renamingTrackId !== null && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Edit2 size={24} className="text-orange-500" /> Rename Track
+                        </h2>
+
+                        <input
+                            type="text"
+                            value={renameText}
+                            onChange={(e) => setRenameText(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold focus:border-orange-500 outline-none text-lg"
+                            placeholder="Enter track name..."
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRenameTrack();
+                                if (e.key === 'Escape') setRenamingTrackId(null);
+                            }}
+                        />
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => setRenamingTrackId(null)}
+                                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-400 font-bold active:scale-95 transition-transform hover:bg-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRenameTrack}
+                                className="flex-1 py-3 rounded-xl bg-orange-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:bg-orange-500"
+                            >
+                                Save
                             </button>
                         </div>
                     </div>
