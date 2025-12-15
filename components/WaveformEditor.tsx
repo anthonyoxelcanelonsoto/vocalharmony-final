@@ -166,6 +166,37 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ buffer, trackNam
         }
     };
 
+    // TOUCH HANDLING
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (!canvasRef.current || !workingBuffer) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const width = rect.width;
+
+        const viewportSizeNorm = 1 / zoom;
+        const scrollNorm = scroll;
+        const clickNormViaViewport = x / width;
+        const absoluteNorm = scrollNorm + (clickNormViaViewport * viewportSizeNorm);
+
+        setSelection({ start: absoluteNorm, end: absoluteNorm });
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!canvasRef.current || !workingBuffer || !selection) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const width = rect.width;
+
+        const viewportSizeNorm = 1 / zoom;
+        const scrollNorm = scroll;
+        const clickNormViaViewport = Math.max(0, Math.min(1, x / width));
+        const absoluteNorm = Math.max(0, Math.min(1, scrollNorm + (clickNormViaViewport * viewportSizeNorm)));
+
+        setSelection(prev => prev ? { ...prev, end: absoluteNorm } : null);
+    };
+
     // PROCESSORS
     const processAudio = (type: 'GAIN' | 'SILENCE') => {
         if (!workingBuffer || !selection) return;
@@ -221,9 +252,11 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ buffer, trackNam
                 <div className="flex-1 relative bg-black overflow-hidden flex flex-col group cursor-crosshair" ref={containerRef}>
                     <canvas
                         ref={canvasRef}
-                        className="w-full h-full"
+                        className="w-full h-full touch-none"
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
                     />
 
                     {/* OVERLAY INFO */}

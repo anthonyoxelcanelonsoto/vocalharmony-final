@@ -2562,8 +2562,8 @@ export default function App() {
                             }}
                         />
 
-                        {/* ULTRA MODE: WAVEFORM EDITOR OPTION */}
-                        {appMode === 'ULTRA' && tracks.find(t => t.id === renamingTrackId)?.hasFile && (
+                        {/* PRO & ULTRA MODE: WAVEFORM EDITOR OPTION */}
+                        {(appMode === 'ULTRA' || appMode === 'PRO') && tracks.find(t => t.id === renamingTrackId)?.hasFile && (
                             <button
                                 onClick={() => {
                                     setWaveEditTrackId(renamingTrackId);
