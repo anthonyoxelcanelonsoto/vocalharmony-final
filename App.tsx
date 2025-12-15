@@ -88,6 +88,7 @@ export default function App() {
     const [isRecording, setIsRecording] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [exportFormat, setExportFormat] = useState<'wav' | 'mp3'>('mp3');
 
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
     const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
