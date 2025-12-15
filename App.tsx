@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -64,6 +64,7 @@ import { Knob, VuMeter, MiniFader, SignalLight } from './components/Controls';
 import { PitchVisualizer } from './components/Visualizer';
 import { WaveformEditor } from './components/WaveformEditor';
 import { PanEditor } from './components/PanEditor';
+import { TimeShiftEditor } from './components/TimeShiftEditor';
 import { Timeline } from './components/Timeline';
 import { LyricsOverlay } from './components/LyricsOverlay';
 
@@ -116,6 +117,7 @@ export default function App() {
     const [renamingTrackId, setRenamingTrackId] = useState<number | null>(null);
     const [waveEditTrackId, setWaveEditTrackId] = useState<number | null>(null); // ULTRA Waveform Editor
     const [panEditTrackId, setPanEditTrackId] = useState<number | null>(null); // ULTRA Pan Automation
+    const [timeShiftTrackId, setTimeShiftTrackId] = useState<number | null>(null); // Shift Tool
     const [renameText, setRenameText] = useState("");
 
     // Derived state for selected track (safe access)
@@ -176,6 +178,19 @@ export default function App() {
                 playAudio(currentTime);
             }
             setPanEditTrackId(null);
+            vibrate(50);
+        }
+    };
+
+    const handleTimeShiftSave = (newBuffer: AudioBuffer) => {
+        if (timeShiftTrackId !== null) {
+            audioBuffersRef.current[timeShiftTrackId] = newBuffer;
+            delete processedBuffersRef.current[timeShiftTrackId];
+            if (isPlaying) {
+                stopAudio();
+                playAudio(currentTime);
+            }
+            setTimeShiftTrackId(null);
             vibrate(50);
         }
     };
@@ -2598,6 +2613,16 @@ export default function App() {
                                 >
                                     <MoveHorizontal size={20} /> Edit Panning
                                 </button>
+
+                                <button
+                                    onClick={() => {
+                                        setTimeShiftTrackId(renamingTrackId);
+                                        setRenamingTrackId(null);
+                                    }}
+                                    className="w-full py-4 rounded-xl bg-zinc-950 border border-blue-500/30 text-blue-500 font-black tracking-wider uppercase hover:bg-blue-500/10 active:scale-95 transition flex items-center justify-center gap-2 mt-2"
+                                >
+                                    <Clock size={20} /> Edit Timing (Shift)
+                                </button>
                             </>
                         )}
 
@@ -2636,6 +2661,16 @@ export default function App() {
                     trackName={tracks.find(t => t.id === panEditTrackId)?.name || "Track"}
                     onClose={() => setPanEditTrackId(null)}
                     onSave={handlePanSave}
+                />
+            )}
+
+            {/* TIME SHIFT EDITOR MODAL */}
+            {timeShiftTrackId !== null && audioBuffersRef.current[timeShiftTrackId] && (
+                <TimeShiftEditor
+                    buffer={audioBuffersRef.current[timeShiftTrackId]}
+                    trackName={tracks.find(t => t.id === timeShiftTrackId)?.name || "Track"}
+                    onClose={() => setTimeShiftTrackId(null)}
+                    onSave={handleTimeShiftSave}
                 />
             )}
 
