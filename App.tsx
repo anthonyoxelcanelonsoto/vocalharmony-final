@@ -96,6 +96,7 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [exportFormat, setExportFormat] = useState<'wav' | 'mp3'>('mp3');
+    const [latencyOffset, setLatencyOffset] = useState<number>(0); // In Milliseconds
 
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
     const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
@@ -757,6 +758,12 @@ export default function App() {
         stopAudio();
         const ctx = await initAudioContext();
         if (!ctx) return;
+
+        // PRE-WARM TONE.JS to avoid async delay during playback start
+        if (Tone.context.state !== 'running') {
+            await Tone.start();
+        }
+
         const micSetup = await setupMicrophone(ctx);
         if (!micSetup) return;
         const { source } = micSetup;
@@ -819,8 +826,12 @@ export default function App() {
         // @ts-ignore
         const outputLatency = ctx.outputLatency || 0.0;
         const bufferDuration = REC_BUFFER_SIZE / ctx.sampleRate;
-        const estimatedInputLatency = 0.02;
-        const totalCompensationSeconds = bufferDuration + outputLatency + estimatedInputLatency;
+
+        // UPDATED: Increased default estimated latency for better "Automatic" sync
+        const estimatedInputLatency = 0.05; // 50ms (was 20ms)
+
+        // Add user defined offset (converted to seconds)
+        const totalCompensationSeconds = bufferDuration + outputLatency + estimatedInputLatency + (latencyOffset / 1000);
         const latencySamples = Math.floor(totalCompensationSeconds * ctx.sampleRate);
         let finalBuffer = outputBuffer;
         if (totalLength > latencySamples) {
@@ -2214,6 +2225,29 @@ export default function App() {
                                         * Output selection not supported in this browser.
                                     </p>
                                 )}
+                            </div>
+
+                            <div className="h-[1px] bg-slate-800 my-4" />
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between">
+                                    <span className="flex items-center gap-2"><Sliders size={14} /> Latency Fix</span>
+                                    <span className="text-orange-500">{latencyOffset} ms</span>
+                                </label>
+                                <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-2">
+                                    <input
+                                        type="range"
+                                        min="-100"
+                                        max="500"
+                                        step="5"
+                                        value={latencyOffset}
+                                        onChange={(e) => setLatencyOffset(Number(e.target.value))}
+                                        className="w-full accent-orange-500 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                    <p className="text-[10px] text-slate-500 text-center">
+                                        Adjust if vocals sound delayed (Move slider Right).
+                                    </p>
+                                </div>
                             </div>
 
                             <div className="h-[1px] bg-slate-800 my-4" />
