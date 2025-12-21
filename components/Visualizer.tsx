@@ -57,6 +57,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
     const octaveTracker = useRef<number[]>([]);
     const particlesRef = useRef<Particle[]>([]);
     const lastScrollTime = useRef<number>(0);
+    const bgImageRef = useRef<HTMLImageElement | null>(null);
 
     // Constants
     const LEFT_MARGIN = 60;
@@ -67,6 +68,12 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
         const stepMap = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
         return (octave * 7) + stepMap[noteIndex];
     };
+
+    useEffect(() => {
+        const img = new Image();
+        img.src = 'https://i.postimg.cc/5ybmHQvv/pergamino-2.png';
+        img.onload = () => { bgImageRef.current = img; };
+    }, []);
 
     useEffect(() => {
         const handleResize = () => {
@@ -209,16 +216,27 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
             canvasCtx.clearRect(0, 0, width, height);
 
             // BACKGROUND
-            if (appMode === 'ULTRA') {
-                canvasCtx.fillStyle = '#000000';
-            } else if (appMode === 'SIMPLE') {
-                // Darker Slate for Simple Mode
-                canvasCtx.fillStyle = viewMode === 'staff' ? '#0f172a' : '#020617';
+            // BACKGROUND
+            if (viewMode === 'staff' && bgImageRef.current) {
+                // Draw Parchment Background for Staff Mode
+                canvasCtx.drawImage(bgImageRef.current, 0, 0, width, height);
+                // Optional: Add slight dark tint for contrast if needed
+                if (appMode === 'ULTRA') {
+                    canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    canvasCtx.fillRect(0, 0, width, height);
+                }
             } else {
-                // PRO Mode
-                canvasCtx.fillStyle = viewMode === 'staff' ? '#0f172a' : '#020617';
+                if (appMode === 'ULTRA') {
+                    canvasCtx.fillStyle = '#000000';
+                } else if (appMode === 'SIMPLE') {
+                    // Darker Slate for Simple Mode
+                    canvasCtx.fillStyle = viewMode === 'staff' ? '#0f172a' : '#020617';
+                } else {
+                    // PRO Mode
+                    canvasCtx.fillStyle = viewMode === 'staff' ? '#0f172a' : '#020617';
+                }
+                canvasCtx.fillRect(0, 0, width, height);
             }
-            canvasCtx.fillRect(0, 0, width, height);
 
             const getYFromMidi = (midiVal: number) => {
                 if (viewMode === 'staff') {
@@ -273,11 +291,11 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
                     }
                 }
             } else {
-                // Staff Grid
-                canvasCtx.font = '48px serif'; canvasCtx.fillStyle = '#64748b';
+                // Staff Grid (Ink Style)
+                canvasCtx.font = '48px serif'; canvasCtx.fillStyle = '#000000';
                 const g4Y = getYFromMidi(67);
                 if (g4Y > -50 && g4Y < height + 50) canvasCtx.fillText('𝄞', 10, g4Y + 16);
-                canvasCtx.strokeStyle = isUltraMode ? '#52525b' : '#cbd5e1'; canvasCtx.lineWidth = 1.5;
+                canvasCtx.strokeStyle = '#000000'; canvasCtx.lineWidth = 1.5;
                 [64, 67, 71, 74, 77].forEach(m => {
                     const y = getYFromMidi(m);
                     canvasCtx.beginPath(); canvasCtx.moveTo(LEFT_MARGIN, y); canvasCtx.lineTo(width, y); canvasCtx.stroke();
@@ -460,7 +478,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
                                 if (distToC4 < 0.5 || distToC2 < 0.5 || distToA5 < 0.5) {
                                     const lineY = getYFromMidi(Math.round(point.midi));
                                     canvasCtx.beginPath(); canvasCtx.moveTo(x - 6, lineY); canvasCtx.lineTo(x + 6, lineY);
-                                    canvasCtx.strokeStyle = '#fff'; canvasCtx.lineWidth = 1; canvasCtx.stroke();
+                                    canvasCtx.strokeStyle = '#000000'; canvasCtx.lineWidth = 1; canvasCtx.stroke();
                                 }
                             }
                         }
@@ -524,7 +542,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
                     canvasCtx.beginPath();
                     const isStemUp = (currentMidi || 0) < 71;
                     canvasCtx.moveTo(headX + (isStemUp ? 6 : -6), currentY); canvasCtx.lineTo(headX + (isStemUp ? 6 : -6), currentY + (isStemUp ? -30 : 30));
-                    canvasCtx.strokeStyle = '#fff'; canvasCtx.lineWidth = 2; canvasCtx.stroke();
+                    canvasCtx.strokeStyle = '#000000'; canvasCtx.lineWidth = 2; canvasCtx.stroke();
                 }
                 canvasCtx.shadowBlur = 0;
             }
