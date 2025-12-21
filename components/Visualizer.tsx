@@ -71,7 +71,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
 
     useEffect(() => {
         const img = new Image();
-        img.src = 'https://i.postimg.cc/5ybmHQvv/pergamino-2.png';
+        img.src = "https://i.postimg.cc/W32qRBkX/pergamino-4.png";
         img.onload = () => { bgImageRef.current = img; };
     }, []);
 
