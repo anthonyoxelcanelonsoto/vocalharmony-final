@@ -115,28 +115,16 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                     {tracks.map(track => (
                         <div
                             key={track.id}
-                            className={`h-28 border-b border-zinc-800 flex relative group ${selectedTrackId === track.id ? 'bg-zinc-900/50' : ''}`}
+                            className={`h-16 border-b border-zinc-800 flex relative group ${selectedTrackId === track.id ? 'bg-zinc-900/50' : ''}`}
                             onClick={() => onTrackSelect(track.id)}
                         >
                             {/* LEFT SIDEBAR CONTROLS */}
-                            <div className="w-[140px] shrink-0 bg-zinc-900 border-r border-zinc-800 sticky left-0 z-20 flex flex-col p-2 gap-1 backdrop-blur shadow-lg">
-                                <div className="font-bold text-xs text-white truncate px-1">{track.name}</div>
+                            <div className="w-[140px] shrink-0 bg-zinc-900 border-r border-zinc-800 sticky left-0 z-20 flex flex-col justify-center px-2 gap-1 backdrop-blur shadow-lg">
+                                <div className="font-bold text-xs text-white truncate px-1 mb-1">{track.name}</div>
 
-                                {/* Mute / Solo Buttons */}
-                                <div className="flex gap-1 mb-1">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onToggleMute(track.id); }}
-                                        className={`flex-1 h-6 rounded text-[10px] font-black border transition-all ${track.mute ? 'bg-orange-500 text-black border-orange-600' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}
-                                    >M</button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onToggleSolo(track.id); }}
-                                        className={`flex-1 h-6 rounded text-[10px] font-black border transition-all ${track.solo ? 'bg-lime-400 text-black border-lime-500' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}
-                                    >S</button>
-                                </div>
-
-                                {/* Volume Slider */}
+                                {/* Volume Slider Only (Lite Mode) */}
                                 <div className="flex items-center gap-1 px-1">
-                                    <Volume2 size={10} className="text-zinc-500" />
+                                    <Volume2 size={12} className={track.mute ? "text-red-500" : "text-zinc-400"} />
                                     <input
                                         type="range"
                                         min="0" max="1" step="0.01"
@@ -144,19 +132,6 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                         onClick={e => e.stopPropagation()}
                                         onChange={(e) => onUpdateTrackVolume(track.id, parseFloat(e.target.value))}
                                         className="w-full h-1 bg-zinc-700 rounded-full appearance-none accent-orange-500"
-                                    />
-                                </div>
-
-                                {/* Pan Slider */}
-                                <div className="flex items-center gap-1 px-1">
-                                    <MoveHorizontal size={10} className="text-zinc-500" />
-                                    <input
-                                        type="range"
-                                        min="-1" max="1" step="0.01"
-                                        value={track.pan}
-                                        onClick={e => e.stopPropagation()}
-                                        onChange={(e) => onUpdateTrackPan(track.id, parseFloat(e.target.value))}
-                                        className="w-full h-1 bg-zinc-700 rounded-full appearance-none accent-lime-500"
                                     />
                                 </div>
                             </div>
@@ -195,7 +170,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                     {isPlaying ? <Pause fill="black" /> : <Play fill="black" />}
                 </button>
                 <div className="text-2xl font-mono font-bold text-orange-500 w-32 text-center">
-                    {formatTime(currentTime)}
+                    {formatTime(currentTime, true)}
                 </div>
                 <div className="flex gap-4 text-zinc-400">
                     <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="active:text-white"><Activity size={18} /></button>
@@ -210,6 +185,7 @@ const Ruler: React.FC<{ duration: number, zoom: number, scroll: number }> = ({ d
     // Safety: prevent infinite loop if duration is huge or NaN
     const safeDuration = Number.isFinite(duration) ? Math.min(Math.max(0, duration), 3600) : 0;
     const step = Math.max(1, zoom < 30 ? 5 : 1);
+    const ticks: number[] = [];
 
     for (let i = 0; i < safeDuration; i += step) {
         ticks.push(i);

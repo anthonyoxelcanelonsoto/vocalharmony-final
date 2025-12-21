@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -67,6 +67,7 @@ const processPitchShift = async (originalBuffer: AudioBuffer, semitones: number)
 
     return result as unknown as AudioBuffer;
 };
+import { VisualEQ } from './components/VisualEQ';
 import { Knob, VuMeter, MiniFader, SignalLight } from './components/Controls';
 import { PitchVisualizer } from './components/Visualizer';
 import { WaveformEditor } from './components/WaveformEditor';
@@ -83,13 +84,100 @@ const vibrate = (ms: number = 10) => {
 };
 
 const getInitialTracks = (): Track[] => [
-    { id: 99, name: "VOX REC", color: "#ef4444", vol: 1.0, pan: 0.5, mute: false, solo: false, hasFile: false, isArmed: true, isTuning: false, duration: 0, pitchShift: 0 },
+    {
+        id: 0,
+        name: "MASTER",
+        color: "#f97316",
+        vol: 0.8,
+        pan: 0,
+        mute: false,
+        solo: false,
+        hasFile: false,
+        isArmed: false,
+        isTuning: false,
+        duration: 0,
+        pitchShift: 0,
+        isMaster: true,
+        eq: {
+            enabled: true,
+            low: { gain: 0, freq: 80 },
+            lowMid: { gain: 0, freq: 300, q: 1 },
+            mid: { gain: 0, freq: 1000, q: 1 },
+            highMid: { gain: 0, freq: 3000, q: 1 },
+            high: { gain: 0, freq: 10000 }
+        }
+    },
 ];
+
+const VerticalBarMeter: React.FC<{ analyser: AnalyserNode | null | undefined, isPlaying: boolean, color: string }> = ({ analyser, isPlaying, color }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        if (!canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let animationId: number;
+        const dataArray = new Uint8Array(analyser ? analyser.frequencyBinCount : 128);
+
+        const draw = () => {
+            if (!analyser || (!isPlaying && !analyser)) { // Draw empty if not playing (unless it's mic input which is always active?)
+                // Actually SignalLight keeps working if mic is armed. 
+                // We'll rely on analyser existence mostly.
+            }
+
+            if (!analyser) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#0f172a'; // slate-950
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // Simple average for volume
+            let sum = 0;
+            const range = Math.floor(dataArray.length / 4); // Check lower quarter frequencies
+            for (let i = 0; i < range; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / range;
+            const heightPct = Math.min((average / 100), 1.0); // Sensitivity adjustment
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Bar
+            const barHeight = canvas.height * heightPct;
+
+            ctx.fillStyle = color;
+            ctx.fillRect(0, canvas.height - barHeight, canvas.width, barHeight);
+
+            animationId = requestAnimationFrame(draw);
+        };
+
+        draw();
+        return () => cancelAnimationFrame(animationId);
+    }, [analyser, isPlaying, color]);
+
+    return <canvas ref={canvasRef} width={20} height={300} className="w-full h-full rounded opacity-80" />;
+};
+
+// --- REVERB HELPERS ---
+const DEFAULT_REVERB_DECAY = 1.5;
+const DEFAULT_REVERB_PREDELAY = 0.01;
+const DEFAULT_REVERB_WET = 1.0; // Bus is 100% wet
+
 
 export default function App() {
     // --- STATE ---
     const [user, setUser] = useState<any>(null); // Auth User
     const [tracks, setTracks] = useState<Track[]>(getInitialTracks());
+    const [isUILocked, setIsUILocked] = useState(false); // UI Protection Lock
     const [selectedTrackId, setSelectedTrackId] = useState(99);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
@@ -97,6 +185,20 @@ export default function App() {
     const [isExporting, setIsExporting] = useState(false);
     const [exportFormat, setExportFormat] = useState<'wav' | 'mp3'>('mp3');
     const [latencyOffset, setLatencyOffset] = useState<number>(0); // In Milliseconds
+
+    // MASTER VOLUME SYNC - DEPRECATED TONE.JS EFFECT
+    // We now use the Native Sync in the other useEffect
+    /*
+    useEffect(() => {
+        const masterTrack = tracks.find(t => t.isMaster);
+        if (masterTrack && typeof Tone !== 'undefined') {
+            // Convert linear 0-1 to Decibels (-Infinity to 0)
+            // Simple mapping: 0 = mute (-100dB), 1 = 0dB
+            const dbVal = masterTrack.vol > 0.01 ? 20 * Math.log10(masterTrack.vol) : -100;
+            Tone.Destination.volume.rampTo(dbVal, 0.1);
+        }
+    }, [tracks]);
+    */
 
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
     const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
@@ -247,21 +349,34 @@ export default function App() {
 
     // --- REFS ---
     const audioBuffersRef = useRef<{ [id: number]: AudioBuffer }>({});
-    const processedBuffersRef = useRef<{ [id: number]: AudioBuffer }>({}); // Cache for pitch-shifted buffers
+    const processedBuffersRef = useRef<{ [key: number]: AudioBuffer }>({}); // Cache for pitch-shifted buffers
     const activeSourcesRef = useRef<{ [id: number]: AudioBufferSourceNode }>({});
-    const trackGainNodesRef = useRef<{ [id: number]: GainNode }>({});
-    const trackPanNodesRef = useRef<{ [id: number]: StereoPannerNode }>({});
-    const trackAnalysersRef = useRef<{ [id: number]: AnalyserNode }>({});
-    const masterGainRef = useRef<GainNode | null>(null);
+    const trackGainNodesRef = useRef<{ [key: number]: GainNode }>({});
+    const trackPanNodesRef = useRef<{ [key: number]: StereoPannerNode }>({});
+    const trackAnalysersRef = useRef<{ [key: number]: AnalyserNode }>({});
+    const masterGainNodeRef = useRef<GainNode | null>(null); // NEW: Native Master Gain
     const startTimeRef = useRef<number>(0);
     const pauseOffsetRef = useRef<number>(0);
     const animationFrameRef = useRef<number | undefined>(undefined);
+    const playbackRafRef = useRef<number>(); // Added playbackRafRef
 
     const isPlayingRef = useRef(false);
     const isRecordingRef = useRef(false);
     const noteBlocksRef = useRef<NoteBlock[]>([]);
 
     const recorderNodeRef = useRef<ScriptProcessorNode | null>(null);
+    const reverbNodeRef = useRef<Tone.Reverb | null>(null);
+    const trackReverbSendsRef = useRef<{ [id: number]: Tone.Gain }>({});
+    const trackEQNodesRef = useRef<{ [id: number]: { low: BiquadFilterNode, lowMid: BiquadFilterNode, mid: BiquadFilterNode, highMid: BiquadFilterNode, high: BiquadFilterNode } }>({});
+    const [reverbSettings, setReverbSettings] = useState({
+        decay: DEFAULT_REVERB_DECAY,
+        preDelay: DEFAULT_REVERB_PREDELAY,
+        isOpen: false,
+        activeTrackId: null as number | null
+    });
+    const [eqModalOpen, setEqModalOpen] = useState(false);
+    const [eqActiveTrackId, setEqActiveTrackId] = useState<number | null>(null);
+
     const recordingBuffersRef = useRef<Float32Array[]>([]);
     const micStreamRef = useRef<MediaStream | null>(null);
 
@@ -325,23 +440,52 @@ export default function App() {
     };
 
     const initAudioContext = async () => {
-        let ctx = audioContext;
-        if (!ctx) {
-            const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-            ctx = new Ctx({ latencyHint: 'interactive', sampleRate: 48000 });
-            setAudioContext(ctx);
+        if (audioContext) return audioContext;
 
-            const masterGain = ctx.createGain();
-            masterGain.connect(ctx.destination);
-            masterGainRef.current = masterGain;
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new Ctx({ latencyHint: 'interactive', sampleRate: 48000 });
 
-            if (selectedOutputId && (ctx as any).setSinkId) {
-                try { await (ctx as any).setSinkId(selectedOutputId); } catch (e) { }
-            }
+        // SETUP NATIVE MASTER GAIN
+        const masterGain = ctx.createGain();
+        const masterAnalyser = ctx.createAnalyser();
+        masterAnalyser.fftSize = 256; // Standard size for meter
+
+        // Connect Chain: MasterGain -> MasterAnalyser -> Destination
+        masterGain.connect(masterAnalyser);
+        masterAnalyser.connect(ctx.destination);
+
+        masterGainNodeRef.current = masterGain;
+        // Store Master Analyser in the ref map using ID 0 (Master Track ID)
+        trackAnalysersRef.current[0] = masterAnalyser;
+
+        setAudioContext(ctx);
+
+        // Tone.js Integration (if needed for FX)
+        // Tone.js Integration (if needed for FX)
+        Tone.setContext(ctx);
+
+        // INITIALIZE GLOBAL REVERB
+        if (!reverbNodeRef.current) {
+            const reverb = new Tone.Reverb({
+                decay: DEFAULT_REVERB_DECAY,
+                preDelay: DEFAULT_REVERB_PREDELAY,
+                wet: 1.0 // Send bus is 100% wet
+            });
+            await reverb.ready;
+            // Connect Reverb to Master Gain (Native)
+            // Tone.Reverb output needs to go to ctx.destination or masterGain
+            // Tone.connect(reverb, masterGain); // Mixing Tone with Native is tricky
+            // Better: Reverb -> Tone.Destination (which is ctx.destination)
+            // But we want it controllable by Master Volume?
+            // Connect Reverb -> MasterGain (Native Node)
+            Tone.connect(reverb, masterGain);
+            reverbNodeRef.current = reverb;
         }
-        if (ctx.state === 'suspended') {
-            await ctx.resume();
+
+        if (selectedOutputId && (ctx as any).setSinkId) {
+            try { await (ctx as any).setSinkId(selectedOutputId); } catch (e) { }
         }
+
         return ctx;
     };
 
@@ -485,9 +629,71 @@ export default function App() {
                     try { source.start(startTime, offset); } catch (e) { }
                 }
 
+                // 4. EQ Stage (5-Band)
+                const eqLow = ctx.createBiquadFilter(); eqLow.type = "lowshelf";
+                const eqLowMid = ctx.createBiquadFilter(); eqLowMid.type = "peaking";
+                const eqMid = ctx.createBiquadFilter(); eqMid.type = "peaking";
+                const eqHighMid = ctx.createBiquadFilter(); eqHighMid.type = "peaking";
+                const eqHigh = ctx.createBiquadFilter(); eqHigh.type = "highshelf";
+
+                // Connect EQ Chain: Source -> Low -> LowMid -> Mid -> HighMid -> High -> Gain
+                source.connect(eqLow);
+                eqLow.connect(eqLowMid);
+                eqLowMid.connect(eqMid);
+                eqMid.connect(eqHighMid);
+                eqHighMid.connect(eqHigh);
+                eqHigh.connect(gainNode);
+
+                // Set Initial Values
+                if (track.eq && track.eq.enabled) {
+                    // Low
+                    eqLow.frequency.value = track.eq.low.freq;
+                    eqLow.gain.value = track.eq.low.gain;
+                    // LowMid
+                    eqLowMid.frequency.value = track.eq.lowMid.freq;
+                    eqLowMid.Q.value = track.eq.lowMid.q;
+                    eqLowMid.gain.value = track.eq.lowMid.gain;
+                    // Mid
+                    eqMid.frequency.value = track.eq.mid.freq;
+                    eqMid.Q.value = track.eq.mid.q;
+                    eqMid.gain.value = track.eq.mid.gain;
+                    // HighMid
+                    eqHighMid.frequency.value = track.eq.highMid.freq;
+                    eqHighMid.Q.value = track.eq.highMid.q;
+                    eqHighMid.gain.value = track.eq.highMid.gain;
+                    // High
+                    eqHigh.frequency.value = track.eq.high.freq;
+                    eqHigh.gain.value = track.eq.high.gain;
+                } else {
+                    // Bypass-ish (Flat)
+                    eqLow.gain.value = 0;
+                    eqLowMid.gain.value = 0;
+                    eqMid.gain.value = 0;
+                    eqHighMid.gain.value = 0;
+                    eqHigh.gain.value = 0;
+                }
+
+                trackEQNodesRef.current[track.id] = { low: eqLow, lowMid: eqLowMid, mid: eqMid, highMid: eqHighMid, high: eqHigh };
+
+                // CONNECT TO REVERB SEND (Wet Path)
+                // Source (or Post-EQ) -> SendGain -> Reverb
+                // Use the EQ'd signal for reverb
+                let sendNode = trackReverbSendsRef.current[track.id];
+                if (!sendNode) {
+                    sendNode = new Tone.Gain(0);
+                    sendNode.connect(reverbNodeRef.current!);
+                    trackReverbSendsRef.current[track.id] = sendNode;
+                }
+                // Connect Native EQ Output -> Tone Gain
+                Tone.connect(eqHigh, sendNode);
+
+                // Update Send Gain
+                const shouldSend = !track.mute && track.reverbSend && track.reverbSend > 0;
+                sendNode.gain.value = shouldSend ? track.reverbSend! : 0;
+
                 gainNode.connect(panNode);
                 panNode.connect(analyser);
-                if (masterGainRef.current) analyser.connect(masterGainRef.current);
+                if (masterGainNodeRef.current) analyser.connect(masterGainNodeRef.current);
 
                 const shouldPlay = !track.mute && (!anySolo || track.solo);
                 gainNode.gain.value = shouldPlay ? track.vol : 0;
@@ -590,16 +796,28 @@ export default function App() {
                 const source = offlineCtx.createBufferSource();
                 source.buffer = buffer;
 
-                const panner = offlineCtx.createStereoPanner();
-                panner.pan.value = track.pan;
+                const pannerNode = offlineCtx.createStereoPanner();
+                const gainNode = offlineCtx.createGain();
+                const analyser = offlineCtx.createAnalyser(); // Added analyser for consistency, though not strictly needed for mixdown
 
-                const gain = offlineCtx.createGain();
-                gain.gain.value = track.vol;
+                // Connect Graph
+                // source -> analyser -> gain -> pan -> MASTER -> destination
+                source.connect(analyser);
+                analyser.connect(gainNode);
+                gainNode.connect(pannerNode);
 
-                source.connect(panner);
-                panner.connect(gain);
-                gain.connect(offlineCtx.destination);
+                // Connect to MASTER GAIN if available, otherwise destination
+                if (masterGainNodeRef.current) {
+                    pannerNode.connect(masterGainNodeRef.current);
+                } else {
+                    pannerNode.connect(offlineCtx.destination); // Fallback
+                }
 
+                // Set track properties
+                gainNode.gain.value = track.vol;
+                pannerNode.pan.value = (track.pan * 2) - 1; // Convert 0-1 to -1 to 1
+
+                // Start source at 0 (offline context starts from beginning)
                 source.start(0);
             }
         }
@@ -987,14 +1205,22 @@ export default function App() {
             // Sanitize name: remove path, remove extension, limit to 20 chars
             const cleanName = (fileName.split('/').pop() || fileName).replace(/\.[^/.]+$/, "").substring(0, 20);
 
-            let track = newTracks.find(t => !t.hasFile && t.id !== 99);
+            let track = newTracks.find(t => !t.hasFile && t.id !== 99 && !t.isMaster && t.id !== 0);
             if (!track) {
                 const id = Math.max(...newTracks.map(t => t.id), 0) + 1;
                 track = {
                     id,
                     name: cleanName,
                     color: colors[id % colors.length],
-                    vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0
+                    vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0,
+                    eq: {
+                        enabled: true,
+                        low: { gain: 0, freq: 80 },
+                        lowMid: { gain: 0, freq: 300, q: 1 },
+                        mid: { gain: 0, freq: 1000, q: 1 },
+                        highMid: { gain: 0, freq: 3000, q: 1 },
+                        high: { gain: 0, freq: 10000 }
+                    }
                 };
                 newTracks.push(track);
             } else {
@@ -1022,6 +1248,37 @@ export default function App() {
                             const u8 = await content.files[filename].async('uint8array');
                             const buffer = await ctx.decodeAudioData(u8.buffer);
                             processBuffer(buffer, filename);
+                        }
+
+                        // ADDED: Local Zip Import LRC Support
+                        if (filename.match(/\.lrc$/i)) {
+                            try {
+                                const lrcText = await content.files[filename].async('string');
+                                const parsed = parseLRC(lrcText);
+                                if (parsed.length > 0) {
+                                    if (filename.match(/chord|acorde|harmony/i)) {
+                                        setImportedChords(parsed);
+                                        // console.log("Imported Chords locally:", parsed.length);
+                                    } else {
+                                        setImportedLyrics(parsed);
+                                        // console.log("Imported Lyrics locally:", parsed.length);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("Error parsing local LRC", e);
+                            }
+                        }
+
+                        // ADDED: Local Zip Import Key/Tonality Support
+                        if (filename.match(/(tonalidad|tonality|key)\.txt$/i)) {
+                            try {
+                                const text = await content.files[filename].async('string');
+                                if (text) {
+                                    setKeySignature(text.trim().substring(0, 3));
+                                }
+                            } catch (e) {
+                                console.error("Error parsing local key file", e);
+                            }
                         }
                     }
                 } catch (err) { console.error(err); }
@@ -1122,6 +1379,7 @@ export default function App() {
                     solo: t.solo,
                     isArmed: t.isArmed, // Store armed state preference
                     pitchShift: t.pitchShift,
+                    eq: t.eq,
                 })),
                 global: {
                     keySignature,
@@ -1267,20 +1525,15 @@ export default function App() {
         }
     };
 
+    // MASTER VOLUME SYNC (NATIVE)
     useEffect(() => {
-        if (!audioContext) return;
-        const anySolo = tracks.some(t => t.solo);
-        tracks.forEach(track => {
-            const volNode = trackGainNodesRef.current[track.id];
-            if (volNode) {
-                const shouldPlay = !track.mute && (!anySolo || track.solo);
-                volNode.gain.setTargetAtTime(shouldPlay ? track.vol : 0, audioContext.currentTime, 0.05);
-            }
-            const panNode = trackPanNodesRef.current[track.id];
-            if (panNode) {
-                panNode.pan.setTargetAtTime((track.pan * 2) - 1, audioContext.currentTime, 0.05);
-            }
-        });
+        const masterTrack = tracks.find(t => t.isMaster);
+        if (masterTrack && masterGainNodeRef.current && audioContext) {
+            // Linear ramp for smooth volume change
+            // We use linear gain for fader (0.0 to 1.0) directly or log? 
+            // Standard faders often usually linear 0-1 mapped to gain.
+            masterGainNodeRef.current.gain.setTargetAtTime(masterTrack.vol, audioContext.currentTime, 0.05);
+        }
     }, [tracks, audioContext]);
 
     const handleModeToggle = () => {
@@ -1309,6 +1562,98 @@ export default function App() {
             }
         }
     }, [appMode, selectedTrackId, noteBlocks.length]);
+
+    // RE-INSTATE TRACK VOLUME/PAN UPDATE LOGIC (MOVED FROM DELETED EFFECT)
+    useEffect(() => {
+        if (!audioContext) return;
+        const anySolo = tracks.filter(t => !t.isMaster).some(t => t.solo); // Check regular tracks for solo
+
+        tracks.forEach(track => {
+            if (track.isMaster) return; // Master handled separately
+
+            const volNode = trackGainNodesRef.current[track.id];
+            if (volNode) {
+                // If any track is soloed, mute others unless they are soloed
+                const shouldPlay = !track.mute && (!anySolo || track.solo);
+                volNode.gain.setTargetAtTime(shouldPlay ? track.vol : 0, audioContext.currentTime, 0.05);
+            }
+            const panNode = trackPanNodesRef.current[track.id];
+            if (panNode) {
+                panNode.pan.setTargetAtTime((track.pan * 2) - 1, audioContext.currentTime, 0.05);
+            }
+        });
+    }, [tracks, audioContext]); // Run when tracks change (volume/pan updates)
+
+    // --- EFFECT: UPDATE EQ PARAMS REALTIME ---
+    useEffect(() => {
+        tracks.forEach(t => {
+            const nodes = trackEQNodesRef.current[t.id];
+            if (nodes && t.eq) {
+                const now = audioContext?.currentTime || 0;
+                // If disabled, we flatten everything (or we could use bypass node, but flat gain is easier for smooth transition)
+                if (!t.eq.enabled) {
+                    nodes.low.gain.setTargetAtTime(0, now, 0.1);
+                    nodes.lowMid.gain.setTargetAtTime(0, now, 0.1);
+                    nodes.mid.gain.setTargetAtTime(0, now, 0.1);
+                    nodes.highMid.gain.setTargetAtTime(0, now, 0.1);
+                    nodes.high.gain.setTargetAtTime(0, now, 0.1);
+                } else {
+                    // Low
+                    nodes.low.frequency.setTargetAtTime(t.eq.low.freq, now, 0.1);
+                    nodes.low.gain.setTargetAtTime(t.eq.low.gain, now, 0.1);
+
+                    // LowMid
+                    nodes.lowMid.frequency.setTargetAtTime(t.eq.lowMid.freq, now, 0.1);
+                    nodes.lowMid.Q.setTargetAtTime(t.eq.lowMid.q, now, 0.1);
+                    nodes.lowMid.gain.setTargetAtTime(t.eq.lowMid.gain, now, 0.1);
+
+                    // Mid
+                    nodes.mid.frequency.setTargetAtTime(t.eq.mid.freq, now, 0.1);
+                    nodes.mid.Q.setTargetAtTime(t.eq.mid.q, now, 0.1);
+                    nodes.mid.gain.setTargetAtTime(t.eq.mid.gain, now, 0.1);
+
+                    // HighMid
+                    nodes.highMid.frequency.setTargetAtTime(t.eq.highMid.freq, now, 0.1);
+                    nodes.highMid.Q.setTargetAtTime(t.eq.highMid.q, now, 0.1);
+                    nodes.highMid.gain.setTargetAtTime(t.eq.highMid.gain, now, 0.1);
+
+                    // High
+                    nodes.high.frequency.setTargetAtTime(t.eq.high.freq, now, 0.1);
+                    nodes.high.gain.setTargetAtTime(t.eq.high.gain, now, 0.1);
+                }
+            }
+        });
+    }, [tracks, audioContext]);
+
+    // UPDATE REVERB SENDS & PARAMS
+    useEffect(() => {
+        if (!audioContext) return;
+        if (reverbNodeRef.current) {
+            reverbNodeRef.current.decay = reverbSettings.decay;
+            reverbNodeRef.current.preDelay = reverbSettings.preDelay;
+
+            tracks.forEach(track => {
+                let sendNode = trackReverbSendsRef.current[track.id];
+                if (!sendNode) {
+                    // Create if missing
+                    sendNode = new Tone.Gain(0);
+                    // We need the Source -> Send -> Reverb connection.
+                    // BUT 'activeSourcesRef' holds Native SourceNodes.
+                    // Connecting Native Source -> Tone Gain -> Tone Reverb works if context is shared.
+                    // We do this connection in playAudio ideally.
+                    // Here we just update Gain value.
+                    sendNode.connect(reverbNodeRef.current!);
+                    trackReverbSendsRef.current[track.id] = sendNode;
+                }
+                // Update Gain
+                if (sendNode) {
+                    // If muted, send is 0? Yes usually post-fader or "mute mutes everything"
+                    const shouldSend = !track.mute && track.reverbSend && track.reverbSend > 0;
+                    sendNode.gain.rampTo(shouldSend ? track.reverbSend! : 0, 0.1);
+                }
+            });
+        }
+    }, [tracks, audioContext, reverbSettings]); // Run when tracks change (volume/pan updates)
 
     const activeAnalyser = isRecording
         ? micAnalyser
@@ -1345,7 +1690,34 @@ export default function App() {
         const ctx = await initAudioContext();
         if (!ctx) return;
 
-        let newTracks = getInitialTracks();
+        // PRESERVE OR RE-CREATE MASTER TRACK
+        let newTracks: Track[] = [
+            // Always start with MASTER
+            {
+                id: 0,
+                name: "MASTER",
+                color: "#f97316",
+                vol: 0.8,
+                pan: 0,
+                mute: false,
+                solo: false,
+                hasFile: false,
+                isArmed: false,
+                isTuning: false,
+                duration: 0,
+                pitchShift: 0,
+                isMaster: true,
+                eq: {
+                    enabled: true,
+                    low: { gain: 0, freq: 80 },
+                    lowMid: { gain: 0, freq: 300, q: 1 },
+                    mid: { gain: 0, freq: 1000, q: 1 },
+                    highMid: { gain: 0, freq: 3000, q: 1 },
+                    high: { gain: 0, freq: 10000 }
+                }
+            },
+        ];
+
         let maxDur = 0;
         const colors = ["#f97316", "#84cc16", "#eab308", "#10b981", "#06b6d4", "#ec4899"];
 
@@ -1369,18 +1741,53 @@ export default function App() {
                 }
 
                 // Prepare tracks from metadata
+                // Prepare tracks from metadata
                 if (projectData.trackState && Array.isArray(projectData.trackState)) {
-                    // Start with empty tracks based on saved state, but map over them
-                    // We will reconstruct the track objects, ensuring they have all required fields
-                    newTracks = projectData.trackState.map((savedTrack: any) => ({
-                        ...savedTrack,
-                        hasFile: false, // Will set to true if file found
-                        duration: 0,
-                        isTuning: false,
-                        isArmed: savedTrack.isArmed || false // Maintain armed preference if possible
-                    }));
+                    // Start with empty tracks based on saved state
+                    let importedMaster: Track | undefined;
+                    const cleanImported: Track[] = [];
+
+                    // Iterate over saved state to separate Master from Checks
+                    projectData.trackState.forEach((savedTrack: any) => {
+                        if (savedTrack.isMaster) {
+                            // Found a saved master track
+                            importedMaster = savedTrack;
+                        } else {
+                            // Found a regular track
+                            cleanImported.push({
+                                ...savedTrack,
+                                id: cleanImported.length + 1, // FORCE NEW IDs (1, 2, 3...)
+                                hasFile: false,
+                                duration: 0,
+                                isTuning: false,
+                                // Maintain saved arm state or default false
+                                isArmed: savedTrack.isArmed || false,
+                                isMaster: false // Ensure regular tracks typically aren't master
+                            });
+                        }
+                    });
+
+                    if (importedMaster) {
+                        // Update our fresh master (ID 0) with imported settings (Volume/Pan)
+                        // BUT KEEP OUR COLOR (Orange) as requested
+                        newTracks[0] = {
+                            ...newTracks[0],
+                            ...importedMaster,
+                            color: newTracks[0].color, // Enforce Orange
+                            isMaster: true
+                        };
+                        // Add the rest
+                        newTracks = [newTracks[0], ...cleanImported];
+                    } else {
+                        // If no master in saved state, just append the non-master tracks
+                        newTracks = [newTracks[0], ...cleanImported];
+                    }
+
+                    // LOGGING
+                    console.log("Renumbered imported tracks:", newTracks);
                 }
-            }
+            } // Closes if (projectData.trackState)
+            // Removed extra brace to keep loop inside TRY block
 
             for (const filename of Object.keys(content.files)) {
                 if (filename.match(/\.(mp3|wav|ogg|m4a)$/i)) {
@@ -1388,42 +1795,60 @@ export default function App() {
                     const buffer = await ctx.decodeAudioData(u8.buffer);
 
                     if (projectData) {
-                        // Match file to track by ID prefix "ID_Name.mp3"
+                        // Match file by ID prefix? Old IDs are gone. 
+                        // We must match by NAME or original Index.
+                        // Ideally project.json saves filenames? 
+                        // If not, we try to match by name "ID_Name.mp3" -> Name
+
                         const match = filename.match(/^(\d+)_/);
+                        let track = null;
+
                         if (match) {
-                            const trackId = parseInt(match[1]);
-                            const track = newTracks.find(t => t.id === trackId);
-                            if (track) {
-                                track.hasFile = true;
-                                track.duration = buffer.duration;
-                                audioBuffersRef.current[trackId] = buffer;
-                                if (buffer.duration > maxDur) maxDur = buffer.duration;
-                            }
-                        } else {
-                            // Fallback if naming convention fails but project.json exists
-                            // Try to find by name match
+                            // Old behavior relied on ID match. 
+                            // Since we renumbered, we can't trust ID match directly if IDs changed.
+                            // But wait, if we renumbered 0->1, 1->2... 
+                            // It's safer to match by NAME if possible.
+                            // Or, we assume the ORDER in trackState matches the order of numbered files? Risky.
+
+                            // Let's try matching by Name first (removing ID prefix from filename)
+                            const cleanNamePart = filename.replace(/^\d+_/, "").replace(/\.[^/.]+$/, "");
+                            track = newTracks.find(t => t.name === cleanNamePart && !t.isMaster);
+                        }
+
+                        if (!track) {
+                            // Fallback: Name match without ID logic
                             const cleanName = filename.replace(/\.[^/.]+$/, "");
-                            const track = newTracks.find(t => t.name === cleanName);
-                            if (track) {
-                                track.hasFile = true;
-                                track.duration = buffer.duration;
-                                audioBuffersRef.current[track.id] = buffer;
-                                if (buffer.duration > maxDur) maxDur = buffer.duration;
-                            }
+                            track = newTracks.find(t => t.name === cleanName && !t.isMaster);
+                        }
+
+                        if (track) {
+                            track.hasFile = true;
+                            track.duration = buffer.duration;
+                            audioBuffersRef.current[track.id] = buffer; // Use NEW ID
+                            if (buffer.duration > maxDur) maxDur = buffer.duration;
                         }
                     } else {
                         // LEGACY IMPORT (No project.json)
                         // Sanitize name
                         const cleanName = (filename.split('/').pop() || filename).replace(/\.[^/.]+$/, "").substring(0, 20);
 
-                        let track = newTracks.find(t => !t.hasFile && t.id !== 99);
+                        // Find existing track to fill? Only if not master
+                        let track = newTracks.find(t => !t.hasFile && t.id !== 99 && t.id !== 0 && !t.isMaster);
                         if (!track) {
                             const id = Math.max(...newTracks.map(t => t.id), 0) + 1;
                             track = {
                                 id,
                                 name: cleanName,
                                 color: colors[id % colors.length],
-                                vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0
+                                vol: 0.7, pan: 0.5, mute: false, solo: false, hasFile: true, isArmed: false, isTuning: false, duration: buffer.duration, pitchShift: 0,
+                                eq: {
+                                    enabled: true,
+                                    low: { gain: 0, freq: 80 },
+                                    lowMid: { gain: 0, freq: 300, q: 1 },
+                                    mid: { gain: 0, freq: 1000, q: 1 },
+                                    highMid: { gain: 0, freq: 3000, q: 1 },
+                                    high: { gain: 0, freq: 10000 }
+                                }
                             };
                             newTracks.push(track);
                         } else {
@@ -1439,10 +1864,16 @@ export default function App() {
                     }
                 }
 
+                // DEBUG: Verify files found
+                // const allFiles = Object.keys(content.files).join(", ");
+                // alert(`ZIP Loaded. Files: ${allFiles}`);
+
                 // Keep LRC/Chord logic
                 if (filename.match(/\.lrc$/i)) {
+                    // alert(`Found LRC: ${filename}`);
                     const lrcText = await content.files[filename].async('string');
                     const parsedLyrics = parseLRC(lrcText);
+                    // alert(`Parsed Lines: ${parsedLyrics.length}`);
                     if (filename.match(/chord|acorde|harmony/i)) {
                         if (parsedLyrics.length > 0) setImportedChords(parsedLyrics);
                     } else {
@@ -1531,6 +1962,15 @@ export default function App() {
                 {/* RIGHT ACTIONS */}
                 <div className="flex items-center gap-2">
 
+                    {/* LOCK UI BUTTON */}
+                    <button
+                        onClick={() => { vibrate(10); setIsUILocked(!isUILocked); }}
+                        className={`p-2 rounded-full transition-colors active:scale-95 ${isUILocked ? 'text-red-500 bg-red-500/10' : 'text-slate-400 hover:text-white'}`}
+                        title={isUILocked ? "Unlock UI" : "Lock UI"}
+                    >
+                        {isUILocked ? <Lock size={20} /> : <Unlock size={20} />}
+                    </button>
+
                     <button
                         onClick={() => { vibrate(10); setShowShareModal(true); }}
                         className="p-2 rounded-full hover:bg-slate-800 transition-colors active:scale-95 text-slate-400"
@@ -1578,7 +2018,7 @@ export default function App() {
 
                                     <button
                                         onClick={() => { vibrate(10); setShowSettings(true); setShowMenu(false); }}
-                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-white transition-colors"
+                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-gray-400 transition-colors"
                                     >
                                         <Settings size={18} className="text-gray-400" />
                                         <span>Configuración</span>
@@ -1801,217 +2241,229 @@ export default function App() {
                         </div>
                     </div>
 
-                    <div className={`h-[220px] shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe pb-6 relative
+                    <div className={`h-[320px] shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe pb-6 relative
               ${appMode === 'ULTRA' ? 'bg-black/90' : (appMode === 'SIMPLE' ? 'bg-slate-900/90' : 'bg-slate-900/90')}
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
                             {tracks
-                                .map(track => (
-                                    <div
-                                        key={track.id}
-                                        onClick={() => { vibrate(5); setSelectedTrackId(track.id); }}
-                                        className={`
-                            snap-center shrink-0 w-[110px] h-[96%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
+                                .map(track => {
+                                    // HIDE MASTER IN LITE MODE
+                                    if (appMode === 'SIMPLE' && track.isMaster) return null;
+
+                                    return (
+                                        <div
+                                            key={track.id}
+                                            onClick={() => { vibrate(5); setSelectedTrackId(track.id); }}
+                                            className={`
+                            snap-center shrink-0 h-[96%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
+                            ${appMode === 'SIMPLE' ? 'w-[70px]' : 'w-[110px]'}
+                            ${track.isMaster ? 'sticky left-2 z-30 mr-2 shadow-[4px_0_15px_rgba(0,0,0,0.5)]' : ''}
                             ${selectedTrackId === track.id
-                                                ? (appMode === 'ULTRA'
-                                                    ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
-                                                    : (appMode === 'SIMPLE' ? 'bg-slate-700 border-lime-400 shadow-[0_0_10px_rgba(132,204,22,0.2)]' : 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20')
-                                                )
-                                                : (appMode === 'SIMPLE' ? 'bg-slate-800 border-slate-600' : 'bg-slate-950/40 border-slate-800')
-                                            }
+                                                    ? (appMode === 'ULTRA'
+                                                        ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
+                                                        : (appMode === 'SIMPLE' ? 'bg-slate-700 border-lime-400 shadow-[0_0_10px_rgba(132,204,22,0.2)]' : 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20'))
+                                                    : (appMode === 'SIMPLE' ? 'bg-slate-800 border-slate-600' : 'bg-slate-950/40 border-slate-800')
+                                                }
+                            ${track.isMaster && selectedTrackId !== track.id ? 'bg-slate-900 border-orange-500/30' : ''}
                         `}
-                                    >
-                                        <div className="flex flex-col gap-1 mb-1 w-full">
-                                            <div className="flex items-center gap-1.5 px-1">
-                                                <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
-                                                <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setRenamingTrackId(track.id);
-                                                        setRenameText(track.name);
-                                                    }}
-                                                    className="p-1 text-slate-500 hover:text-white transition-colors opacity-70 hover:opacity-100"
+                                        >
+                                            {/* SIMPLE MODE VERTICAL NAME (READ ONLY) */}
+                                            {appMode === 'SIMPLE' && (
+                                                <div
+                                                    className="absolute left-0.5 top-12 bottom-12 w-4 flex items-center justify-center z-20 opacity-50 select-none"
                                                 >
-                                                    <Edit2 size={10} />
-                                                </button>
-                                            </div>
-
-                                            {!isRecording && (
-                                                <div className="flex items-center justify-end gap-1 px-1">
-                                                    {/* MODE/MIC BUTTON */}
-                                                    <button
-                                                        onClick={(e) => handleTrackModeClick(track.id, e)}
-                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
-                                                            ${track.isArmed
-                                                                ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                                                                : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500'
-                                                            }
-                                                        `}
-                                                        title="Arm for Recording"
-                                                    >
-                                                        <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />
-                                                    </button>
-
-                                                    {/* TUNING BUTTON - ULTRA MODE ONLY */}
-                                                    {appMode === 'ULTRA' && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                if (track.hasFile) openPitchModal(track.id, track.pitchShift || 0, e);
-                                                            }}
-                                                            disabled={!track.hasFile}
-                                                            className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
-                                                                ${track.hasFile
-                                                                    ? (track.isTuning
-                                                                        ? 'bg-orange-500/20 border-orange-500 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
-                                                                        : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500')
-                                                                    : 'bg-slate-900 border-slate-800 text-slate-700 cursor-not-allowed opacity-50'
-                                                                }
-                                                            `}
-                                                            title={track.hasFile ? "Pitch Tuning" : "Record audio to enable Tuning"}
-                                                        >
-                                                            <Wand2 size={12} />
-                                                        </button>
-                                                    )}
-
-                                                    {/* DELETE BUTTON - ALL MODES */}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            vibrate(10);
-                                                            setDeleteTrackId(track.id);
-                                                        }}
-                                                        className="h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-red-500/20 hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
-                                                        title="Delete Track"
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </button>
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>
+                                                        {track.name}
+                                                    </span>
                                                 </div>
                                             )}
-                                        </div>
 
-                                        {track.isArmed ? (
-                                            <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                                                <button
-                                                    onClick={handleToggleRecord}
-                                                    className={`
+                                            {/* UNIVERSAL VERTICAL METER (RIGHT SIDE) */}
+                                            <div className="absolute right-1 top-2 bottom-2 w-1.5 z-10 rounded-full overflow-hidden bg-slate-950/50">
+                                                <VerticalBarMeter
+                                                    analyser={trackAnalysersRef.current[track.id]}
+                                                    isPlaying={isPlaying}
+                                                    color={track.color}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1 mb-1 w-full">
+                                                <div className="flex items-center gap-1.5 px-1">
+                                                    <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
+
+                                                    {/* HIDE NAME HEADER IN SIMPLE MODE */}
+                                                    {appMode !== 'SIMPLE' && (
+                                                        <>
+                                                            <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (isUILocked) return;
+                                                                    setRenamingTrackId(track.id);
+                                                                    setRenameText(track.name);
+                                                                }}
+                                                                className="p-1 text-slate-500 hover:text-white transition-colors opacity-70 hover:opacity-100"
+                                                            >
+                                                                <Edit2 size={10} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {!isRecording && (
+                                                    <div className="flex items-center justify-end gap-1 px-1">
+                                                        {/* MASTER TRACK IDENTIFIER or NORMAL TRACK CONTROLS */}
+                                                        {track.isMaster ? (
+                                                            <div className="h-6 flex-1 rounded-md flex items-center justify-center bg-orange-500/10 border border-orange-500/30 text-[9px] font-black tracking-widest text-orange-500 select-none">
+                                                                MAIN
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                {/* MODE/MIC BUTTON (PRO/ULTRA) OR SOLO (SIMPLE) */}
+                                                                {appMode === 'SIMPLE' ? (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (isUILocked) return;
+                                                                            vibrate(5);
+                                                                            // EXCLUSIVE SOLO LOGIC
+                                                                            setTracks(tracks.map(t => ({
+                                                                                ...t,
+                                                                                solo: t.id === track.id ? !t.solo : false
+                                                                            })));
+                                                                        }}
+                                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                                    ${track.solo
+                                                                                ? 'bg-lime-400 border-lime-500 text-black shadow-[0_0_10px_rgba(132,204,22,0.4)]'
+                                                                                : 'bg-slate-800 border-slate-600 text-slate-500 hover:bg-slate-700'
+                                                                            }
+                                                                `}
+                                                                    >
+                                                                        <span className="text-[9px] font-black">S</span>
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={(e) => !isUILocked && handleTrackModeClick(track.id, e)}
+                                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                                    ${track.isArmed
+                                                                                ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                                                                                : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500'
+                                                                            }
+                                                                `}
+                                                                        title="Arm for Recording"
+                                                                    >
+                                                                        <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />
+                                                                    </button>
+                                                                )}
+
+                                                                {/* TUNING BUTTON - ULTRA MODE ONLY */}
+                                                                {appMode === 'ULTRA' && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            if (track.hasFile) openPitchModal(track.id, track.pitchShift || 0, e);
+                                                                        }}
+                                                                        disabled={!track.hasFile}
+                                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                                        ${track.hasFile
+                                                                                ? (track.isTuning
+                                                                                    ? 'bg-orange-500/20 border-orange-500 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+                                                                                    : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500')
+                                                                                : 'bg-slate-900 border-slate-800 text-slate-700 cursor-not-allowed opacity-50'
+                                                                            }
+                                                                    `}
+                                                                        title={track.hasFile ? "Pitch Tuning" : "Record audio to enable Tuning"}
+                                                                    >
+                                                                        <Wand2 size={12} />
+                                                                    </button>
+                                                                )}
+
+                                                                {/* DELETE BUTTON - PRO/ULTRA ONLY */}
+                                                                {appMode !== 'SIMPLE' && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (isUILocked) return;
+                                                                            vibrate(10);
+                                                                            setDeleteTrackId(track.id);
+                                                                        }}
+                                                                        className="h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-red-500/20 hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
+                                                                        title="Delete Track"
+                                                                    >
+                                                                        <Trash2 size={12} />
+                                                                    </button>
+                                                                )}
+
+                                                                <button
+                                                                    disabled={isUILocked}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        vibrate(10);
+                                                                        setEqActiveTrackId(track.id);
+                                                                        setEqModalOpen(true);
+                                                                    }}
+                                                                    className={`h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-purple-500/20 hover:border-purple-500 hover:text-purple-500 transition-all active:scale-95 ${track.eq?.enabled && (track.eq.low.gain !== 0 || track.eq.mid.gain !== 0 || track.eq.high.gain !== 0) ? 'text-purple-400 border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.3)]' : ''}`}
+                                                                    title="Parametric EQ"
+                                                                >
+                                                                    <Activity size={12} />
+                                                                </button>
+
+                                                                {/* REVERB BUTTON (PRO/ULTRA) */}
+                                                                {appMode !== 'SIMPLE' && (
+                                                                    <button
+                                                                        disabled={isUILocked}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            vibrate(10);
+                                                                            setReverbSettings({ ...reverbSettings, isOpen: true, activeTrackId: track.id });
+                                                                        }}
+                                                                        className={`h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-blue-500/20 hover:border-blue-500 hover:text-blue-500 transition-all active:scale-95 ${track.reverbSend && track.reverbSend > 0 ? 'text-blue-400 border-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : ''}`}
+                                                                        title="Reverb Effects"
+                                                                    >
+                                                                        <Sparkles size={12} />
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {track.isArmed ? (
+                                                <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={handleToggleRecord}
+                                                        className={`
                                         w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all shadow-xl active:scale-95
                                         ${isRecording
-                                                            ? 'bg-red-500 border-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]'
-                                                            : 'bg-slate-800 border-slate-700 text-red-500 hover:bg-slate-700'
-                                                        }
+                                                                ? 'bg-red-500 border-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]'
+                                                                : 'bg-slate-800 border-slate-700 text-red-500 hover:bg-slate-700'
+                                                            }
                                     `}
-                                                >
-                                                    {isRecording ? <Square size={24} fill="white" className="text-white" /> : <Disc size={32} fill="currentColor" />}
-                                                </button>
-                                                <span className="text-[9px] font-bold text-red-500 tracking-widest uppercase">
-                                                    {isRecording ? "REC ON" : "READY"}
-                                                </span>
-                                            </div>
-                                        ) : track.isTuning ? (
-                                            <div className="flex-1 flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-200">
-                                                <button
-                                                    onClick={(e) => openPitchModal(track.id, track.pitchShift, e)}
-                                                    className="w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all shadow-xl active:scale-95 bg-orange-600 border-orange-400 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]"
-                                                >
-                                                    <Music2 size={24} fill="currentColor" />
-                                                </button>
-                                                <span className="text-[9px] font-bold text-orange-500 tracking-widest uppercase">
-                                                    TUNING
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            appMode === 'SIMPLE' ? (
-                                                <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                                                    <SignalLight
-                                                        analyser={trackAnalysersRef.current[track.id]}
-                                                        isPlaying={isPlaying}
-                                                        color={track.color}
-                                                    />
-                                                    <div className="flex flex-col w-12 h-24 rounded-2xl overflow-hidden border border-slate-700 shadow-lg">
-                                                        {/* TOP: MUTE BUTTON */}
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                e.stopPropagation();
-                                                                vibrate(20);
-                                                                setSelectedTrackId(track.id);
-                                                                setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
-                                                            }}
-                                                            className={`
-                                                flex-1 w-full flex items-center justify-center transition-all active:bg-slate-600
-                                                ${!track.mute
-                                                                    ? 'bg-slate-700 text-white'
-                                                                    : 'bg-slate-800 text-slate-500'
-                                                                }
-                                            `}
-                                                            style={!track.mute ? {
-                                                                color: track.color
-                                                            } : {}}
-                                                        >
-                                                            <Power size={18} strokeWidth={3} />
-                                                        </button>
-
-                                                        {/* DIVIDER */}
-                                                        <div className="h-[1px] bg-slate-900 w-full" />
-
-                                                        {/* BOTTOM: EXCLUSIVE SOLO BUTTON */}
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                vibrate(20);
-                                                                setSelectedTrackId(track.id);
-                                                                // Exclusive Solo Logic
-                                                                setTracks(tracks.map(t => {
-                                                                    if (t.id === track.id) {
-                                                                        return { ...t, solo: !t.solo };
-                                                                    } else {
-                                                                        return track.solo ? t : { ...t, solo: false };
-                                                                    }
-                                                                }));
-                                                            }}
-                                                            className={`
-                                                flex-1 w-full flex items-center justify-center transition-all active:bg-slate-600
-                                                ${track.solo
-                                                                    ? 'bg-lime-400 text-black'
-                                                                    : 'bg-slate-800 text-slate-500 hover:text-slate-300'
-                                                                }
-                                            `}
-                                                        >
-                                                            <Headphones size={18} strokeWidth={3} />
-                                                        </button>
-                                                    </div>
+                                                    >
+                                                        {isRecording ? <Square size={24} fill="white" className="text-white" /> : <Disc size={32} fill="currentColor" />}
+                                                    </button>
+                                                    <span className="text-[9px] font-bold text-red-500 tracking-widest uppercase">
+                                                        {isRecording ? "REC ON" : "READY"}
+                                                    </span>
+                                                </div>
+                                            ) : track.isTuning ? (
+                                                <div className="flex-1 flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-200">
+                                                    <button
+                                                        onClick={(e) => openPitchModal(track.id, track.pitchShift, e)}
+                                                        className="w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all shadow-xl active:scale-95 bg-orange-600 border-orange-400 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+                                                    >
+                                                        <Music2 size={24} fill="currentColor" />
+                                                    </button>
+                                                    <span className="text-[9px] font-bold text-orange-500 tracking-widest uppercase">
+                                                        TUNING
+                                                    </span>
                                                 </div>
                                             ) : (
-                                                <div className="flex-1 flex flex-col gap-1">
-                                                    <div className="flex gap-1 relative z-10">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                vibrate(5);
-                                                                setSelectedTrackId(track.id);
-                                                                setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
-                                                            }}
-                                                            className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
-                                                ${track.mute ? 'bg-orange-500 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
-                                            `}
-                                                        >M</button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                vibrate(5);
-                                                                setSelectedTrackId(track.id);
-                                                                setTracks(tracks.map(t => t.id === track.id ? { ...t, solo: !t.solo } : t));
-                                                            }}
-                                                            className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
-                                                ${track.solo ? 'bg-lime-400 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
-                                            `}
-                                                        >S</button>
-                                                    </div>
-
-                                                    <div className="flex-1 flex items-end justify-between px-1 pb-1 relative z-10">
-                                                        <div className="h-full flex items-center justify-center pb-1">
+                                                appMode === 'SIMPLE' ? (
+                                                    <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                                                        {/* LITE MODE: ONLY VOLUME */}
+                                                        <div className="h-full flex items-center justify-center pb-1 w-full">
                                                             <MiniFader
+                                                                disabled={isUILocked || track.id !== selectedTrackId}
                                                                 value={track.vol}
                                                                 color={track.color}
                                                                 onChange={(val) => {
@@ -2023,31 +2475,77 @@ export default function App() {
                                                                 }}
                                                             />
                                                         </div>
-                                                        <div className="flex flex-col items-center justify-end gap-2 h-full">
-                                                            <Knob
-                                                                value={track.pan}
-                                                                color={track.color}
-                                                                size="sm"
-                                                                label="PAN"
-                                                                onChange={(val) => {
-                                                                    const newTracks = [...tracks];
-                                                                    const t = newTracks.find(x => x.id === track.id);
-                                                                    if (t) t.pan = val;
-                                                                    setTracks(newTracks);
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex-1 flex flex-col gap-1">
+                                                        <div className="flex gap-1 relative z-10">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    vibrate(5);
                                                                     setSelectedTrackId(track.id);
+                                                                    setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
                                                                 }}
-                                                            />
-                                                            <VuMeter isPlaying={isPlaying} analyser={trackAnalysersRef.current[track.id]} />
+                                                                className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
+                                                ${track.mute ? 'bg-orange-500 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
+                                            `}
+                                                            >M</button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    vibrate(5);
+                                                                    setSelectedTrackId(track.id);
+                                                                    setTracks(tracks.map(t => t.id === track.id ? { ...t, solo: !t.solo } : t));
+                                                                }}
+                                                                className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
+                                                ${track.solo ? 'bg-lime-400 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
+                                            `}
+                                                            >S</button>
+                                                        </div>
+
+                                                        <div className="flex-1 flex items-end justify-between px-1 pb-1 relative z-10">
+                                                            <div className="h-full flex items-center justify-center pb-1">
+                                                                <MiniFader
+                                                                    disabled={isUILocked || track.id !== selectedTrackId}
+                                                                    value={track.vol}
+                                                                    color={track.color}
+                                                                    onChange={(val) => {
+                                                                        const newTracks = [...tracks];
+                                                                        const t = newTracks.find(x => x.id === track.id);
+                                                                        if (t) t.vol = val;
+                                                                        setTracks(newTracks);
+                                                                        setSelectedTrackId(track.id);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col items-center justify-end gap-2 h-full">
+                                                                <Knob
+                                                                    disabled={isUILocked || track.id !== selectedTrackId}
+                                                                    value={track.pan}
+                                                                    color={track.color}
+                                                                    size="sm"
+                                                                    label="PAN"
+                                                                    onChange={(val) => {
+                                                                        const newTracks = [...tracks];
+                                                                        const t = newTracks.find(x => x.id === track.id);
+                                                                        if (t) t.pan = val;
+                                                                        setTracks(newTracks);
+                                                                        setSelectedTrackId(track.id);
+                                                                    }}
+                                                                />
+                                                                {/* Old VuMeter Removed */}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                ))}
+                                                )
+                                            )}
+                                        </div>
+                                    );
+                                })}
 
                             <div
                                 onClick={() => {
+                                    if (isUILocked) { vibrate(5); return; }
                                     vibrate(10);
                                     // ADD NEW VOX REC TRACK
                                     const newId = Math.max(...tracks.map(t => t.id), 0) + 1;
@@ -2089,716 +2587,941 @@ export default function App() {
 
             </>)}
 
-            {/* MAIN CONTENT AREA */}
-            {mainView !== 'studio' && (
-                <main className="flex-1 relative overflow-hidden bg-slate-950">
-                    {mainView === 'library' && (
-                        <div className="absolute inset-0 z-20 animate-in fade-in duration-300">
-                            <Library onLoadSong={handleLoadFromLibrary} />
-                        </div>
-                    )}
-
-                    {mainView === 'store' && (
-                        <div className="absolute inset-0 z-20 animate-in fade-in duration-300">
-                            <Store isAdminMode={isAdminMode} />
-                        </div>
-                    )}
-                </main>
-            )}
-
-            {/* PITCH EDIT MODAL (ULTRA MODE) */}
-            {pitchEditTrackId !== null && (
-                <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in zoom-in duration-200">
-                    <div className="w-full max-w-sm bg-zinc-950 rounded-2xl border border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.1)] p-6 flex flex-col items-center">
-                        <div className="w-16 h-16 rounded-full bg-orange-950/30 border border-orange-500/50 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(249,115,22,0.2)]">
-                            {isProcessingPitch ? <Loader2 size={32} className="text-orange-500 animate-spin" /> : <Music2 size={32} className="text-orange-500" />}
-                        </div>
-
-                        <h3 className="text-xl font-black text-white uppercase tracking-tighter">Track Tuning</h3>
-                        <p className="text-xs text-orange-500/80 font-bold tracking-widest mb-6">OFFLINE PITCH ENGINE</p>
-
-                        <div className="flex items-center gap-6 mb-8">
-                            <button
-                                onClick={() => setTempPitch(p => Math.max(p - 1, -12))}
-                                disabled={isProcessingPitch}
-                                className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-400 flex items-center justify-center active:scale-95 active:bg-zinc-800 transition-all disabled:opacity-50"
-                            >
-                                <Minus size={24} />
+            {/* REVERB SETTINGS MODAL (GLOBAL + SEND) */}
+            {reverbSettings.isOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
+                    <div className="w-[90%] max-w-sm bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-4 flex flex-col gap-4">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                            <h3 className="font-bold text-white flex items-center gap-2">
+                                <Sparkles size={18} className="text-blue-400" />
+                                Reverb FX
+                            </h3>
+                            <button onClick={() => setReverbSettings({ ...reverbSettings, isOpen: false })} className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full">
+                                <X size={16} />
                             </button>
+                        </div>
 
-                            <div className="flex flex-col items-center w-16">
-                                <span className={`text-4xl font-black ${tempPitch === 0 ? 'text-zinc-500' : (tempPitch > 0 ? 'text-green-500' : 'text-red-500')}`}>
-                                    {tempPitch > 0 ? `+${tempPitch}` : tempPitch}
-                                </span>
-                                <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">SEMITONES</span>
+                        {/* TRACK SEND */}
+                        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center gap-2">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Track Send</span>
+                            <div className="w-full px-2">
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.01"
+                                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                    value={tracks.find(t => t.id === reverbSettings.activeTrackId)?.reverbSend || 0}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        const tId = reverbSettings.activeTrackId;
+                                        if (tId !== null) {
+                                            setTracks(tracks.map(t => t.id === tId ? { ...t, reverbSend: val } : t));
+                                        }
+                                    }}
+                                />
+                            </div>
+                            <span className="text-xl font-black text-blue-400">
+                                {Math.round((tracks.find(t => t.id === reverbSettings.activeTrackId)?.reverbSend || 0) * 100)}%
+                            </span>
+                        </div>
+
+                        {/* GLOBAL SETTINGS */}
+                        <div className="space-y-3">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
+                                <SlidersHorizontal size={12} />
+                                Global Settings
+                            </span>
+
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-xs text-slate-400">
+                                    <span>Decay (Size)</span>
+                                    <span>{reverbSettings.decay.toFixed(1)}s</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="10"
+                                    step="0.1"
+                                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none accent-slate-400"
+                                    value={reverbSettings.decay}
+                                    onChange={(e) => setReverbSettings({ ...reverbSettings, decay: parseFloat(e.target.value) })}
+                                />
                             </div>
 
-                            <button
-                                onClick={() => setTempPitch(p => Math.min(p + 1, 12))}
-                                disabled={isProcessingPitch}
-                                className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-400 flex items-center justify-center active:scale-95 active:bg-zinc-800 transition-all disabled:opacity-50"
-                            >
-                                <Plus size={24} />
-                            </button>
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-xs text-slate-400">
+                                    <span>Pre-Delay</span>
+                                    <span>{Math.round(reverbSettings.preDelay * 1000)}ms</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="0.5"
+                                    step="0.01"
+                                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none accent-slate-400"
+                                    value={reverbSettings.preDelay}
+                                    onChange={(e) => setReverbSettings({ ...reverbSettings, preDelay: parseFloat(e.target.value) })}
+                                />
+                            </div>
                         </div>
-
-                        <div className="flex w-full gap-3">
-                            <button
-                                onClick={() => !isProcessingPitch && setPitchEditTrackId(null)}
-                                disabled={isProcessingPitch}
-                                className="flex-1 py-3 rounded-xl bg-zinc-900 text-zinc-400 font-bold border border-zinc-800 active:scale-95 transition-transform disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmPitchChange}
-                                disabled={isProcessingPitch}
-                                className="flex-1 py-3 rounded-xl bg-orange-600 text-black font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(234,88,12,0.4)] disabled:bg-orange-600/50 flex items-center justify-center gap-2"
-                            >
-                                {isProcessingPitch ? 'Rendering...' : 'Apply'}
-                            </button>
-                        </div>
-
-                        <p className="mt-4 text-[10px] text-zinc-600 text-center max-w-[200px]">
-                            {tempPitch === 0
-                                ? "Bypass Active: 0% CPU Usage. Original Audio."
-                                : "High-Quality Granular Processing. Takes a moment to render."}
-                        </p>
                     </div>
                 </div>
             )}
 
-            {/* SETTINGS MODAL */}
-            {showSettings && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
-                        <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900/50">
-                            <h2 className="font-bold text-lg text-white flex items-center gap-2">
-                                <Settings size={20} className="text-orange-500" />
-                                Audio Config
-                            </h2>
-                            <button onClick={() => setShowSettings(false)} className="p-1 rounded-full hover:bg-slate-800 text-slate-400">
-                                <X size={20} />
-                            </button>
-                        </div>
 
-                        <div className="p-6 space-y-6 overflow-y-auto no-scrollbar">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Input Device (Microphone)</label>
-                                <div className="relative">
-                                    <select
-                                        value={selectedInputId}
-                                        onChange={(e) => setSelectedInputId(e.target.value)}
-                                        className="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg p-3 appearance-none focus:border-orange-500 focus:outline-none"
-                                    >
-                                        {inputDevices.map(device => (
-                                            <option key={device.deviceId} value={device.deviceId}>
-                                                {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
-                                            </option>
-                                        ))}
-                                        {inputDevices.length === 0 && <option>Default Microphone</option>}
-                                    </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-3.5 text-slate-500 pointer-events-none" />
-                                </div>
+
+            {/* VISUAL EQ MODAL */}
+            {
+                eqModalOpen && eqActiveTrackId !== null && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in">
+                        <div className="w-[95%] max-w-2xl bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+                            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+                                <h3 className="font-bold text-white flex items-center gap-2">
+                                    <Activity size={20} className="text-purple-500" />
+                                    Parametric EQ
+                                    <span className="text-xs font-normal text-slate-500 ml-2">
+                                        {(tracks.find(t => t.id === eqActiveTrackId)?.name || "Track").toUpperCase()}
+                                    </span>
+                                </h3>
+                                <button onClick={() => setEqModalOpen(false)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Output Device (Speakers)</label>
-                                <div className="relative">
-                                    <select
-                                        value={selectedOutputId}
-                                        onChange={(e) => handleOutputChange(e.target.value)}
-                                        disabled={!audioContext || !(audioContext as any).setSinkId}
-                                        className="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg p-3 appearance-none focus:border-orange-500 focus:outline-none disabled:opacity-50"
-                                    >
-                                        {outputDevices.map(device => (
-                                            <option key={device.deviceId} value={device.deviceId}>
-                                                {device.label || `Speaker ${device.deviceId.slice(0, 5)}...`}
-                                            </option>
-                                        ))}
-                                        {outputDevices.length === 0 && <option>Default Output</option>}
-                                    </select>
-                                    <ChevronDown size={16} className="absolute right-3 top-3.5 text-slate-500 pointer-events-none" />
-                                </div>
-                                {audioContext && !(audioContext as any).setSinkId && (
-                                    <p className="text-[10px] text-red-400/80 mt-1">
-                                        * Output selection not supported in this browser.
-                                    </p>
-                                )}
-                            </div>
+                            <div className="p-6 flex flex-col gap-6 relative">
+                                {/* EQ VISUALIZER CANVA */}
+                                <VisualEQ
+                                    track={tracks.find(t => t.id === eqActiveTrackId)!}
+                                    analyser={trackAnalysersRef.current[eqActiveTrackId]}
+                                    onChange={(newEq) => {
+                                        setTracks(tracks.map(t => t.id === eqActiveTrackId ? { ...t, eq: newEq } : t));
+                                    }}
+                                />
 
-                            <div className="h-[1px] bg-slate-800 my-4" />
-
-                            <div className="space-y-3">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                                    <span className="flex items-center gap-2"><Sliders size={14} /> Latency Fix</span>
-                                    <span className="text-orange-500">{latencyOffset} ms</span>
-                                </label>
-                                <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-2">
-                                    <input
-                                        type="range"
-                                        min="-100"
-                                        max="500"
-                                        step="5"
-                                        value={latencyOffset}
-                                        onChange={(e) => setLatencyOffset(Number(e.target.value))}
-                                        className="w-full accent-orange-500 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
-                                    />
-                                    <p className="text-[10px] text-slate-500 text-center">
-                                        Adjust if vocals sound delayed (Move slider Right).
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="h-[1px] bg-slate-800 my-4" />
-
-                            <div className="space-y-3">
-                                <label className="text-xs font-bold text-lime-400 uppercase tracking-widest flex items-center gap-2">
-                                    <FileAudio size={14} /> Export Mixdown
-                                </label>
-
-                                <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-3">
-                                    <div className="relative">
-                                        <select
-                                            value={exportFormat}
-                                            onChange={(e) => setExportFormat(e.target.value as 'wav' | 'mp3')}
-                                            className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2 appearance-none focus:border-lime-500 focus:outline-none"
-                                        >
-                                            <option value="wav">WAV (High Quality / Lossless)</option>
-                                            <option value="mp3">MP3 (Compressed / Universal)</option>
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-2 top-2.5 text-slate-500 pointer-events-none" />
-                                    </div>
-
-                                    <button
-                                        onClick={handleExport}
-                                        disabled={isExporting || maxDuration <= 0}
-                                        className="w-full bg-lime-500 hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-2 rounded flex items-center justify-center gap-2 transition-all active:scale-95"
-                                    >
-                                        {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                                        {isExporting ? "Rendering..." : "Export Audio"}
-                                    </button>
-
-                                    <p className="text-[10px] text-slate-500 text-center">
-                                        Exports active tracks (Volume, Pan & Mute settings applied).
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="h-[1px] bg-slate-800 my-4" />
-
-                            <div className="space-y-3">
-                                <label className="text-xs font-bold text-orange-400 uppercase tracking-widest flex items-center gap-2">
-                                    <Folder size={14} /> Export Multitrack
-                                </label>
-
-                                <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-3">
-                                    <button
-                                        onClick={handleExportMultitrack}
-                                        disabled={isLoading}
-                                        className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 rounded flex items-center justify-center gap-2 transition-all active:scale-95"
-                                    >
-                                        {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                                        {isLoading ? "Zipping..." : "Download MP3 Stems (.zip)"}
-                                    </button>
-
-                                    <p className="text-[10px] text-slate-500 text-center">
-                                        Creates a ZIP file containing each track as a separate high-quality MP3 file.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-4 bg-slate-950/50 border-t border-slate-800 space-y-4">
-                            {/* AUTH SECTION */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Account</label>
-                                {!user ? (
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="email"
-                                            placeholder="your-email@example.com"
-                                            id="login-email"
-                                            className="flex-1 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:border-orange-500 focus:outline-none"
-                                        />
-                                        <button
-                                            onClick={async () => {
-                                                const email = (document.getElementById('login-email') as HTMLInputElement).value;
-                                                if (!email) return alert("Please enter email");
-                                                setLoadingAuth(true);
-                                                const { error } = await supabase.auth.signInWithOtp({ email });
-                                                setLoadingAuth(false);
-                                                if (error) alert(error.message);
-                                                else alert("Check your email for the login link!");
+                                {/* EQ CONTROLS (KNOBS) */}
+                                <div className="flex justify-between gap-1 overflow-x-auto pb-2">
+                                    {/* LOW */}
+                                    <div className="flex flex-col items-center gap-2 min-w-[60px]">
+                                        <span className="text-[10px] font-bold text-purple-400">LOW</span>
+                                        <Knob
+                                            value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.low.gain || 0}
+                                            min={-15} max={15} size="sm"
+                                            onChange={(v) => {
+                                                const t = tracks.find(t => t.id === eqActiveTrackId);
+                                                if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, low: { ...tr.eq!.low, gain: v } } } : tr));
                                             }}
-                                            disabled={loadingAuth}
-                                            className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-2 rounded text-xs font-bold transition whitespace-nowrap"
-                                        >
-                                            {loadingAuth ? <Loader2 className="animate-spin" size={14} /> : 'Login'}
-                                        </button>
+                                            disabled={!tracks.find(t => t.id === eqActiveTrackId)?.eq?.enabled}
+                                        />
+                                        <span className="text-[10px] text-slate-400">
+                                            {Math.round(tracks.find(t => t.id === eqActiveTrackId)?.eq?.low.gain || 0)}dB
+                                        </span>
                                     </div>
-                                ) : (
-                                    <div className="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between items-center">
-                                        <span className="text-xs text-slate-300 truncate max-w-[150px]" title={user.email}>{user.email}</span>
-                                        <button
-                                            onClick={() => supabase.auth.signOut()}
-                                            className="text-[10px] bg-red-900/30 text-red-500 px-2 py-1 rounded hover:bg-red-900/50 transition"
-                                        >
-                                            Logout
-                                        </button>
+                                    {/* LOW-MID */}
+                                    <div className="flex flex-col items-center gap-2 min-w-[60px]">
+                                        <span className="text-[10px] font-bold text-indigo-400">L-MID</span>
+                                        <Knob
+                                            value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.lowMid.gain || 0}
+                                            min={-15} max={15} size="sm"
+                                            onChange={(v) => {
+                                                const t = tracks.find(t => t.id === eqActiveTrackId);
+                                                if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, lowMid: { ...tr.eq!.lowMid, gain: v } } } : tr));
+                                            }}
+                                            disabled={!tracks.find(t => t.id === eqActiveTrackId)?.eq?.enabled}
+                                        />
+                                        <span className="text-[10px] text-slate-400">
+                                            {Math.round(tracks.find(t => t.id === eqActiveTrackId)?.eq?.lowMid.gain || 0)}dB
+                                        </span>
                                     </div>
-                                )}
+                                    {/* MID */}
+                                    <div className="flex flex-col items-center gap-2 min-w-[60px]">
+                                        <span className="text-[10px] font-bold text-teal-400">MID</span>
+                                        <Knob
+                                            value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.mid.gain || 0}
+                                            min={-15} max={15} size="sm"
+                                            onChange={(v) => {
+                                                const t = tracks.find(t => t.id === eqActiveTrackId);
+                                                if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, mid: { ...tr.eq!.mid, gain: v } } } : tr));
+                                            }}
+                                            disabled={!tracks.find(t => t.id === eqActiveTrackId)?.eq?.enabled}
+                                        />
+                                        <span className="text-[10px] text-slate-400">
+                                            {Math.round(tracks.find(t => t.id === eqActiveTrackId)?.eq?.mid.gain || 0)}dB
+                                        </span>
+                                    </div>
+                                    {/* HIGH-MID */}
+                                    <div className="flex flex-col items-center gap-2 min-w-[60px]">
+                                        <span className="text-[10px] font-bold text-yellow-400">H-MID</span>
+                                        <Knob
+                                            value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.highMid.gain || 0}
+                                            min={-15} max={15} size="sm"
+                                            onChange={(v) => {
+                                                const t = tracks.find(t => t.id === eqActiveTrackId);
+                                                if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, highMid: { ...tr.eq!.highMid, gain: v } } } : tr));
+                                            }}
+                                            disabled={!tracks.find(t => t.id === eqActiveTrackId)?.eq?.enabled}
+                                        />
+                                        <span className="text-[10px] text-slate-400">
+                                            {Math.round(tracks.find(t => t.id === eqActiveTrackId)?.eq?.highMid.gain || 0)}dB
+                                        </span>
+                                    </div>
+                                    {/* HIGH */}
+                                    <div className="flex flex-col items-center gap-2 min-w-[60px]">
+                                        <span className="text-[10px] font-bold text-pink-400">HIGH</span>
+                                        <Knob
+                                            value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.high.gain || 0}
+                                            min={-15} max={15} size="sm"
+                                            onChange={(v) => {
+                                                const t = tracks.find(t => t.id === eqActiveTrackId);
+                                                if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, high: { ...tr.eq!.high, gain: v } } } : tr));
+                                            }}
+                                            disabled={!tracks.find(t => t.id === eqActiveTrackId)?.eq?.enabled}
+                                        />
+                                        <span className="text-[10px] text-slate-400">
+                                            {Math.round(tracks.find(t => t.id === eqActiveTrackId)?.eq?.high.gain || 0)}dB
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* MAIN CONTENT AREA */}
+            {
+                mainView !== 'studio' && (
+                    <main className="flex-1 relative overflow-hidden bg-slate-950">
+                        {mainView === 'library' && (
+                            <div className="absolute inset-0 z-20 animate-in fade-in duration-300">
+                                <Library onLoadSong={handleLoadFromLibrary} />
+                            </div>
+                        )}
+
+                        {mainView === 'store' && (
+                            <div className="absolute inset-0 z-20 animate-in fade-in duration-300">
+                                <Store isAdminMode={isAdminMode} />
+                            </div>
+                        )}
+                    </main>
+                )
+            }
+
+            {/* PITCH EDIT MODAL (ULTRA MODE) */}
+            {
+                pitchEditTrackId !== null && (
+                    <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in zoom-in duration-200">
+                        <div className="w-full max-w-sm bg-zinc-950 rounded-2xl border border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.1)] p-6 flex flex-col items-center">
+                            <div className="w-16 h-16 rounded-full bg-orange-950/30 border border-orange-500/50 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(249,115,22,0.2)]">
+                                {isProcessingPitch ? <Loader2 size={32} className="text-orange-500 animate-spin" /> : <Music2 size={32} className="text-orange-500" />}
                             </div>
 
-                            <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                                {/* ADMIN TOGGLE - RESTRICTED */}
-                                {user?.email?.trim().toLowerCase() === 'anthonyoxelcanelonsoto@gmail.com' ? (
-                                    <button
-                                        onClick={() => {
-                                            setIsAdminMode(prev => !prev);
-                                            setMainView('store');
-                                            setShowSettings(false);
-                                        }}
-                                        className={`text-xs font-bold uppercase tracking-widest px-4 py-3 rounded-lg border transition-all flex items-center gap-2
-                                            ${isAdminMode
-                                                ? 'bg-green-500/10 border-green-500 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]'
-                                                : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300'}
-                                            `}
-                                    >
-                                        <div className={`w-2 h-2 rounded-full ${isAdminMode ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`}></div>
-                                        {isAdminMode ? 'ADMIN ACTIVE' : 'ENABLE ADMIN MODE'}
-                                    </button>
-                                ) : (
-                                    <div className="text-[10px] text-slate-700 select-none">
-                                        Admin: {user ? 'Restricted' : 'Login Req'}
-                                    </div>
-                                )}
+                            <h3 className="text-xl font-black text-white uppercase tracking-tighter">Track Tuning</h3>
+                            <p className="text-xs text-orange-500/80 font-bold tracking-widest mb-6">OFFLINE PITCH ENGINE</p>
+
+                            <div className="flex items-center gap-6 mb-8">
+                                <button
+                                    onClick={() => setTempPitch(p => Math.max(p - 1, -12))}
+                                    disabled={isProcessingPitch}
+                                    className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-400 flex items-center justify-center active:scale-95 active:bg-zinc-800 transition-all disabled:opacity-50"
+                                >
+                                    <Minus size={24} />
+                                </button>
+
+                                <div className="flex flex-col items-center w-16">
+                                    <span className={`text-4xl font-black ${tempPitch === 0 ? 'text-zinc-500' : (tempPitch > 0 ? 'text-green-500' : 'text-red-500')}`}>
+                                        {tempPitch > 0 ? `+${tempPitch}` : tempPitch}
+                                    </span>
+                                    <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">SEMITONES</span>
+                                </div>
 
                                 <button
-                                    onClick={() => setShowSettings(false)}
-                                    className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                                    onClick={() => setTempPitch(p => Math.min(p + 1, 12))}
+                                    disabled={isProcessingPitch}
+                                    className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-400 flex items-center justify-center active:scale-95 active:bg-zinc-800 transition-all disabled:opacity-50"
                                 >
-                                    Close
+                                    <Plus size={24} />
+                                </button>
+                            </div>
+
+                            <div className="flex w-full gap-3">
+                                <button
+                                    onClick={() => !isProcessingPitch && setPitchEditTrackId(null)}
+                                    disabled={isProcessingPitch}
+                                    className="flex-1 py-3 rounded-xl bg-zinc-900 text-zinc-400 font-bold border border-zinc-800 active:scale-95 transition-transform disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmPitchChange}
+                                    disabled={isProcessingPitch}
+                                    className="flex-1 py-3 rounded-xl bg-orange-600 text-black font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(234,88,12,0.4)] disabled:bg-orange-600/50 flex items-center justify-center gap-2"
+                                >
+                                    {isProcessingPitch ? 'Rendering...' : 'Apply'}
+                                </button>
+                            </div>
+
+                            <p className="mt-4 text-[10px] text-zinc-600 text-center max-w-[200px]">
+                                {tempPitch === 0
+                                    ? "Bypass Active: 0% CPU Usage. Original Audio."
+                                    : "High-Quality Granular Processing. Takes a moment to render."}
+                            </p>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* SETTINGS MODAL */}
+            {
+                showSettings && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
+                            <div className="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-900/50">
+                                <h2 className="font-bold text-lg text-white flex items-center gap-2">
+                                    <Settings size={20} className="text-orange-500" />
+                                    Audio Config
+                                </h2>
+                                <button onClick={() => setShowSettings(false)} className="p-1 rounded-full hover:bg-slate-800 text-slate-400">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-6 overflow-y-auto no-scrollbar">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Input Device (Microphone)</label>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedInputId}
+                                            onChange={(e) => setSelectedInputId(e.target.value)}
+                                            className="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg p-3 appearance-none focus:border-orange-500 focus:outline-none"
+                                        >
+                                            {inputDevices.map(device => (
+                                                <option key={device.deviceId} value={device.deviceId}>
+                                                    {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
+                                                </option>
+                                            ))}
+                                            {inputDevices.length === 0 && <option>Default Microphone</option>}
+                                        </select>
+                                        <ChevronDown size={16} className="absolute right-3 top-3.5 text-slate-500 pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Output Device (Speakers)</label>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedOutputId}
+                                            onChange={(e) => handleOutputChange(e.target.value)}
+                                            disabled={!audioContext || !(audioContext as any).setSinkId}
+                                            className="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg p-3 appearance-none focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                                        >
+                                            {outputDevices.map(device => (
+                                                <option key={device.deviceId} value={device.deviceId}>
+                                                    {device.label || `Speaker ${device.deviceId.slice(0, 5)}...`}
+                                                </option>
+                                            ))}
+                                            {outputDevices.length === 0 && <option>Default Output</option>}
+                                        </select>
+                                        <ChevronDown size={16} className="absolute right-3 top-3.5 text-slate-500 pointer-events-none" />
+                                    </div>
+                                    {audioContext && !(audioContext as any).setSinkId && (
+                                        <p className="text-[10px] text-red-400/80 mt-1">
+                                            * Output selection not supported in this browser.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="h-[1px] bg-slate-800 my-4" />
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between">
+                                        <span className="flex items-center gap-2"><Sliders size={14} /> Latency Fix</span>
+                                        <span className="text-orange-500">{latencyOffset} ms</span>
+                                    </label>
+                                    <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-2">
+                                        <input
+                                            type="range"
+                                            min="-100"
+                                            max="500"
+                                            step="5"
+                                            value={latencyOffset}
+                                            onChange={(e) => setLatencyOffset(Number(e.target.value))}
+                                            className="w-full accent-orange-500 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <p className="text-[10px] text-slate-500 text-center">
+                                            Adjust if vocals sound delayed (Move slider Right).
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="h-[1px] bg-slate-800 my-4" />
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-lime-400 uppercase tracking-widest flex items-center gap-2">
+                                        <FileAudio size={14} /> Export Mixdown
+                                    </label>
+
+                                    <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-3">
+                                        <div className="relative">
+                                            <select
+                                                value={exportFormat}
+                                                onChange={(e) => setExportFormat(e.target.value as 'wav' | 'mp3')}
+                                                className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2 appearance-none focus:border-lime-500 focus:outline-none"
+                                            >
+                                                <option value="wav">WAV (High Quality / Lossless)</option>
+                                                <option value="mp3">MP3 (Compressed / Universal)</option>
+                                            </select>
+                                            <ChevronDown size={14} className="absolute right-2 top-2.5 text-slate-500 pointer-events-none" />
+                                        </div>
+
+                                        <button
+                                            onClick={handleExport}
+                                            disabled={isExporting || maxDuration <= 0}
+                                            className="w-full bg-lime-500 hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-2 rounded flex items-center justify-center gap-2 transition-all active:scale-95"
+                                        >
+                                            {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                                            {isExporting ? "Rendering..." : "Export Audio"}
+                                        </button>
+
+                                        <p className="text-[10px] text-slate-500 text-center">
+                                            Exports active tracks (Volume, Pan & Mute settings applied).
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="h-[1px] bg-slate-800 my-4" />
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-orange-400 uppercase tracking-widest flex items-center gap-2">
+                                        <Folder size={14} /> Export Multitrack
+                                    </label>
+
+                                    <div className="bg-slate-950 rounded-lg p-3 border border-slate-800 space-y-3">
+                                        <button
+                                            onClick={handleExportMultitrack}
+                                            disabled={isLoading}
+                                            className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 rounded flex items-center justify-center gap-2 transition-all active:scale-95"
+                                        >
+                                            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                                            {isLoading ? "Zipping..." : "Download MP3 Stems (.zip)"}
+                                        </button>
+
+                                        <p className="text-[10px] text-slate-500 text-center">
+                                            Creates a ZIP file containing each track as a separate high-quality MP3 file.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-slate-950/50 border-t border-slate-800 space-y-4">
+                                {/* AUTH SECTION */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Account</label>
+                                    {!user ? (
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="email"
+                                                placeholder="your-email@example.com"
+                                                id="login-email"
+                                                className="flex-1 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    const email = (document.getElementById('login-email') as HTMLInputElement).value;
+                                                    if (!email) return alert("Please enter email");
+                                                    setLoadingAuth(true);
+                                                    const { error } = await supabase.auth.signInWithOtp({ email });
+                                                    setLoadingAuth(false);
+                                                    if (error) alert(error.message);
+                                                    else alert("Check your email for the login link!");
+                                                }}
+                                                disabled={loadingAuth}
+                                                className="bg-orange-600 hover:bg-orange-500 text-white px-3 py-2 rounded text-xs font-bold transition whitespace-nowrap"
+                                            >
+                                                {loadingAuth ? <Loader2 className="animate-spin" size={14} /> : 'Login'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-slate-900 p-2 rounded border border-slate-700 flex justify-between items-center">
+                                            <span className="text-xs text-slate-300 truncate max-w-[150px]" title={user.email}>{user.email}</span>
+                                            <button
+                                                onClick={() => supabase.auth.signOut()}
+                                                className="text-[10px] bg-red-900/30 text-red-500 px-2 py-1 rounded hover:bg-red-900/50 transition"
+                                            >
+                                                Logout
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                                    {/* ADMIN TOGGLE - RESTRICTED */}
+                                    {user?.email?.trim().toLowerCase() === 'anthonyoxelcanelonsoto@gmail.com' ? (
+                                        <button
+                                            onClick={() => {
+                                                setIsAdminMode(prev => !prev);
+                                                setMainView('store');
+                                                setShowSettings(false);
+                                            }}
+                                            className={`text-xs font-bold uppercase tracking-widest px-4 py-3 rounded-lg border transition-all flex items-center gap-2
+                                            ${isAdminMode
+                                                    ? 'bg-green-500/10 border-green-500 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]'
+                                                    : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300'}
+                                            `}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${isAdminMode ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`}></div>
+                                            {isAdminMode ? 'ADMIN ACTIVE' : 'ENABLE ADMIN MODE'}
+                                        </button>
+                                    ) : (
+                                        <div className="text-[10px] text-slate-700 select-none">
+                                            Admin: {user ? 'Restricted' : 'Login Req'}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={() => setShowSettings(false)}
+                                        className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {/* SHARE MODAL */}
+            {
+                showShareModal && (
+                    <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+                            <div className="flex justify-between items-center mb-2">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <Share2 size={24} className="text-orange-500" /> Share Project
+                                </h2>
+                                <button
+                                    onClick={() => setShowShareModal(false)}
+                                    className="p-2 rounded-full hover:bg-slate-800 text-slate-400"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <p className="text-sm text-slate-400">
+                                Choose how you want to share your creation.
+                            </p>
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={() => handleShare('mix')}
+                                    disabled={isSharing}
+                                    className="w-full bg-gradient-to-r from-lime-500 to-lime-600 hover:from-lime-400 hover:to-lime-500 text-black font-bold py-4 rounded-xl flex items-center justify-between px-6 transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <FileAudio size={24} className="text-black/70" />
+                                        <div className="text-left">
+                                            <div className="text-sm font-black uppercase tracking-wider">Share Full Mix</div>
+                                            <div className="text-[10px] font-medium opacity-70">MP3 Audio File (Whatsapp/Socials)</div>
+                                        </div>
+                                    </div>
+                                    {isSharing ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
+                                </button>
+
+                                <button
+                                    onClick={() => handleShare('project')}
+                                    disabled={isSharing}
+                                    className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-xl flex items-center justify-between px-6 transition-all active:scale-95 disabled:opacity-50 border border-slate-700"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Folder size={24} className="text-orange-500" />
+                                        <div className="text-left">
+                                            <div className="text-sm font-bold">Share Project Files</div>
+                                            <div className="text-[10px] text-slate-400">Multitrack ZIP (For Collaboration)</div>
+                                        </div>
+                                    </div>
+                                    {isSharing ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-            {/* SHARE MODAL */}
-            {showShareModal && (
-                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
-                        <div className="flex justify-between items-center mb-2">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Share2 size={24} className="text-orange-500" /> Share Project
-                            </h2>
-                            <button
-                                onClick={() => setShowShareModal(false)}
-                                className="p-2 rounded-full hover:bg-slate-800 text-slate-400"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <p className="text-sm text-slate-400">
-                            Choose how you want to share your creation.
-                        </p>
-
-                        <div className="space-y-3">
-                            <button
-                                onClick={() => handleShare('mix')}
-                                disabled={isSharing}
-                                className="w-full bg-gradient-to-r from-lime-500 to-lime-600 hover:from-lime-400 hover:to-lime-500 text-black font-bold py-4 rounded-xl flex items-center justify-between px-6 transition-all active:scale-95 disabled:opacity-50"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <FileAudio size={24} className="text-black/70" />
-                                    <div className="text-left">
-                                        <div className="text-sm font-black uppercase tracking-wider">Share Full Mix</div>
-                                        <div className="text-[10px] font-medium opacity-70">MP3 Audio File (Whatsapp/Socials)</div>
-                                    </div>
-                                </div>
-                                {isSharing ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
-                            </button>
-
-                            <button
-                                onClick={() => handleShare('project')}
-                                disabled={isSharing}
-                                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-xl flex items-center justify-between px-6 transition-all active:scale-95 disabled:opacity-50 border border-slate-700"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Folder size={24} className="text-orange-500" />
-                                    <div className="text-left">
-                                        <div className="text-sm font-bold">Share Project Files</div>
-                                        <div className="text-[10px] text-slate-400">Multitrack ZIP (For Collaboration)</div>
-                                    </div>
-                                </div>
-                                {isSharing ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                )
+            }
 
 
             {/* SAVE PROJECT MODAL */}
-            {showSaveModal && (
-                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Archive size={24} className="text-orange-500" /> Save Project
-                        </h2>
+            {
+                showSaveModal && (
+                    <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Archive size={24} className="text-orange-500" /> Save Project
+                            </h2>
 
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-400 font-bold uppercase">Project Title</label>
-                            <input
-                                type="text"
-                                value={saveTitle}
-                                onChange={(e) => setSaveTitle(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
-                                placeholder="Enter song title..."
-                                autoFocus
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-400 font-bold uppercase">Artist Name</label>
-                            <input
-                                type="text"
-                                value={saveArtist}
-                                onChange={(e) => setSaveArtist(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
-                                placeholder="Enter artist name..."
-                            />
-                        </div>
-
-
-
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-400 font-bold uppercase">Cover Image (Optional)</label>
-                            <div
-                                onClick={() => document.getElementById('cover-upload')?.click()}
-                                className="w-full h-32 bg-slate-950 border border-slate-800 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-900 overflow-hidden relative group"
-                            >
-                                {saveImagePreview ? (
-                                    <>
-                                        <img src={saveImagePreview} alt="Cover Preview" className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-xs font-bold text-white">Change Image</span>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-2 text-slate-500">
-                                        <Upload size={24} />
-                                        <span className="text-xs">Click to Upload Cover</span>
-                                    </div>
-                                )}
+                            <div className="space-y-2">
+                                <label className="text-xs text-slate-400 font-bold uppercase">Project Title</label>
+                                <input
+                                    type="text"
+                                    value={saveTitle}
+                                    onChange={(e) => setSaveTitle(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                                    placeholder="Enter song title..."
+                                    autoFocus
+                                />
                             </div>
-                            <input
-                                type="file"
-                                id="cover-upload"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={(e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                        const file = e.target.files[0];
-                                        setSaveImage(file);
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => setSaveImagePreview(reader.result as string);
-                                        reader.readAsDataURL(file);
-                                    }
-                                }}
-                            />
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-400 font-bold uppercase">Genre / Tag</label>
-                            <select
-                                value={saveGenre}
-                                onChange={(e) => setSaveGenre(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
-                            >
-                                <option value="">Select Genre...</option>
-                                <option value="Pop">Pop</option>
-                                <option value="Rock">Rock</option>
-                                <option value="Hip Hop">Hip Hop</option>
-                                <option value="Electronic">Electronic</option>
-                                <option value="Acoustic">Acoustic</option>
-                                <option value="Vocal">Vocal</option>
-                                <option value="Demo">Demo</option>
-                            </select>
-                        </div>
+                            <div className="space-y-2">
+                                <label className="text-xs text-slate-400 font-bold uppercase">Artist Name</label>
+                                <input
+                                    type="text"
+                                    value={saveArtist}
+                                    onChange={(e) => setSaveArtist(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                                    placeholder="Enter artist name..."
+                                />
+                            </div>
 
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                onClick={() => setShowSaveModal(false)}
-                                className="flex-1 py-3 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveProject}
-                                disabled={isSaving || !saveTitle.trim()}
-                                className="flex-1 py-3 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-500 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-orange-900/20"
-                            >
-                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
-                                {isSaving ? "Saving..." : "Save to Library"}
-                            </button>
+
+
+                            <div className="space-y-2">
+                                <label className="text-xs text-slate-400 font-bold uppercase">Cover Image (Optional)</label>
+                                <div
+                                    onClick={() => document.getElementById('cover-upload')?.click()}
+                                    className="w-full h-32 bg-slate-950 border border-slate-800 border-dashed rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-900 overflow-hidden relative group"
+                                >
+                                    {saveImagePreview ? (
+                                        <>
+                                            <img src={saveImagePreview} alt="Cover Preview" className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-xs font-bold text-white">Change Image</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-2 text-slate-500">
+                                            <Upload size={24} />
+                                            <span className="text-xs">Click to Upload Cover</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <input
+                                    type="file"
+                                    id="cover-upload"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                            const file = e.target.files[0];
+                                            setSaveImage(file);
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => setSaveImagePreview(reader.result as string);
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs text-slate-400 font-bold uppercase">Genre / Tag</label>
+                                <select
+                                    value={saveGenre}
+                                    onChange={(e) => setSaveGenre(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded p-3 text-white focus:border-orange-500 outline-none"
+                                >
+                                    <option value="">Select Genre...</option>
+                                    <option value="Pop">Pop</option>
+                                    <option value="Rock">Rock</option>
+                                    <option value="Hip Hop">Hip Hop</option>
+                                    <option value="Electronic">Electronic</option>
+                                    <option value="Acoustic">Acoustic</option>
+                                    <option value="Vocal">Vocal</option>
+                                    <option value="Demo">Demo</option>
+                                </select>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setShowSaveModal(false)}
+                                    className="flex-1 py-3 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 active:scale-95 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveProject}
+                                    disabled={isSaving || !saveTitle.trim()}
+                                    className="flex-1 py-3 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-500 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-orange-900/20"
+                                >
+                                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                                    {isSaving ? "Saving..." : "Save to Library"}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* RESET CONFIRMATION MODAL */}
-            {showResetConfirm && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-200">
-                        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                            <AlertTriangle size={32} className="text-red-500" />
-                        </div>
-                        <div className="space-y-2">
-                            <h3 className="text-xl font-bold text-white">Reset Session?</h3>
-                            <p className="text-slate-400 text-sm">
-                                Are you sure you want to start over? <br />
-                                <span className="text-red-400 font-bold">This will delete all recordings and tracks.</span>
-                            </p>
-                        </div>
-                        <div className="flex w-full gap-3 mt-2">
-                            <button
-                                onClick={() => setShowResetConfirm(false)}
-                                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold active:scale-95 transition-transform hover:bg-slate-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={performReset}
-                                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:bg-red-500"
-                            >
-                                Reset All
-                            </button>
+            {
+                showResetConfirm && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-200">
+                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                                <AlertTriangle size={32} className="text-red-500" />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-bold text-white">Reset Session?</h3>
+                                <p className="text-slate-400 text-sm">
+                                    Are you sure you want to start over? <br />
+                                    <span className="text-red-400 font-bold">This will delete all recordings and tracks.</span>
+                                </p>
+                            </div>
+                            <div className="flex w-full gap-3 mt-2">
+                                <button
+                                    onClick={() => setShowResetConfirm(false)}
+                                    className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold active:scale-95 transition-transform hover:bg-slate-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={performReset}
+                                    className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:bg-red-500"
+                                >
+                                    Reset All
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* DELETE TRACK CONFIRMATION MODAL */}
-            {deleteTrackId !== null && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-200">
-                        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                            <AlertTriangle size={32} className="text-red-500" />
-                        </div>
-                        <div className="space-y-2">
-                            <h3 className="text-xl font-bold text-white">Delete Track?</h3>
-                            <p className="text-slate-400 text-sm">
-                                Are you sure you want to delete <br />
-                                <span className="text-white font-bold">"{tracks.find(t => t.id === deleteTrackId)?.name}"</span>?
-                            </p>
-                        </div>
-                        <div className="flex w-full gap-3 mt-2">
-                            <button
-                                onClick={() => setDeleteTrackId(null)}
-                                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold active:scale-95 transition-transform hover:bg-slate-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmDeleteTrack}
-                                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:bg-red-500"
-                            >
-                                Delete
-                            </button>
+            {
+                deleteTrackId !== null && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 flex flex-col items-center text-center gap-4 animate-in fade-in zoom-in duration-200">
+                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                                <AlertTriangle size={32} className="text-red-500" />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-bold text-white">Delete Track?</h3>
+                                <p className="text-slate-400 text-sm">
+                                    Are you sure you want to delete <br />
+                                    <span className="text-white font-bold">"{tracks.find(t => t.id === deleteTrackId)?.name}"</span>?
+                                </p>
+                            </div>
+                            <div className="flex w-full gap-3 mt-2">
+                                <button
+                                    onClick={() => setDeleteTrackId(null)}
+                                    className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold active:scale-95 transition-transform hover:bg-slate-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteTrack}
+                                    className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:bg-red-500"
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* RENAME TRACK MODAL */}
-            {renamingTrackId !== null && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Edit2 size={24} className="text-orange-500" /> Rename Track
-                        </h2>
+            {
+                renamingTrackId !== null && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Edit2 size={24} className="text-orange-500" /> Rename Track
+                            </h2>
 
-                        <input
-                            type="text"
-                            value={renameText}
-                            onChange={(e) => setRenameText(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold focus:border-orange-500 outline-none text-lg"
-                            placeholder="Enter track name..."
-                            autoFocus
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleRenameTrack();
-                                if (e.key === 'Escape') setRenamingTrackId(null);
-                            }}
-                        />
+                            <input
+                                type="text"
+                                value={renameText}
+                                onChange={(e) => setRenameText(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold focus:border-orange-500 outline-none text-lg"
+                                placeholder="Enter track name..."
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRenameTrack();
+                                    if (e.key === 'Escape') setRenamingTrackId(null);
+                                }}
+                            />
 
-                        {(appMode === 'ULTRA' || appMode === 'PRO' || appMode === 'SIMPLE') && tracks.find(t => t.id === renamingTrackId)?.hasFile && (
-                            <>
+                            {(appMode === 'ULTRA' || appMode === 'PRO' || appMode === 'SIMPLE') && tracks.find(t => t.id === renamingTrackId)?.hasFile && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setWaveEditTrackId(renamingTrackId);
+                                            setRenamingTrackId(null);
+                                        }}
+                                        className="w-full py-4 rounded-xl bg-zinc-950 border border-orange-500/30 text-orange-500 font-black tracking-wider uppercase hover:bg-orange-500/10 active:scale-95 transition flex items-center justify-center gap-2"
+                                    >
+                                        <Activity size={20} /> Open Wave Editor
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setPanEditTrackId(renamingTrackId);
+                                            setRenamingTrackId(null);
+                                        }}
+                                        className="w-full py-4 rounded-xl bg-zinc-950 border border-pink-500/30 text-pink-500 font-black tracking-wider uppercase hover:bg-pink-500/10 active:scale-95 transition flex items-center justify-center gap-2 mt-2"
+                                    >
+                                        <MoveHorizontal size={20} /> Edit Panning
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setTimeShiftTrackId(renamingTrackId);
+                                            setRenamingTrackId(null);
+                                        }}
+                                        className="w-full py-4 rounded-xl bg-zinc-950 border border-blue-500/30 text-blue-500 font-black tracking-wider uppercase hover:bg-blue-500/10 active:scale-95 transition flex items-center justify-center gap-2 mt-2"
+                                    >
+                                        <Clock size={20} /> Edit Timing (Shift)
+                                    </button>
+                                </>
+                            )}
+
+                            <div className="flex gap-3 pt-2">
                                 <button
-                                    onClick={() => {
-                                        setWaveEditTrackId(renamingTrackId);
-                                        setRenamingTrackId(null);
-                                    }}
-                                    className="w-full py-4 rounded-xl bg-zinc-950 border border-orange-500/30 text-orange-500 font-black tracking-wider uppercase hover:bg-orange-500/10 active:scale-95 transition flex items-center justify-center gap-2"
+                                    onClick={() => setRenamingTrackId(null)}
+                                    className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-400 font-bold active:scale-95 transition-transform hover:bg-slate-700"
                                 >
-                                    <Activity size={20} /> Open Wave Editor
+                                    Cancel
                                 </button>
-
                                 <button
-                                    onClick={() => {
-                                        setPanEditTrackId(renamingTrackId);
-                                        setRenamingTrackId(null);
-                                    }}
-                                    className="w-full py-4 rounded-xl bg-zinc-950 border border-pink-500/30 text-pink-500 font-black tracking-wider uppercase hover:bg-pink-500/10 active:scale-95 transition flex items-center justify-center gap-2 mt-2"
+                                    onClick={handleRenameTrack}
+                                    className="flex-1 py-3 rounded-xl bg-orange-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:bg-orange-500"
                                 >
-                                    <MoveHorizontal size={20} /> Edit Panning
+                                    Save
                                 </button>
-
-                                <button
-                                    onClick={() => {
-                                        setTimeShiftTrackId(renamingTrackId);
-                                        setRenamingTrackId(null);
-                                    }}
-                                    className="w-full py-4 rounded-xl bg-zinc-950 border border-blue-500/30 text-blue-500 font-black tracking-wider uppercase hover:bg-blue-500/10 active:scale-95 transition flex items-center justify-center gap-2 mt-2"
-                                >
-                                    <Clock size={20} /> Edit Timing (Shift)
-                                </button>
-                            </>
-                        )}
-
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                onClick={() => setRenamingTrackId(null)}
-                                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-400 font-bold active:scale-95 transition-transform hover:bg-slate-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleRenameTrack}
-                                className="flex-1 py-3 rounded-xl bg-orange-600 text-white font-bold active:scale-95 transition-transform shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:bg-orange-500"
-                            >
-                                Save
-                            </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* WAVEFORM EDITOR MODAL */}
-            {waveEditTrackId !== null && audioBuffersRef.current[waveEditTrackId] && (
-                <WaveformEditor
-                    buffer={audioBuffersRef.current[waveEditTrackId]}
-                    trackName={tracks.find(t => t.id === waveEditTrackId)?.name || "Track"}
-                    onClose={() => setWaveEditTrackId(null)}
-                    onSave={handleWaveformSave}
-                />
-            )}
+            {
+                waveEditTrackId !== null && audioBuffersRef.current[waveEditTrackId] && (
+                    <WaveformEditor
+                        buffer={audioBuffersRef.current[waveEditTrackId]}
+                        trackName={tracks.find(t => t.id === waveEditTrackId)?.name || "Track"}
+                        onClose={() => setWaveEditTrackId(null)}
+                        onSave={handleWaveformSave}
+                    />
+                )
+            }
 
             {/* PAN AUTOMATION MODAL */}
-            {panEditTrackId !== null && audioBuffersRef.current[panEditTrackId] && (
-                <PanEditor
-                    buffer={audioBuffersRef.current[panEditTrackId]}
-                    trackName={tracks.find(t => t.id === panEditTrackId)?.name || "Track"}
-                    onClose={() => setPanEditTrackId(null)}
-                    onSave={handlePanSave}
-                />
-            )}
+            {
+                panEditTrackId !== null && audioBuffersRef.current[panEditTrackId] && (
+                    <PanEditor
+                        buffer={audioBuffersRef.current[panEditTrackId]}
+                        trackName={tracks.find(t => t.id === panEditTrackId)?.name || "Track"}
+                        onClose={() => setPanEditTrackId(null)}
+                        onSave={handlePanSave}
+                    />
+                )
+            }
 
             {/* TIME SHIFT EDITOR MODAL */}
-            {timeShiftTrackId !== null && audioBuffersRef.current[timeShiftTrackId] && (
-                <TimeShiftEditor
-                    buffer={audioBuffersRef.current[timeShiftTrackId]}
-                    trackName={tracks.find(t => t.id === timeShiftTrackId)?.name || "Track"}
-                    onClose={() => setTimeShiftTrackId(null)}
-                    onSave={handleTimeShiftSave}
-                />
-            )}
+            {
+                timeShiftTrackId !== null && audioBuffersRef.current[timeShiftTrackId] && (
+                    <TimeShiftEditor
+                        buffer={audioBuffersRef.current[timeShiftTrackId]}
+                        trackName={tracks.find(t => t.id === timeShiftTrackId)?.name || "Track"}
+                        onClose={() => setTimeShiftTrackId(null)}
+                        onSave={handleTimeShiftSave}
+                    />
+                )
+            }
 
             {/* MODE SWITCH CONFIRMATION MODAL */}
-            {pendingMode && (
-                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-                    <div className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col
+            {
+                pendingMode && (
+                    <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+                        <div className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col
                   ${pendingMode === 'SIMPLE' ? 'bg-slate-900 border-slate-700' : ''}
                   ${pendingMode === 'PRO' ? 'bg-lime-900/10 border-lime-500/20' : ''}
                   ${pendingMode === 'ULTRA' ? 'bg-black border-orange-500/50' : ''}
               `}>
-                        {/* Modal Header */}
-                        <div className={`p-6 flex flex-col items-center text-center gap-4 border-b
+                            {/* Modal Header */}
+                            <div className={`p-6 flex flex-col items-center text-center gap-4 border-b
                       ${pendingMode === 'SIMPLE' ? 'bg-slate-800/50 border-slate-700' : ''}
                       ${pendingMode === 'PRO' ? 'bg-lime-900/10 border-lime-500/20' : ''}
                       ${pendingMode === 'ULTRA' ? 'bg-orange-950/20 border-orange-500/20' : ''}
                   `}>
-                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg
+                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg
                           ${pendingMode === 'SIMPLE' ? 'bg-slate-800 text-slate-400' : ''}
                           ${pendingMode === 'PRO' ? 'bg-lime-400 text-black' : ''}
                           ${pendingMode === 'ULTRA' ? 'bg-orange-500 text-black shadow-orange-500/50' : ''}
                       `}>
-                                {pendingMode === 'SIMPLE' && <Zap size={32} fill="currentColor" />}
-                                {pendingMode === 'PRO' && <Sliders size={32} />}
-                                {pendingMode === 'ULTRA' && <Wand2 size={32} />}
-                            </div>
+                                    {pendingMode === 'SIMPLE' && <Zap size={32} fill="currentColor" />}
+                                    {pendingMode === 'PRO' && <Sliders size={32} />}
+                                    {pendingMode === 'ULTRA' && <Wand2 size={32} />}
+                                </div>
 
-                            <div>
-                                <h2 className={`text-2xl font-black tracking-tighter
+                                <div>
+                                    <h2 className={`text-2xl font-black tracking-tighter
                               ${pendingMode === 'SIMPLE' ? 'text-slate-300' : ''}
                               ${pendingMode === 'PRO' ? 'text-lime-400' : ''}
                               ${pendingMode === 'ULTRA' ? 'text-orange-500' : ''}
                           `}>
-                                    SWITCH TO {pendingMode === 'SIMPLE' ? 'LITE' : pendingMode}
-                                </h2>
-                                <p className="text-slate-500 text-xs font-bold tracking-widest uppercase mt-1">Mode Selection</p>
+                                        SWITCH TO {pendingMode === 'SIMPLE' ? 'LITE' : pendingMode}
+                                    </h2>
+                                    <p className="text-slate-500 text-xs font-bold tracking-widest uppercase mt-1">Mode Selection</p>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Features List */}
-                        <div className="p-6 space-y-4">
-                            {pendingMode === 'SIMPLE' && (
-                                <ul className="space-y-3">
-                                    <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Simplified Interface</li>
-                                    <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Karaoke Focus</li>
-                                    <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Performance Optimized</li>
-                                </ul>
-                            )}
-                            {pendingMode === 'PRO' && (
-                                <ul className="space-y-3">
-                                    <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-lime-400" /> Multi-track Mixer Controls</li>
-                                    <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-lime-400" /> Volume, Pan, Mute & Solo</li>
-                                    <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-lime-400" /> Track Recording & Analysis</li>
-                                </ul>
-                            )}
-                            {pendingMode === 'ULTRA' && (
-                                <ul className="space-y-3">
-                                    <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-orange-500" /> NewTone Pitch Correction</li>
-                                    <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-orange-500" /> Interactive Note Editing</li>
-                                    <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-orange-500" /> Advanced Particle Visuals</li>
-                                </ul>
-                            )}
-                        </div>
+                            {/* Features List */}
+                            <div className="p-6 space-y-4">
+                                {pendingMode === 'SIMPLE' && (
+                                    <ul className="space-y-3">
+                                        <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Simplified Interface</li>
+                                        <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Karaoke Focus</li>
+                                        <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Performance Optimized</li>
+                                    </ul>
+                                )}
+                                {pendingMode === 'PRO' && (
+                                    <ul className="space-y-3">
+                                        <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-lime-400" /> Multi-track Mixer Controls</li>
+                                        <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-lime-400" /> Volume, Pan, Mute & Solo</li>
+                                        <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-lime-400" /> Track Recording & Analysis</li>
+                                    </ul>
+                                )}
+                                {pendingMode === 'ULTRA' && (
+                                    <ul className="space-y-3">
+                                        <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-orange-500" /> NewTone Pitch Correction</li>
+                                        <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-orange-500" /> Interactive Note Editing</li>
+                                        <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-orange-500" /> Advanced Particle Visuals</li>
+                                    </ul>
+                                )}
+                            </div>
 
-                        {/* Actions */}
-                        <div className="p-4 bg-black/20 flex gap-3">
-                            <button
-                                onClick={() => setPendingMode(null)}
-                                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-400 font-bold active:scale-95 transition-transform hover:bg-slate-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmModeSwitch}
-                                className={`flex-1 py-3 rounded-xl font-bold text-black active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-lg
+                            {/* Actions */}
+                            <div className="p-4 bg-black/20 flex gap-3">
+                                <button
+                                    onClick={() => setPendingMode(null)}
+                                    className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-400 font-bold active:scale-95 transition-transform hover:bg-slate-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmModeSwitch}
+                                    className={`flex-1 py-3 rounded-xl font-bold text-black active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-lg
                               ${pendingMode === 'SIMPLE' ? 'bg-slate-400 hover:bg-slate-300' : ''}
                               ${pendingMode === 'PRO' ? 'bg-lime-400 hover:bg-lime-300 shadow-lime-400/20' : ''}
                               ${pendingMode === 'ULTRA' ? 'bg-orange-500 hover:bg-orange-400 shadow-orange-500/20' : ''}
                           `}
-                            >
-                                Switch Mode <ArrowRight size={16} />
-                            </button>
+                                >
+                                    Switch Mode <ArrowRight size={16} />
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
 
 
@@ -2807,10 +3530,11 @@ export default function App() {
                 type="file"
                 accept=".mp3,.wav,.m4a,.ogg,.zip,.lrc,.txt"
                 onChange={handleFileSelect}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                 className="hidden"
                 style={{ display: 'none' }}
             />
 
-        </div>
+        </div >
     );
 }

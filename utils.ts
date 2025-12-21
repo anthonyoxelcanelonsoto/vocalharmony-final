@@ -91,7 +91,8 @@ export const getVoicedMap = (audioBuffer: AudioBuffer): boolean[] => {
 export const parseLRC = (lrcString: string): LyricLine[] => {
   const lines = lrcString.split('\n');
   const result: LyricLine[] = [];
-  const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+  // RELAXED FORMAT: Supports [mm:ss], [m:s], [mm:ss.ms], [mm:ss,ms]
+  const timeRegex = /\[(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?\]/;
   const offsetRegex = /\[offset:\s*(-?\d+)\]/i;
 
   let globalOffset = 0;
@@ -116,13 +117,22 @@ export const parseLRC = (lrcString: string): LyricLine[] => {
     if (match) {
       const minStr = match[1];
       const secStr = match[2];
-      const msStr = match[3];
+      const msStr = match[3] || '0'; // Default to 0 if missing
 
       const minutes = parseInt(minStr, 10);
       const seconds = parseInt(secStr, 10);
-      const ms = msStr.length === 3 ? parseInt(msStr, 10) / 1000 : parseInt(msStr, 10) / 100;
 
-      const adjustedTime = Math.max(0, (minutes * 60 + seconds + ms) + globalOffset);
+      // Handle ms: if 2 digits (e.g. 50) -> 0.50s, if 3 digits (500) -> 0.5s
+      // Logic: parseInt / (10^length)? 
+      // Standard: .xx usually means centiseconds (1/100). .xxx means milliseconds (1/1000).
+      let msSeconds = 0;
+      if (msStr) {
+        if (msStr.length === 3) msSeconds = parseInt(msStr, 10) / 1000;
+        else if (msStr.length === 2) msSeconds = parseInt(msStr, 10) / 100;
+        else if (msStr.length === 1) msSeconds = parseInt(msStr, 10) / 10;
+      }
+
+      const adjustedTime = Math.max(0, (minutes * 60 + seconds + msSeconds) + globalOffset);
       const text = line.replace(timeRegex, '').trim();
 
       if (text && !text.match(offsetRegex)) { // Don't add the offset line itself
@@ -330,11 +340,19 @@ export const analyzeAudioBlocks = (audioBuffer: AudioBuffer, blockSize: number =
   return mergedBlocks.filter(b => b.duration > 0.05);
 };
 
-export const formatTime = (seconds: number): string => {
-  if (isNaN(seconds) || seconds < 0) return "0:00";
+export const formatTime = (seconds: number, showMs: boolean = false): string => {
+  if (isNaN(seconds) || seconds < 0) return showMs ? "0:00.00" : "0:00";
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+
+  let timeStr = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+
+  if (showMs) {
+    const ms = Math.floor((seconds % 1) * 100);
+    timeStr += `.${ms.toString().padStart(2, '0')}`;
+  }
+
+  return timeStr;
 };
 
 // --- CUSTOM DSP: SOLA PITCH SHIFTER ---

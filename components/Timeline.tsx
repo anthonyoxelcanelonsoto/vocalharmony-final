@@ -73,8 +73,8 @@ export const Timeline: React.FC<TimelineProps> = ({ currentTime, duration, loopS
         <div className="w-full flex flex-col gap-1 select-none">
             {/* Info Row */}
             <div className="flex justify-between items-center text-[10px] font-bold tracking-widest text-orange-500 mb-1">
-                <span>{formatTime(effectiveTime)}</span>
-                <span className="text-slate-600">{formatTime(duration)}</span>
+                <span>{formatTime(effectiveTime, true)}</span>
+                <span className="text-slate-600">{formatTime(duration, true)}</span>
             </div>
 
             {/* Fat Scrubber */}

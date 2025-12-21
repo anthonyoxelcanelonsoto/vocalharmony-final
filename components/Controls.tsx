@@ -8,14 +8,17 @@ const vibrate = (ms: number = 5) => {
 };
 
 interface KnobProps {
-    value: number; // 0 to 1
+    value: number;
     color: string;
     size?: 'sm' | 'md' | 'lg';
     onChange?: (val: number) => void;
     label?: string;
+    disabled?: boolean;
+    min?: number;
+    max?: number;
 }
 
-export const Knob: React.FC<KnobProps> = ({ value, color, size = 'md', onChange, label }) => {
+export const Knob: React.FC<KnobProps> = ({ value, color, size = 'md', onChange, label, disabled, min = 0, max = 1 }) => {
     const [isDragging, setIsDragging] = useState(false);
     const startY = useRef(0);
     const startVal = useRef(0);
@@ -38,8 +41,10 @@ export const Knob: React.FC<KnobProps> = ({ value, color, size = 'md', onChange,
             if (!isDragging || !onChange) return;
             const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
             const delta = startY.current - clientY;
-            const change = delta / 200; // Sensitivity
-            const newVal = Math.max(0, Math.min(1, startVal.current + change));
+            // Sensitivity: 200px = full range
+            const range = max - min;
+            const change = (delta / 200) * range;
+            const newVal = Math.max(min, Math.min(max, startVal.current + change));
             onChange(newVal);
         };
         const handleUp = () => setIsDragging(false);
@@ -56,10 +61,10 @@ export const Knob: React.FC<KnobProps> = ({ value, color, size = 'md', onChange,
             window.removeEventListener('mouseup', handleUp);
             window.removeEventListener('touchend', handleUp);
         };
-    }, [isDragging, onChange]);
+    }, [isDragging, onChange, min, max]);
 
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!onChange) return;
+        if (disabled || !onChange) return;
         vibrate(5);
         setIsDragging(true);
         startY.current = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
@@ -68,8 +73,11 @@ export const Knob: React.FC<KnobProps> = ({ value, color, size = 'md', onChange,
         // e.preventDefault(); // Handled by touch-action in CSS
     };
 
+    // Normalize for rotation (0 to 1)
+    const normalized = (value - min) / (max - min);
+
     return (
-        <div className="flex flex-col items-center gap-1">
+        <div className={`flex flex-col items-center gap-1 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
             <div
                 className="flex flex-col items-center touch-none relative"
                 onMouseDown={handleStart}
@@ -84,7 +92,7 @@ export const Knob: React.FC<KnobProps> = ({ value, color, size = 'md', onChange,
                     <div
                         className={`rounded-full absolute top-[10%] origin-bottom transition-transform duration-75 ${indicatorSize[size]}`}
                         style={{
-                            transform: `rotate(${(value * 270) - 135}deg)`,
+                            transform: `rotate(${(normalized * 270) - 135}deg)`,
                             backgroundColor: isDragging ? '#a3e635' : color,
                             boxShadow: `0 0 8px ${isDragging ? '#a3e635' : color}`
                         }}
@@ -96,7 +104,7 @@ export const Knob: React.FC<KnobProps> = ({ value, color, size = 'md', onChange,
     );
 };
 
-export const MiniFader: React.FC<{ value: number; color: string; onChange: (val: number) => void }> = ({ value, color, onChange }) => {
+export const MiniFader: React.FC<{ value: number; color: string; onChange: (val: number) => void; disabled?: boolean }> = ({ value, color, onChange, disabled }) => {
     const trackRef = useRef<HTMLDivElement>(null);
     const [active, setActive] = useState(false);
 
@@ -127,6 +135,7 @@ export const MiniFader: React.FC<{ value: number; color: string; onChange: (val:
     };
 
     const startDrag = (e: React.MouseEvent | React.TouchEvent) => {
+        if (disabled) return;
         setActive(true);
         vibrate(5);
         handleInteraction(e);
@@ -148,7 +157,7 @@ export const MiniFader: React.FC<{ value: number; color: string; onChange: (val:
 
     return (
         <div
-            className="flex flex-col items-center gap-1 h-full w-10 pb-1"
+            className={`flex flex-col items-center gap-1 h-full w-10 pb-1 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
         >
             <div
                 ref={trackRef}

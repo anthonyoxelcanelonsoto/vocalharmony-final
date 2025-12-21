@@ -20,7 +20,19 @@ export interface Track {
   isArmed: boolean; // Ready to record
   isTuning: boolean; // Ready to tune (Pitch Shift modal)
   duration?: number; // Duration in seconds
+
+  offset?: number; // Start time offset in seconds
   pitchShift: number; // Semitones for Ultra mode
+  reverbSend?: number; // Reverb send amount 0-1
+  eq?: {
+    enabled: boolean;
+    low: { gain: number, freq: number };
+    lowMid: { gain: number, freq: number, q: number };
+    mid: { gain: number, freq: number, q: number };
+    highMid: { gain: number, freq: number, q: number };
+    high: { gain: number, freq: number };
+  };
+  isMaster?: boolean; // Identifies the Master track
 }
 
 export interface LyricLine {
