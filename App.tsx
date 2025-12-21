@@ -2155,118 +2155,21 @@ export default function App() {
           ${appMode === 'ULTRA' ? 'bg-black' : (appMode === 'SIMPLE' ? 'bg-slate-900' : 'bg-slate-950')}
       `}>
 
-                    <div className="shrink-0 flex flex-col pt-3 pb-6 relative z-20">
-                        {/* TIMELINE AREA - Modern Glass Container */}
-                        <div className="h-14 flex items-center w-full px-4 gap-3 mb-3">
-                            <div className="flex-1 h-full bg-slate-900/40 rounded-xl border border-white/5 overflow-hidden relative shadow-inner backdrop-blur-sm group hover:border-white/10 transition-colors">
-                                <Timeline
-                                    currentTime={currentTime}
-                                    duration={maxDuration}
-                                    loopStart={loopStart}
-                                    loopEnd={loopEnd}
-                                    onSeek={(t) => { vibrate(5); handleSeek(t); }}
-                                />
-                            </div>
+                    <div className="shrink-0 flex flex-col pb-1 relative z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+                        <div className="h-10 flex items-center w-full px-3 gap-2">
+                            <Timeline
+                                currentTime={currentTime}
+                                duration={maxDuration}
+                                loopStart={loopStart}
+                                loopEnd={loopEnd}
+                                onSeek={(t) => { vibrate(5); handleSeek(t); }}
+                            />
                         </div>
 
-                        {/* CONTROLS ROW - Premium Layout */}
-                        <div className="flex items-center justify-between px-6 h-auto w-full gap-4 max-w-2xl mx-auto">
-
-                            {/* LEFT: LOOP & NAV */}
-                            <div className="flex-1 flex items-center justify-start gap-3">
-                                <div className="flex items-center gap-1 p-1 rounded-2xl bg-black/20 border border-white/5 backdrop-blur-md shadow-sm">
-                                    {/* Loop A */}
-                                    <button
-                                        onClick={() => toggleLoopPoint('A')}
-                                        className={`w-10 h-10 rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all active:scale-95 border
-                                        ${loopStart !== null
-                                                ? 'bg-orange-500 border-orange-400 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                                                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-                                    >
-                                        A
-                                        {loopStart !== null && <div className="w-1 h-1 bg-black rounded-full mt-0.5"></div>}
-                                    </button>
-
-                                    {/* Loop B */}
-                                    <button
-                                        onClick={() => toggleLoopPoint('B')}
-                                        className={`w-10 h-10 rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all active:scale-95 border
-                                        ${loopEnd !== null
-                                                ? 'bg-orange-500 border-orange-400 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                                                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-                                    >
-                                        B
-                                        {loopEnd !== null && <div className="w-1 h-1 bg-black rounded-full mt-0.5"></div>}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* CENTER: TRANSPORT (BIGGER & GLOWING) */}
-                            <div className="flex items-center justify-center gap-6">
-                                <button
-                                    onClick={() => { vibrate(10); handleSeek(Math.max(0, currentTime - 5)); }}
-                                    className="p-3 rounded-full text-slate-500 hover:text-white hover:bg-white/5 active:scale-90 transition-all active:text-orange-400"
-                                >
-                                    <SkipBack size={24} fill="currentColor" />
-                                </button>
-
-                                <button
-                                    onClick={handleTogglePlay}
-                                    className={`
-                                        w-20 h-20 rounded-[2rem] flex items-center justify-center transition-all duration-300 active:scale-95 group relative z-10
-                                        ${isPlaying
-                                            ? 'bg-slate-900 border border-orange-500/50 text-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.2)]'
-                                            : 'bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-[0_0_40px_rgba(249,115,22,0.4)] border border-orange-400/50'
-                                        }
-                                    `}
-                                >
-                                    {/* Subtle Pulse Animation when Playing */}
-                                    {isPlaying && <div className="absolute inset-0 rounded-[2rem] border border-orange-500/30 animate-ping opacity-50 pointer-events-none"></div>}
-
-                                    {isPlaying
-                                        ? <Pause size={36} fill="currentColor" className="relative z-10" />
-                                        : <Play size={36} fill="currentColor" className="ml-1.5 relative z-10" />
-                                    }
-                                </button>
-
-                                <button
-                                    onClick={() => { vibrate(10); handleSeek(Math.min(maxDuration, currentTime + 5)); }}
-                                    className="p-3 rounded-full text-slate-500 hover:text-white hover:bg-white/5 active:scale-90 transition-all active:text-orange-400"
-                                >
-                                    <SkipForward size={24} fill="currentColor" />
-                                </button>
-                            </div>
-
-                            {/* RIGHT: MODE SWITCHER */}
-                            <div className="flex-1 flex justify-end">
-                                <button
-                                    onClick={handleModeToggle}
-                                    className={`h-10 px-3 rounded-xl border flex items-center gap-2 transition-all shadow-lg active:scale-95 group
-                                    ${appMode === 'SIMPLE'
-                                            ? 'bg-lime-400/10 border-lime-500/50 text-lime-400 shadow-[0_0_15px_rgba(132,204,22,0.1)]'
-                                            : (appMode === 'ULTRA'
-                                                ? 'bg-orange-500/10 border-orange-500/50 text-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.1)]'
-                                                : 'bg-slate-800/50 border-slate-700 text-slate-400'
-                                            )
-                                        }`}
-                                >
-                                    <div className="flex flex-col items-end leading-none">
-                                        <span className="text-[8px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Mode</span>
-                                        <span className="text-xs font-bold tracking-wider">
-                                            {appMode === 'SIMPLE' ? 'LITE' : (appMode === 'ULTRA' ? 'PRO+' : appMode)}
-                                        </span>
-                                    </div>
-                                    <div className={`transition-transform duration-500 ${appMode === 'ULTRA' ? 'rotate-180' : ''}`}>
-                                        {appMode === 'SIMPLE' && <Zap size={16} fill="currentColor" />}
-                                        {appMode === 'PRO' && <Sliders size={16} />}
-                                        {appMode === 'ULTRA' && <Wand2 size={16} />}
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
+                        {/* Old Transport Bar Removed for Modernization */}
                     </div>
 
-                    <div className={`h-[320px] shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe pb-6 relative
+                    <div className={`h-[260px] mb-20 shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe pb-6 relative
               ${appMode === 'ULTRA' ? 'bg-black/90' : (appMode === 'SIMPLE' ? 'bg-slate-900/90' : 'bg-slate-900/90')}
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
@@ -3551,6 +3454,63 @@ export default function App() {
             }
 
 
+
+            {/* MODERN FLOATING BOTTOM BAR */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 h-14 bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl flex items-center px-4 gap-2 z-[60] transition-all hover:scale-105 active:scale-100 hover:bg-slate-900">
+
+                {/* Loop Controls (Mini) */}
+                <div className="flex items-center gap-1 border-r border-white/10 pr-3 mr-1">
+                    <button
+                        onClick={() => toggleLoopPoint('A')}
+                        className={`w-8 h-8 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${loopStart !== null ? 'bg-orange-500 text-black' : 'text-slate-500 hover:bg-white/10'}`}
+                    >A</button>
+                    <button
+                        onClick={() => toggleLoopPoint('B')}
+                        className={`w-8 h-8 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${loopEnd !== null ? 'bg-orange-500 text-black' : 'text-slate-500 hover:bg-white/10'}`}
+                    >B</button>
+                </div>
+
+                {/* Transport */}
+                <button
+                    onClick={() => { vibrate(10); handleSeek(Math.max(0, currentTime - 5)); }}
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                    <SkipBack size={20} fill="currentColor" />
+                </button>
+
+                <button
+                    onClick={handleTogglePlay}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 mx-1
+                        ${isPlaying
+                            ? 'bg-slate-100 text-black shadow-white/20'
+                            : 'bg-orange-500 text-black shadow-orange-500/40'
+                        }
+                    `}
+                >
+                    {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}
+                </button>
+
+                <button
+                    onClick={() => { vibrate(10); handleSeek(Math.min(maxDuration, currentTime + 5)); }}
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                >
+                    <SkipForward size={20} fill="currentColor" />
+                </button>
+
+                {/* Mode Switcher (Mini) */}
+                <div className="flex items-center gap-1 border-l border-white/10 pl-3 ml-1">
+                    <button
+                        onClick={handleModeToggle}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95
+                                ${appMode === 'SIMPLE' ? 'text-lime-400' : (appMode === 'ULTRA' ? 'text-orange-500' : 'text-slate-500 hover:text-white')}
+                        `}
+                    >
+                        {appMode === 'SIMPLE' && <Zap size={20} fill="currentColor" />}
+                        {appMode === 'PRO' && <Sliders size={20} />}
+                        {appMode === 'ULTRA' && <Wand2 size={20} />}
+                    </button>
+                </div>
+            </div>
 
             {/* HIDDEN FILE INPUT */}
             <input
