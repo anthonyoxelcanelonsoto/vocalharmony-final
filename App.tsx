@@ -1904,8 +1904,8 @@ export default function App() {
 
             {/* 1. HEADER */}
             <header className={`relative shrink-0 flex items-center justify-between px-4 pt-safe pb-2 border-b z-30 transition-all duration-300 
-            ${!showControls ? '-mt-20 opacity-0' : 'opacity-100'}
-            ${appMode === 'ULTRA' ? 'bg-black border-orange-900/50' : (appMode === 'SIMPLE' ? 'bg-slate-900 border-lime-500/30' : 'bg-slate-950 border-orange-900/30')}
+            opacity-100
+             ${appMode === 'ULTRA' ? 'bg-black border-orange-900/50' : (appMode === 'SIMPLE' ? 'bg-slate-900 border-lime-500/30' : 'bg-slate-950 border-orange-900/30')}
       `}>
                 {/* LOGO AREA - LEFT */}
                 <div className="flex items-center gap-3">
@@ -2042,10 +2042,10 @@ export default function App() {
 
             {mainView === 'studio' && (<>
                 {/* 2. VISUALIZER */}
-                <div className={`flex-1 min-h-0 relative transition-all duration-300 ${!showControls ? 'pt-safe' : ''}
+                <div className={`flex-1 min-h-0 relative transition-all duration-300
          ${appMode === 'SIMPLE' ? 'bg-slate-800/50' : 'bg-slate-900/50'}
       `}>
-                    <div className={`absolute top-2 left-0 right-0 z-10 flex justify-center pointer-events-none transition-opacity ${!showControls ? 'opacity-0' : 'opacity-100'}`}>
+                    <div className={`absolute top-2 left-0 right-0 z-10 flex justify-center pointer-events-none transition-opacity`}>
                         <div className={`px-3 py-1 rounded-full border flex items-center gap-2 shadow-lg backdrop-blur
                 ${appMode === 'ULTRA'
                                 ? 'bg-orange-950/80 border-orange-500/50'
@@ -2098,7 +2098,7 @@ export default function App() {
                     {audioContext && (
                         <button
                             onClick={() => { vibrate(10); setShowControls(!showControls); }}
-                            className={`absolute bottom-4 right-4 z-40 p-3 rounded-full shadow-xl border transition-all ${showControls ? 'bg-slate-900/80 border-slate-700 text-slate-400' : 'bg-orange-600 border-orange-400 text-black animate-pulse-fast'}`}
+                            className={`absolute bottom-28 right-4 z-[70] p-3 rounded-full shadow-xl border transition-all ${showControls ? 'bg-slate-900/80 border-slate-700 text-slate-400' : 'bg-orange-600 border-orange-400 text-black animate-pulse-fast'}`}
                         >
                             {showControls ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
                         </button>
@@ -2150,8 +2150,7 @@ export default function App() {
                 </div>
 
                 {/* COLLAPSIBLE CONTROLS */}
-                <div className={`shrink-0 border-t border-orange-900/30 flex flex-col transition-all duration-300 ease-in-out overflow-hidden 
-          ${showControls ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
+                <div className={`shrink-0 border-t border-orange-900/30 flex flex-col transition-all duration-300 ease-in-out
           ${appMode === 'ULTRA' ? 'bg-black' : (appMode === 'SIMPLE' ? 'bg-slate-900' : 'bg-slate-950')}
       `}>
 
@@ -2169,7 +2168,8 @@ export default function App() {
                         {/* Old Transport Bar Removed for Modernization */}
                     </div>
 
-                    <div className={`h-[260px] mb-20 shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe pb-6 relative
+                    <div className={`shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe relative overflow-hidden transition-all duration-500 ease-in-out
+              ${showControls ? 'h-[260px] opacity-100 mb-20 pb-6' : 'h-0 opacity-0 mb-0 pb-0'}
               ${appMode === 'ULTRA' ? 'bg-black/90' : (appMode === 'SIMPLE' ? 'bg-slate-900/90' : 'bg-slate-900/90')}
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
@@ -2185,7 +2185,7 @@ export default function App() {
                                             className={`
                             snap-center shrink-0 h-[96%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
                             ${appMode === 'SIMPLE' ? 'w-[70px]' : 'w-[110px]'}
-                            ${track.isMaster ? 'sticky left-2 z-30 mr-2 shadow-[4px_0_15px_rgba(0,0,0,0.5)]' : ''}
+                            ${track.isMaster ? 'mr-2 shadow-[4px_0_15px_rgba(0,0,0,0.5)]' : ''}
                             ${selectedTrackId === track.id
                                                     ? (appMode === 'ULTRA'
                                                         ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
@@ -2274,7 +2274,7 @@ export default function App() {
                                                                         className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
                                                                     ${track.isArmed
                                                                                 ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                                                                                : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500'
+                                                                                : 'bg-slate-800 border-slate-600 text-red-500 hover:bg-slate-700 hover:text-red-400 hover:border-slate-500'
                                                                             }
                                                                 `}
                                                                         title="Arm for Recording"
