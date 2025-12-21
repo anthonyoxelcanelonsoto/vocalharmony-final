@@ -2392,35 +2392,7 @@ export default function App() {
                                                                     </button>
                                                                 )}
 
-                                                                <button
-                                                                    disabled={isUILocked}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        vibrate(10);
-                                                                        setEqActiveTrackId(track.id);
-                                                                        setEqModalOpen(true);
-                                                                    }}
-                                                                    className={`h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-purple-500/20 hover:border-purple-500 hover:text-purple-500 transition-all active:scale-95 ${track.eq?.enabled && (track.eq.low.gain !== 0 || track.eq.mid.gain !== 0 || track.eq.high.gain !== 0) ? 'text-purple-400 border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.3)]' : ''}`}
-                                                                    title="Parametric EQ"
-                                                                >
-                                                                    <Activity size={12} />
-                                                                </button>
 
-                                                                {/* REVERB BUTTON (PRO/ULTRA) */}
-                                                                {appMode !== 'SIMPLE' && (
-                                                                    <button
-                                                                        disabled={isUILocked}
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            vibrate(10);
-                                                                            setReverbSettings({ ...reverbSettings, isOpen: true, activeTrackId: track.id });
-                                                                        }}
-                                                                        className={`h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-blue-500/20 hover:border-blue-500 hover:text-blue-500 transition-all active:scale-95 ${track.reverbSend && track.reverbSend > 0 ? 'text-blue-400 border-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : ''}`}
-                                                                        title="Reverb Effects"
-                                                                    >
-                                                                        <Sparkles size={12} />
-                                                                    </button>
-                                                                )}
                                                             </>
                                                         )}
                                                     </div>
@@ -2519,6 +2491,36 @@ export default function App() {
                                                                 />
                                                             </div>
                                                             <div className="flex flex-col items-center justify-end gap-2 h-full">
+                                                                {/* FX BUTTONS STACK (EQ + REVERB) */}
+                                                                <div className="flex flex-col gap-1 mb-1">
+                                                                    <button
+                                                                        disabled={isUILocked || track.id !== selectedTrackId}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            vibrate(10);
+                                                                            setEqActiveTrackId(track.id);
+                                                                            setEqModalOpen(true);
+                                                                        }}
+                                                                        className={`h-6 w-6 rounded-md flex items-center justify-center border border-slate-700 bg-slate-900 text-slate-500 hover:bg-purple-500/20 hover:border-purple-500 hover:text-purple-500 transition-all active:scale-95 ${track.eq?.enabled && (track.eq.low.gain !== 0 || track.eq.mid.gain !== 0 || track.eq.high.gain !== 0) ? 'text-purple-400 border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.3)]' : ''}`}
+                                                                        title="EQ"
+                                                                    >
+                                                                        <Activity size={10} />
+                                                                    </button>
+
+                                                                    <button
+                                                                        disabled={isUILocked || track.id !== selectedTrackId}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            vibrate(10);
+                                                                            setReverbSettings({ ...reverbSettings, isOpen: true, activeTrackId: track.id });
+                                                                        }}
+                                                                        className={`h-6 w-6 rounded-md flex items-center justify-center border border-slate-700 bg-slate-900 text-slate-500 hover:bg-blue-500/20 hover:border-blue-500 hover:text-blue-500 transition-all active:scale-95 ${track.reverbSend && track.reverbSend > 0 ? 'text-blue-400 border-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : ''}`}
+                                                                        title="Reverb"
+                                                                    >
+                                                                        <Sparkles size={10} />
+                                                                    </button>
+                                                                </div>
+
                                                                 <Knob
                                                                     disabled={isUILocked || track.id !== selectedTrackId}
                                                                     value={track.pan}
