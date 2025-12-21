@@ -2173,195 +2173,245 @@ export default function App() {
               ${appMode === 'ULTRA' ? 'bg-black/90' : (appMode === 'SIMPLE' ? 'bg-slate-900/90' : 'bg-slate-900/90')}
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
-                            {tracks
-                                .map(track => {
-                                    // HIDE MASTER IN LITE MODE
-                                    if (appMode === 'SIMPLE' && track.isMaster) return null;
+                            {(() => {
+                                const m = tracks.find(t => t.isMaster);
+                                const others = tracks.filter(t => !t.isMaster);
+                                const backing = others[0];
+                                const vocals = others.slice(1);
+                                const sorted = m ? [m, ...vocals] : [...vocals];
+                                if (backing) sorted.push(backing);
+                                return sorted;
+                            })().map(track => {
+                                // HIDE MASTER IN LITE MODE
+                                if (appMode === 'SIMPLE' && track.isMaster) return null;
 
-                                    return (
-                                        <div
-                                            key={track.id}
-                                            onClick={() => { vibrate(5); setSelectedTrackId(track.id); }}
-                                            className={`
+                                return (
+                                    <div
+                                        key={track.id}
+                                        onClick={() => { vibrate(5); setSelectedTrackId(track.id); }}
+                                        className={`
                             snap-center shrink-0 h-[96%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
                             ${appMode === 'SIMPLE' ? 'w-[70px]' : 'w-[110px]'}
                             ${track.isMaster ? 'mr-2 shadow-[4px_0_15px_rgba(0,0,0,0.5)]' : ''}
                             ${selectedTrackId === track.id
-                                                    ? (appMode === 'ULTRA'
-                                                        ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
-                                                        : (appMode === 'SIMPLE' ? 'bg-slate-700 border-lime-400 shadow-[0_0_10px_rgba(132,204,22,0.2)]' : 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20'))
-                                                    : (appMode === 'SIMPLE' ? 'bg-slate-800 border-slate-600' : 'bg-slate-950/40 border-slate-800')
-                                                }
+                                                ? (appMode === 'ULTRA'
+                                                    ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
+                                                    : (appMode === 'SIMPLE' ? 'bg-slate-700 border-lime-400 shadow-[0_0_10px_rgba(132,204,22,0.2)]' : 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20'))
+                                                : (appMode === 'SIMPLE' ? 'bg-slate-800 border-slate-600' : 'bg-slate-950/40 border-slate-800')
+                                            }
                             ${track.isMaster && selectedTrackId !== track.id ? 'bg-slate-900 border-orange-500/30' : ''}
                         `}
-                                        >
-                                            {/* SIMPLE MODE VERTICAL NAME (READ ONLY) */}
-                                            {appMode === 'SIMPLE' && (
-                                                <div
-                                                    className="absolute left-0.5 top-12 bottom-12 w-4 flex items-center justify-center z-20 opacity-50 select-none"
-                                                >
-                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>
-                                                        {track.name}
-                                                    </span>
-                                                </div>
-                                            )}
-
-                                            {/* UNIVERSAL VERTICAL METER (RIGHT SIDE) */}
-                                            <div className="absolute right-1 top-2 bottom-2 w-1.5 z-10 rounded-full overflow-hidden bg-slate-950/50">
-                                                <VerticalBarMeter
-                                                    analyser={trackAnalysersRef.current[track.id]}
-                                                    isPlaying={isPlaying}
-                                                    color={track.color}
-                                                />
+                                    >
+                                        {/* SIMPLE MODE VERTICAL NAME (READ ONLY) */}
+                                        {appMode === 'SIMPLE' && (
+                                            <div
+                                                className="absolute left-0.5 top-12 bottom-12 w-4 flex items-center justify-center z-20 opacity-50 select-none"
+                                            >
+                                                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>
+                                                    {track.name}
+                                                </span>
                                             </div>
-                                            <div className="flex flex-col gap-1 mb-1 w-full">
-                                                <div className="flex items-center gap-1.5 px-1">
-                                                    <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
+                                        )}
 
-                                                    {/* HIDE NAME HEADER IN SIMPLE MODE */}
-                                                    {appMode !== 'SIMPLE' && (
-                                                        <>
-                                                            <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (isUILocked) return;
-                                                                    setRenamingTrackId(track.id);
-                                                                    setRenameText(track.name);
-                                                                }}
-                                                                className="p-1 text-slate-500 hover:text-white transition-colors opacity-70 hover:opacity-100"
-                                                            >
-                                                                <Edit2 size={10} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
+                                        {/* UNIVERSAL VERTICAL METER (RIGHT SIDE) */}
+                                        <div className="absolute right-1 top-2 bottom-2 w-1.5 z-10 rounded-full overflow-hidden bg-slate-950/50">
+                                            <VerticalBarMeter
+                                                analyser={trackAnalysersRef.current[track.id]}
+                                                isPlaying={isPlaying}
+                                                color={track.color}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1 mb-1 w-full">
+                                            <div className="flex items-center gap-1.5 px-1">
+                                                <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
 
-                                                {!isRecording && (
-                                                    <div className="flex items-center justify-end gap-1 px-1">
-                                                        {/* MASTER TRACK IDENTIFIER or NORMAL TRACK CONTROLS */}
-                                                        {track.isMaster ? (
-                                                            <div className="h-6 flex-1 rounded-md flex items-center justify-center bg-orange-500/10 border border-orange-500/30 text-[9px] font-black tracking-widest text-orange-500 select-none">
-                                                                MAIN
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                {/* MODE/MIC BUTTON (PRO/ULTRA) OR SOLO (SIMPLE) */}
-                                                                {appMode === 'SIMPLE' ? (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (isUILocked) return;
-                                                                            vibrate(5);
-                                                                            // EXCLUSIVE SOLO LOGIC
-                                                                            setTracks(tracks.map(t => ({
-                                                                                ...t,
-                                                                                solo: t.id === track.id ? !t.solo : false
-                                                                            })));
-                                                                        }}
-                                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
-                                                                    ${track.solo
-                                                                                ? 'bg-lime-400 border-lime-500 text-black shadow-[0_0_10px_rgba(132,204,22,0.4)]'
-                                                                                : 'bg-slate-800 border-slate-600 text-slate-500 hover:bg-slate-700'
-                                                                            }
-                                                                `}
-                                                                    >
-                                                                        <span className="text-[9px] font-black">S</span>
-                                                                    </button>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={(e) => !isUILocked && handleTrackModeClick(track.id, e)}
-                                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
-                                                                    ${track.isArmed
-                                                                                ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                                                                                : 'bg-slate-800 border-slate-600 text-red-500 hover:bg-slate-700 hover:text-red-400 hover:border-slate-500'
-                                                                            }
-                                                                `}
-                                                                        title="Arm for Recording"
-                                                                    >
-                                                                        <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />
-                                                                    </button>
-                                                                )}
-
-                                                                {/* TUNING BUTTON - ULTRA MODE ONLY */}
-                                                                {appMode === 'ULTRA' && (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            if (track.hasFile) openPitchModal(track.id, track.pitchShift || 0, e);
-                                                                        }}
-                                                                        disabled={!track.hasFile}
-                                                                        className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
-                                                                        ${track.hasFile
-                                                                                ? (track.isTuning
-                                                                                    ? 'bg-orange-500/20 border-orange-500 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
-                                                                                    : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500')
-                                                                                : 'bg-slate-900 border-slate-800 text-slate-700 cursor-not-allowed opacity-50'
-                                                                            }
-                                                                    `}
-                                                                        title={track.hasFile ? "Pitch Tuning" : "Record audio to enable Tuning"}
-                                                                    >
-                                                                        <Wand2 size={12} />
-                                                                    </button>
-                                                                )}
-
-                                                                {/* DELETE BUTTON - PRO/ULTRA ONLY */}
-                                                                {appMode !== 'SIMPLE' && (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (isUILocked) return;
-                                                                            vibrate(10);
-                                                                            setDeleteTrackId(track.id);
-                                                                        }}
-                                                                        className="h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-red-500/20 hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
-                                                                        title="Delete Track"
-                                                                    >
-                                                                        <Trash2 size={12} />
-                                                                    </button>
-                                                                )}
-
-
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                {/* HIDE NAME HEADER IN SIMPLE MODE */}
+                                                {appMode !== 'SIMPLE' && (
+                                                    <>
+                                                        <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (isUILocked) return;
+                                                                setRenamingTrackId(track.id);
+                                                                setRenameText(track.name);
+                                                            }}
+                                                            className="p-1 text-slate-500 hover:text-white transition-colors opacity-70 hover:opacity-100"
+                                                        >
+                                                            <Edit2 size={10} />
+                                                        </button>
+                                                    </>
                                                 )}
                                             </div>
 
-                                            {track.isArmed ? (
-                                                <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                                                    <button
-                                                        onClick={handleToggleRecord}
-                                                        className={`
+                                            {!isRecording && (
+                                                <div className="flex items-center justify-end gap-1 px-1">
+                                                    {/* MASTER TRACK IDENTIFIER or NORMAL TRACK CONTROLS */}
+                                                    {track.isMaster ? (
+                                                        <div className="h-6 flex-1 rounded-md flex items-center justify-center bg-orange-500/10 border border-orange-500/30 text-[9px] font-black tracking-widest text-orange-500 select-none">
+                                                            MAIN
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {/* MODE/MIC BUTTON (PRO/ULTRA) OR SOLO (SIMPLE) */}
+                                                            {appMode === 'SIMPLE' ? (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (isUILocked) return;
+                                                                        vibrate(5);
+                                                                        // EXCLUSIVE SOLO LOGIC
+                                                                        setTracks(tracks.map(t => ({
+                                                                            ...t,
+                                                                            solo: t.id === track.id ? !t.solo : false
+                                                                        })));
+                                                                    }}
+                                                                    className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                                    ${track.solo
+                                                                            ? 'bg-lime-400 border-lime-500 text-black shadow-[0_0_10px_rgba(132,204,22,0.4)]'
+                                                                            : 'bg-slate-800 border-slate-600 text-slate-500 hover:bg-slate-700'
+                                                                        }
+                                                                `}
+                                                                >
+                                                                    <span className="text-[9px] font-black">S</span>
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={(e) => !isUILocked && handleTrackModeClick(track.id, e)}
+                                                                    className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                                    ${track.isArmed
+                                                                            ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                                                                            : 'bg-slate-800 border-slate-600 text-red-500 hover:bg-slate-700 hover:text-red-400 hover:border-slate-500'
+                                                                        }
+                                                                `}
+                                                                    title="Arm for Recording"
+                                                                >
+                                                                    <Mic2 size={12} fill={track.isArmed ? "currentColor" : "none"} />
+                                                                </button>
+                                                            )}
+
+                                                            {/* TUNING BUTTON - ULTRA MODE ONLY */}
+                                                            {appMode === 'ULTRA' && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        if (track.hasFile) openPitchModal(track.id, track.pitchShift || 0, e);
+                                                                    }}
+                                                                    disabled={!track.hasFile}
+                                                                    className={`h-6 flex-1 rounded-md flex items-center justify-center border transition-all active:scale-95
+                                                                        ${track.hasFile
+                                                                            ? (track.isTuning
+                                                                                ? 'bg-orange-500/20 border-orange-500 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+                                                                                : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200 hover:border-slate-500')
+                                                                            : 'bg-slate-900 border-slate-800 text-slate-700 cursor-not-allowed opacity-50'
+                                                                        }
+                                                                    `}
+                                                                    title={track.hasFile ? "Pitch Tuning" : "Record audio to enable Tuning"}
+                                                                >
+                                                                    <Wand2 size={12} />
+                                                                </button>
+                                                            )}
+
+                                                            {/* DELETE BUTTON - PRO/ULTRA ONLY */}
+                                                            {appMode !== 'SIMPLE' && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (isUILocked) return;
+                                                                        vibrate(10);
+                                                                        setDeleteTrackId(track.id);
+                                                                    }}
+                                                                    className="h-6 w-6 shrink-0 rounded-md flex items-center justify-center border border-slate-700 bg-slate-800 text-slate-500 hover:bg-red-500/20 hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
+                                                                    title="Delete Track"
+                                                                >
+                                                                    <Trash2 size={12} />
+                                                                </button>
+                                                            )}
+
+
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {track.isArmed ? (
+                                            <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                                                <button
+                                                    onClick={handleToggleRecord}
+                                                    className={`
                                         w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all shadow-xl active:scale-95
                                         ${isRecording
-                                                                ? 'bg-red-500 border-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]'
-                                                                : 'bg-slate-800 border-slate-700 text-red-500 hover:bg-slate-700'
-                                                            }
+                                                            ? 'bg-red-500 border-red-400 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]'
+                                                            : 'bg-slate-800 border-slate-700 text-red-500 hover:bg-slate-700'
+                                                        }
                                     `}
-                                                    >
-                                                        {isRecording ? <Square size={24} fill="white" className="text-white" /> : <Disc size={32} fill="currentColor" />}
-                                                    </button>
-                                                    <span className="text-[9px] font-bold text-red-500 tracking-widest uppercase">
-                                                        {isRecording ? "REC ON" : "READY"}
-                                                    </span>
-                                                </div>
-                                            ) : track.isTuning ? (
-                                                <div className="flex-1 flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-200">
-                                                    <button
-                                                        onClick={(e) => openPitchModal(track.id, track.pitchShift, e)}
-                                                        className="w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all shadow-xl active:scale-95 bg-orange-600 border-orange-400 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]"
-                                                    >
-                                                        <Music2 size={24} fill="currentColor" />
-                                                    </button>
-                                                    <span className="text-[9px] font-bold text-orange-500 tracking-widest uppercase">
-                                                        TUNING
-                                                    </span>
+                                                >
+                                                    {isRecording ? <Square size={24} fill="white" className="text-white" /> : <Disc size={32} fill="currentColor" />}
+                                                </button>
+                                                <span className="text-[9px] font-bold text-red-500 tracking-widest uppercase">
+                                                    {isRecording ? "REC ON" : "READY"}
+                                                </span>
+                                            </div>
+                                        ) : track.isTuning ? (
+                                            <div className="flex-1 flex flex-col items-center justify-center gap-2 animate-in zoom-in duration-200">
+                                                <button
+                                                    onClick={(e) => openPitchModal(track.id, track.pitchShift, e)}
+                                                    className="w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all shadow-xl active:scale-95 bg-orange-600 border-orange-400 text-black shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+                                                >
+                                                    <Music2 size={24} fill="currentColor" />
+                                                </button>
+                                                <span className="text-[9px] font-bold text-orange-500 tracking-widest uppercase">
+                                                    TUNING
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            appMode === 'SIMPLE' ? (
+                                                <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                                                    {/* LITE MODE: ONLY VOLUME */}
+                                                    <div className="h-full flex items-center justify-center pb-1 w-full">
+                                                        <MiniFader
+                                                            disabled={isUILocked || track.id !== selectedTrackId}
+                                                            value={track.vol}
+                                                            color={track.color}
+                                                            onChange={(val) => {
+                                                                const newTracks = [...tracks];
+                                                                const t = newTracks.find(x => x.id === track.id);
+                                                                if (t) t.vol = val;
+                                                                setTracks(newTracks);
+                                                                setSelectedTrackId(track.id);
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             ) : (
-                                                appMode === 'SIMPLE' ? (
-                                                    <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                                                        {/* LITE MODE: ONLY VOLUME */}
-                                                        <div className="h-full flex items-center justify-center pb-1 w-full">
+                                                <div className="flex-1 flex flex-col gap-1">
+                                                    <div className="flex gap-1 relative z-10">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                vibrate(5);
+                                                                setSelectedTrackId(track.id);
+                                                                setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
+                                                            }}
+                                                            className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
+                                                ${track.mute ? 'bg-orange-500 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
+                                            `}
+                                                        >M</button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                vibrate(5);
+                                                                setSelectedTrackId(track.id);
+                                                                setTracks(tracks.map(t => t.id === track.id ? { ...t, solo: !t.solo } : t));
+                                                            }}
+                                                            className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
+                                                ${track.solo ? 'bg-lime-400 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
+                                            `}
+                                                        >S</button>
+                                                    </div>
+
+                                                    <div className="flex-1 flex items-end justify-between px-1 pb-1 relative z-10">
+                                                        <div className="h-full flex items-center justify-center pb-1">
                                                             <MiniFader
                                                                 disabled={isUILocked || track.id !== selectedTrackId}
                                                                 value={track.vol}
@@ -2375,103 +2425,60 @@ export default function App() {
                                                                 }}
                                                             />
                                                         </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex-1 flex flex-col gap-1">
-                                                        <div className="flex gap-1 relative z-10">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    vibrate(5);
-                                                                    setSelectedTrackId(track.id);
-                                                                    setTracks(tracks.map(t => t.id === track.id ? { ...t, mute: !t.mute } : t));
-                                                                }}
-                                                                className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
-                                                ${track.mute ? 'bg-orange-500 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
-                                            `}
-                                                            >M</button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    vibrate(5);
-                                                                    setSelectedTrackId(track.id);
-                                                                    setTracks(tracks.map(t => t.id === track.id ? { ...t, solo: !t.solo } : t));
-                                                                }}
-                                                                className={`flex-1 h-6 rounded text-[8px] font-black tracking-tighter transition-all flex items-center justify-center
-                                                ${track.solo ? 'bg-lime-400 text-black' : 'bg-slate-900 border border-slate-700 text-slate-500'}
-                                            `}
-                                                            >S</button>
-                                                        </div>
-
-                                                        <div className="flex-1 flex items-end justify-between px-1 pb-1 relative z-10">
-                                                            <div className="h-full flex items-center justify-center pb-1">
-                                                                <MiniFader
+                                                        <div className="flex flex-col items-center justify-end gap-2 h-full">
+                                                            {/* FX BUTTONS STACK (EQ + REVERB) */}
+                                                            <div className="flex flex-col gap-1 mb-1">
+                                                                <button
                                                                     disabled={isUILocked || track.id !== selectedTrackId}
-                                                                    value={track.vol}
-                                                                    color={track.color}
-                                                                    onChange={(val) => {
-                                                                        const newTracks = [...tracks];
-                                                                        const t = newTracks.find(x => x.id === track.id);
-                                                                        if (t) t.vol = val;
-                                                                        setTracks(newTracks);
-                                                                        setSelectedTrackId(track.id);
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        vibrate(10);
+                                                                        setEqActiveTrackId(track.id);
+                                                                        setEqModalOpen(true);
                                                                     }}
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col items-center justify-end gap-2 h-full">
-                                                                {/* FX BUTTONS STACK (EQ + REVERB) */}
-                                                                <div className="flex flex-col gap-1 mb-1">
-                                                                    <button
-                                                                        disabled={isUILocked || track.id !== selectedTrackId}
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            vibrate(10);
-                                                                            setEqActiveTrackId(track.id);
-                                                                            setEqModalOpen(true);
-                                                                        }}
-                                                                        className={`h-6 w-6 rounded-md flex items-center justify-center border border-slate-700 bg-slate-900 text-slate-500 hover:bg-purple-500/20 hover:border-purple-500 hover:text-purple-500 transition-all active:scale-95 ${track.eq?.enabled && (track.eq.low.gain !== 0 || track.eq.mid.gain !== 0 || track.eq.high.gain !== 0) ? 'text-purple-400 border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.3)]' : ''}`}
-                                                                        title="EQ"
-                                                                    >
-                                                                        <Activity size={10} />
-                                                                    </button>
+                                                                    className={`h-6 w-6 rounded-md flex items-center justify-center border border-slate-700 bg-slate-900 text-slate-500 hover:bg-purple-500/20 hover:border-purple-500 hover:text-purple-500 transition-all active:scale-95 ${track.eq?.enabled && (track.eq.low.gain !== 0 || track.eq.mid.gain !== 0 || track.eq.high.gain !== 0) ? 'text-purple-400 border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.3)]' : ''}`}
+                                                                    title="EQ"
+                                                                >
+                                                                    <Activity size={10} />
+                                                                </button>
 
-                                                                    <button
-                                                                        disabled={isUILocked || track.id !== selectedTrackId}
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            vibrate(10);
-                                                                            setReverbSettings({ ...reverbSettings, isOpen: true, activeTrackId: track.id });
-                                                                        }}
-                                                                        className={`h-6 w-6 rounded-md flex items-center justify-center border border-slate-700 bg-slate-900 text-slate-500 hover:bg-blue-500/20 hover:border-blue-500 hover:text-blue-500 transition-all active:scale-95 ${track.reverbSend && track.reverbSend > 0 ? 'text-blue-400 border-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : ''}`}
-                                                                        title="Reverb"
-                                                                    >
-                                                                        <Sparkles size={10} />
-                                                                    </button>
-                                                                </div>
-
-                                                                <Knob
+                                                                <button
                                                                     disabled={isUILocked || track.id !== selectedTrackId}
-                                                                    value={track.pan}
-                                                                    color={track.color}
-                                                                    size="sm"
-                                                                    label="PAN"
-                                                                    onChange={(val) => {
-                                                                        const newTracks = [...tracks];
-                                                                        const t = newTracks.find(x => x.id === track.id);
-                                                                        if (t) t.pan = val;
-                                                                        setTracks(newTracks);
-                                                                        setSelectedTrackId(track.id);
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        vibrate(10);
+                                                                        setReverbSettings({ ...reverbSettings, isOpen: true, activeTrackId: track.id });
                                                                     }}
-                                                                />
-                                                                {/* Old VuMeter Removed */}
+                                                                    className={`h-6 w-6 rounded-md flex items-center justify-center border border-slate-700 bg-slate-900 text-slate-500 hover:bg-blue-500/20 hover:border-blue-500 hover:text-blue-500 transition-all active:scale-95 ${track.reverbSend && track.reverbSend > 0 ? 'text-blue-400 border-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : ''}`}
+                                                                    title="Reverb"
+                                                                >
+                                                                    <Sparkles size={10} />
+                                                                </button>
                                                             </div>
+
+                                                            <Knob
+                                                                disabled={isUILocked || track.id !== selectedTrackId}
+                                                                value={track.pan}
+                                                                color={track.color}
+                                                                size="sm"
+                                                                label="PAN"
+                                                                onChange={(val) => {
+                                                                    const newTracks = [...tracks];
+                                                                    const t = newTracks.find(x => x.id === track.id);
+                                                                    if (t) t.pan = val;
+                                                                    setTracks(newTracks);
+                                                                    setSelectedTrackId(track.id);
+                                                                }}
+                                                            />
+                                                            {/* Old VuMeter Removed */}
                                                         </div>
                                                     </div>
-                                                )
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                );
+                            })}
 
                             <div
                                 onClick={() => {
