@@ -2737,7 +2737,7 @@ export default function App() {
 
                         {mainView === 'store' && (
                             <div className="absolute inset-0 z-20 animate-in fade-in duration-300">
-                                <Store isAdminMode={isAdminMode} />
+                                <Store isAdminMode={isAdminMode} onLoadSong={handleLoadFromLibrary} />
                             </div>
                         )}
                     </main>

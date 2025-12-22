@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { db } from './db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, Check, Loader2, AlertTriangle, RotateCcw, Search, Music2, Cloud, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Download, Check, Loader2, AlertTriangle, RotateCcw, Search, Music2, Cloud, Plus, Edit2, Trash2, Play } from 'lucide-react';
 import Diagnostics from './Diagnostics';
 import AdminSongForm from './AdminSongForm';
 
-const Store = ({ isAdminMode }) => {
+const Store = ({ isAdminMode, onLoadSong }) => {
     const [songs, setSongs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -167,7 +167,8 @@ const Store = ({ isAdminMode }) => {
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-20">
                             {filteredSongs.map((song) => {
-                                const isDownloaded = localIds.includes(song.id);
+                                const localSong = localSongs?.find(s => s.id === song.id);
+                                const isDownloaded = !!localSong;
                                 const isDownloading = downloadingId === song.id;
 
                                 return (
@@ -208,9 +209,13 @@ const Store = ({ isAdminMode }) => {
                                                     {isDownloading ? (
                                                         <Loader2 className="animate-spin text-white" size={24} />
                                                     ) : isDownloaded ? (
-                                                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/40">
-                                                            <Check size={16} className="text-black font-bold" />
-                                                        </div>
+                                                        <button
+                                                            onClick={() => onLoadSong(localSong)}
+                                                            className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/40 hover:scale-110 hover:bg-green-400 transition-all text-black"
+                                                            title="Reproducir"
+                                                        >
+                                                            <Play size={18} fill="currentColor" />
+                                                        </button>
                                                     ) : (
                                                         <button
                                                             onClick={() => downloadSong(song)}
