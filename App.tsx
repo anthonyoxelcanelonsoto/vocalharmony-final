@@ -208,7 +208,7 @@ export default function App() {
     // New AppMode state: SIMPLE | PRO | ULTRA
     const [appMode, setAppMode] = useState<AppMode>('SIMPLE');
     const [pendingMode, setPendingMode] = useState<AppMode | null>(null); // For mode switch confirmation
-    const [mainView, setMainView] = useState<'studio' | 'store' | 'library'>('store');
+    const [mainView, setMainView] = useState<'studio' | 'store' | 'library'>('studio');
 
     const [importedLyrics, setImportedLyrics] = useState<LyricLine[]>([]);
     const [importedChords, setImportedChords] = useState<LyricLine[]>([]);
