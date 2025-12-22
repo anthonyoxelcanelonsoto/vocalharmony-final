@@ -4,6 +4,7 @@ import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
 import { db } from './src/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 import * as Tone from 'tone';
 import { Track, LyricLine, NoteBlock, AppMode, NoteData } from './types';
 import { getNoteFromPitch, autoCorrelate, parseLRC, loadJSZip, audioBufferToMp3, audioBufferToWav, analyzeAudioBlocks, getVoicedMap, resampleBuffer, timeStretchSOLA } from './utils';
@@ -207,6 +208,7 @@ export default function App() {
 
     // New AppMode state: SIMPLE | PRO | ULTRA
     const [appMode, setAppMode] = useState<AppMode>('SIMPLE');
+    const quickLibrarySongs = useLiveQuery(() => db.myLibrary.toArray(), []);
     const [pendingMode, setPendingMode] = useState<AppMode | null>(null); // For mode switch confirmation
     const [mainView, setMainView] = useState<'studio' | 'store' | 'library'>('studio');
 
@@ -2039,6 +2041,31 @@ export default function App() {
                     </div>
                 </div>
             </header>
+
+            {/* QUICK LIBRARY BAR (Horizontal Scroll) */}
+            {mainView === 'studio' && quickLibrarySongs && quickLibrarySongs.length > 0 && (
+                <div className="w-full h-28 bg-slate-950/80 backdrop-blur-md border-b border-white/5 flex items-center px-4 gap-3 overflow-x-auto no-scrollbar shrink-0 z-20">
+                    {quickLibrarySongs.map((song: any) => (
+                        <button
+                            key={song.id}
+                            onClick={() => handleLoadFromLibrary(song)}
+                            className="shrink-0 flex flex-col items-center gap-2 group w-20"
+                        >
+                            <div className="w-20 h-20 rounded-lg overflow-hidden relative shadow-lg group-hover:scale-105 transition-transform border border-white/10 group-hover:border-orange-500/50">
+                                <img
+                                    src={song.cover_url || 'https://via.placeholder.com/150'}
+                                    className="w-full h-full object-cover"
+                                    alt={song.title}
+                                />
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-bold truncate w-full text-center group-hover:text-white transition-colors">
+                                {song.title}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {mainView === 'studio' && (<>
                 {/* 2. VISUALIZER */}
