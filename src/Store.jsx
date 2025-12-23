@@ -22,7 +22,7 @@ const Store = ({ isAdminMode, onLoadSong }) => {
     const localIds = localSongs ? localSongs.map(s => s.id) : [];
 
     useEffect(() => {
-        console.log("Store View Loaded - Version: Mobile Scale Test " + new Date().toISOString());
+        console.log("Store View Loaded - Version: 1-Col Mobile + Contain " + new Date().toISOString());
         fetchSongs();
     }, []);
 
@@ -168,7 +168,7 @@ const Store = ({ isAdminMode, onLoadSong }) => {
                             <p className="text-slate-600 text-sm mt-1">Intenta con otro término de búsqueda</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-20">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-20">
                             {filteredSongs.map((song) => {
                                 const localSong = localSongs?.find(s => s.id === song.id);
                                 const isDownloaded = !!localSong;
@@ -183,7 +183,7 @@ const Store = ({ isAdminMode, onLoadSong }) => {
                                             <img
                                                 src={song.cover_url || 'https://via.placeholder.com/300x300?text=Music'}
                                                 alt={song.title}
-                                                className={`w-full h-full object-cover transition-transform duration-500 ${isDownloaded ? 'opacity-50' : 'group-hover:scale-110'}`}
+                                                className={`w-full h-full object-contain transition-transform duration-500 ${isDownloaded ? 'opacity-50' : 'group-hover:scale-110'}`}
                                             />
 
                                             {/* ADMIN ACTIONS OVERLAY */}
