@@ -230,14 +230,10 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
 
                 let drawScale;
 
-                // Fit Logic (Contain) using Rotated Ratio
-                if (canvasAspect > imgAspect) {
-                    // Canvas is relatively wider than the rotated image -> Constraint is Height
-                    drawScale = height / rotImgHeight;
-                } else {
-                    // Canvas is relatively narrower -> Constraint is Width
-                    drawScale = width / rotImgWidth;
-                }
+                // COVER Logic (Fill everything) using Rotated Ratio
+                const scaleW = width / rotImgWidth; // Scale needed to match width
+                const scaleH = height / rotImgHeight; // Scale needed to match height
+                drawScale = Math.max(scaleW, scaleH); // Take the larger scale to COVER the area
 
                 const finalW = img.width * drawScale;
                 const finalH = img.height * drawScale;
