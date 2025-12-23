@@ -1910,13 +1910,53 @@ export default function App() {
 
     if (isLandscape) {
         return (
-            <MultiTrackStudio
-                tracks={tracks}
-                setTracks={setTracks}
-                isPlaying={isPlaying}
-                onPlayPause={togglePlay}
-                currentTime={0}
-            />
+            <div className="fixed inset-0 z-[100] bg-slate-950 text-white flex flex-col">
+                {/* Header */}
+                <div className="h-12 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between shrink-0">
+                    <span className="font-bold text-lg">🎵 Landscape Studio</span>
+                    <button
+                        onClick={handleTogglePlay}
+                        className="px-4 py-2 bg-orange-600 rounded-lg font-bold active:scale-95"
+                    >
+                        {isPlaying ? 'Pause' : 'Play'}
+                    </button>
+                </div>
+
+                {/* Main */}
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Tracks */}
+                    <div className="w-56 bg-slate-900 border-r border-slate-800 p-3 overflow-y-auto shrink-0">
+                        <h2 className="text-xs font-bold text-slate-500 mb-3 uppercase">Tracks ({tracks.length})</h2>
+                        {tracks.map((track, i) => (
+                            <div
+                                key={track.id}
+                                className="p-2 mb-2 rounded bg-slate-800 border-l-4"
+                                style={{ borderColor: ['#EAB308', '#F97316', '#D946EF', '#3B82F6', '#22C55E'][i % 5] }}
+                            >
+                                <span className="font-bold text-sm">{track.name}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Timeline */}
+                    <div className="flex-1 bg-slate-950 p-3 overflow-auto">
+                        {tracks.map((track, i) => (
+                            <div
+                                key={track.id}
+                                className="h-14 mb-2 rounded flex items-center px-3"
+                                style={{ backgroundColor: ['#EAB308', '#F97316', '#D946EF', '#3B82F6', '#22C55E'][i % 5] + '60' }}
+                            >
+                                <span className="font-bold text-sm text-white">{track.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="h-12 bg-slate-900 border-t border-slate-800 flex items-center justify-center shrink-0">
+                    <span className="text-orange-500 font-mono font-bold">122 BPM</span>
+                </div>
+            </div>
         );
     }
 
