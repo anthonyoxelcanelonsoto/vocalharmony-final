@@ -119,7 +119,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
 
             if (viewMode === 'staff') {
                 const CENTER_MIDI = isFullscreen ? 60 : 71;
-                const VIEW_RANGE = isFullscreen ? 70 : 30;
+                const VIEW_RANGE = isFullscreen ? 70 : 50;
                 const ppt = height / VIEW_RANGE;
                 const centerStep = getStaffStep(CENTER_MIDI);
                 const targetStep = getStaffStep(Math.round(displayMidi));
@@ -160,7 +160,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
         let pixelsPerSemitone = 20;
 
         if (viewMode === 'staff') {
-            const VIEW_RANGE = isFullscreen ? 70 : 30;
+            const VIEW_RANGE = isFullscreen ? 70 : 50;
             const ppt = height / VIEW_RANGE;
             pixelsPerSemitone = ppt * 1.5;
         } else {
@@ -218,12 +218,37 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
             // BACKGROUND
             // BACKGROUND
             if (viewMode === 'staff' && bgImageRef.current) {
-                // Draw Parchment Background for Staff Mode
-                canvasCtx.drawImage(bgImageRef.current, 0, 0, width, height);
+                // Draw Parchment Background for Staff Mode (CONTAIN ASPECT RATIO)
+                const img = bgImageRef.current;
+                const imgAspect = img.width / img.height;
+                const canvasAspect = width / height;
+
+                let drawW, drawH, drawX, drawY;
+
+                if (canvasAspect > imgAspect) {
+                    // Canvas is wider than image -> Fit to Height
+                    drawH = height;
+                    drawW = height * imgAspect;
+                    drawX = (width - drawW) / 2;
+                    drawY = 0;
+                } else {
+                    // Canvas is taller than image -> Fit to Width
+                    drawW = width;
+                    drawH = width / imgAspect;
+                    drawX = 0;
+                    drawY = (height - drawH) / 2;
+                }
+
+                // Fill background with dark slate first to avoid trails
+                canvasCtx.fillStyle = '#0f172a';
+                canvasCtx.fillRect(0, 0, width, height);
+
+                canvasCtx.drawImage(img, drawX, drawY, drawW, drawH);
+
                 // Optional: Add slight dark tint for contrast if needed
                 if (appMode === 'ULTRA') {
                     canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                    canvasCtx.fillRect(0, 0, width, height);
+                    canvasCtx.fillRect(drawX, drawY, drawW, drawH);
                 }
             } else {
                 if (appMode === 'ULTRA') {
@@ -241,7 +266,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
             const getYFromMidi = (midiVal: number) => {
                 if (viewMode === 'staff') {
                     const CENTER_MIDI = isFullscreen ? 60 : 71;
-                    const VIEW_RANGE = isFullscreen ? 70 : 30;
+                    const VIEW_RANGE = isFullscreen ? 70 : 50;
                     const ppt = height / VIEW_RANGE;
                     const centerStep = getStaffStep(CENTER_MIDI);
                     const floorMidi = Math.floor(midiVal);
