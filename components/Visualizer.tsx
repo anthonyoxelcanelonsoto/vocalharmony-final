@@ -217,51 +217,19 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
 
             // BACKGROUND
             // BACKGROUND
-            if (viewMode === 'staff' && bgImageRef.current) {
-                // Draw Parchment Background Rotated 90 Degrees (Horizontal)
-                const img = bgImageRef.current;
-
-                // Rotated Dimensions: Image Width becomes logical height, Image Height becomes logical width
-                const rotImgWidth = img.height;
-                const rotImgHeight = img.width;
-
-                const imgAspect = rotImgWidth / rotImgHeight;
-                const canvasAspect = width / height;
-
-                let drawScale;
-
-                // COVER Logic (Fill everything) using Rotated Ratio
-                const scaleW = width / rotImgWidth; // Scale needed to match width
-                const scaleH = height / rotImgHeight; // Scale needed to match height
-                drawScale = Math.max(scaleW, scaleH); // Take the larger scale to COVER the area
-
-                const finalW = img.width * drawScale;
-                const finalH = img.height * drawScale;
-
-                // Fill background with dark slate first
-                canvasCtx.fillStyle = '#0f172a';
+            if (viewMode === 'staff') {
+                // White Background
+                canvasCtx.fillStyle = '#ffffff';
                 canvasCtx.fillRect(0, 0, width, height);
-
-                canvasCtx.save();
-                canvasCtx.translate(width / 2, height / 2);
-                canvasCtx.rotate(-Math.PI / 2); // Rotate -90 degrees
-                canvasCtx.drawImage(img, -finalW / 2, -finalH / 2, finalW, finalH);
-
-                // Optional: Add slight dark tint for contrast if needed (Rotated context)
-                if (appMode === 'ULTRA') {
-                    canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                    canvasCtx.fillRect(-finalW / 2, -finalH / 2, finalW, finalH);
-                }
-                canvasCtx.restore();
             } else {
                 if (appMode === 'ULTRA') {
                     canvasCtx.fillStyle = '#000000';
                 } else if (appMode === 'SIMPLE') {
                     // Darker Slate for Simple Mode
-                    canvasCtx.fillStyle = viewMode === 'staff' ? '#0f172a' : '#020617';
+                    canvasCtx.fillStyle = '#020617';
                 } else {
                     // PRO Mode
-                    canvasCtx.fillStyle = viewMode === 'staff' ? '#0f172a' : '#020617';
+                    canvasCtx.fillStyle = '#020617';
                 }
                 canvasCtx.fillRect(0, 0, width, height);
             }
