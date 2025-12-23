@@ -218,38 +218,45 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
             // BACKGROUND
             // BACKGROUND
             if (viewMode === 'staff' && bgImageRef.current) {
-                // Draw Parchment Background for Staff Mode (CONTAIN ASPECT RATIO)
+                // Draw Parchment Background Rotated 90 Degrees (Horizontal)
                 const img = bgImageRef.current;
-                const imgAspect = img.width / img.height;
+
+                // Rotated Dimensions: Image Width becomes logical height, Image Height becomes logical width
+                const rotImgWidth = img.height;
+                const rotImgHeight = img.width;
+
+                const imgAspect = rotImgWidth / rotImgHeight;
                 const canvasAspect = width / height;
 
-                let drawW, drawH, drawX, drawY;
+                let drawScale;
 
+                // Fit Logic (Contain) using Rotated Ratio
                 if (canvasAspect > imgAspect) {
-                    // Canvas is wider than image -> Fit to Height
-                    drawH = height;
-                    drawW = height * imgAspect;
-                    drawX = (width - drawW) / 2;
-                    drawY = 0;
+                    // Canvas is relatively wider than the rotated image -> Constraint is Height
+                    drawScale = height / rotImgHeight;
                 } else {
-                    // Canvas is taller than image -> Fit to Width
-                    drawW = width;
-                    drawH = width / imgAspect;
-                    drawX = 0;
-                    drawY = (height - drawH) / 2;
+                    // Canvas is relatively narrower -> Constraint is Width
+                    drawScale = width / rotImgWidth;
                 }
 
-                // Fill background with dark slate first to avoid trails
+                const finalW = img.width * drawScale;
+                const finalH = img.height * drawScale;
+
+                // Fill background with dark slate first
                 canvasCtx.fillStyle = '#0f172a';
                 canvasCtx.fillRect(0, 0, width, height);
 
-                canvasCtx.drawImage(img, drawX, drawY, drawW, drawH);
+                canvasCtx.save();
+                canvasCtx.translate(width / 2, height / 2);
+                canvasCtx.rotate(-Math.PI / 2); // Rotate -90 degrees
+                canvasCtx.drawImage(img, -finalW / 2, -finalH / 2, finalW, finalH);
 
-                // Optional: Add slight dark tint for contrast if needed
+                // Optional: Add slight dark tint for contrast if needed (Rotated context)
                 if (appMode === 'ULTRA') {
                     canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                    canvasCtx.fillRect(drawX, drawY, drawW, drawH);
+                    canvasCtx.fillRect(-finalW / 2, -finalH / 2, finalW, finalH);
                 }
+                canvasCtx.restore();
             } else {
                 if (appMode === 'ULTRA') {
                     canvasCtx.fillStyle = '#000000';
