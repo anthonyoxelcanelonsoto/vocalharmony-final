@@ -1910,12 +1910,13 @@ export default function App() {
 
     if (isLandscape) {
         return (
-            <div className="fixed inset-0 z-[9999] bg-red-600 flex items-center justify-center">
-                <h1 className="text-white text-4xl font-bold text-center p-8">
-                    ✅ LANDSCAPE MODE DETECTED<br />
-                    <span className="text-xl">If you see this, orientation works!</span>
-                </h1>
-            </div>
+            <MultiTrackStudio
+                tracks={tracks}
+                setTracks={setTracks}
+                isPlaying={isPlaying}
+                onPlayPause={togglePlay}
+                currentTime={0}
+            />
         );
     }
 
