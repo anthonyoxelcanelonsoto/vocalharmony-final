@@ -136,9 +136,11 @@ const Store = ({ isAdminMode, onLoadSong }) => {
                             <Cloud className={isAdminMode ? "text-red-500" : "text-blue-500"} />
                             STORE {isAdminMode && <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded ml-2 align-middle">ADMIN MODE</span>}
                         </h2>
-                        <p className="text-slate-500 text-xs font-bold tracking-widest uppercase">
-                            {isAdminMode ? 'Gestión de Catálogo' : 'Catálogo Premium'}
-                        </p>
+                        {isAdminMode && (
+                            <p className="text-slate-500 text-xs font-bold tracking-widest uppercase">
+                                Gestión de Catálogo
+                            </p>
+                        )}
                     </div>
 
                     <div className="relative w-full sm:w-72 group">
