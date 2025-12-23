@@ -4,6 +4,7 @@ import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
 import { db } from './src/db';
+import MultiTrackStudio from './components/MultiTrackStudio';
 import { useLiveQuery } from 'dexie-react-hooks';
 import * as Tone from 'tone';
 import { Track, LyricLine, NoteBlock, AppMode, NoteData } from './types';
@@ -211,6 +212,14 @@ export default function App() {
     const quickLibrarySongs = useLiveQuery(() => db.myLibrary.toArray(), []);
     const [pendingMode, setPendingMode] = useState<AppMode | null>(null); // For mode switch confirmation
     const [mainView, setMainView] = useState<'studio' | 'store' | 'library'>('studio');
+    const [isLandscape, setIsLandscape] = useState(false);
+
+    useEffect(() => {
+        const checkOrientation = () => setIsLandscape(window.innerWidth > window.innerHeight);
+        checkOrientation();
+        window.addEventListener('resize', checkOrientation);
+        return () => window.removeEventListener('resize', checkOrientation);
+    }, []);
 
     const [importedLyrics, setImportedLyrics] = useState<LyricLine[]>([]);
     const [importedChords, setImportedChords] = useState<LyricLine[]>([]);
@@ -1898,6 +1907,18 @@ export default function App() {
         setMaxDuration(maxDur);
         setIsLoading(false);
     };
+
+    if (isLandscape) {
+        return (
+            <MultiTrackStudio
+                tracks={tracks}
+                setTracks={setTracks}
+                isPlaying={isPlaying}
+                onPlayPause={togglePlay}
+                currentTime={0}
+            />
+        );
+    }
 
     return (
         <div className={`flex flex-col h-safe-screen text-white font-sans overflow-hidden transition-colors duration-500
