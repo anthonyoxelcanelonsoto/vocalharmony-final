@@ -180,7 +180,7 @@ const Store = ({ isAdminMode, onLoadSong }) => {
                                             <img
                                                 src={song.cover_url || 'https://via.placeholder.com/300x300?text=Music'}
                                                 alt={song.title}
-                                                className={`w-full h-full object-cover transition-transform duration-500 ${isDownloaded ? 'opacity-50' : 'group-hover:scale-110'}`}
+                                                className={`w-full h-full object-contain transition-transform duration-500 ${isDownloaded ? 'opacity-50' : 'group-hover:scale-110'}`}
                                             />
 
                                             {/* ADMIN ACTIONS OVERLAY */}

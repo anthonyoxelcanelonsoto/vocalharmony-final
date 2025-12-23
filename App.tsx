@@ -90,7 +90,7 @@ const getInitialTracks = (): Track[] => [
         name: "MASTER",
         color: "#f97316",
         vol: 0.8,
-        pan: 0,
+        pan: 0.5,
         mute: false,
         solo: false,
         hasFile: false,
@@ -208,9 +208,17 @@ export default function App() {
 
     // New AppMode state: SIMPLE | PRO | ULTRA
     const [appMode, setAppMode] = useState<AppMode>('SIMPLE');
-    const quickLibrarySongs = useLiveQuery(() => db.myLibrary.toArray(), []);
+    const quickLibrarySongs = useLiveQuery(() => (db as any).myLibrary.toArray(), []);
     const [pendingMode, setPendingMode] = useState<AppMode | null>(null); // For mode switch confirmation
-    const [mainView, setMainView] = useState<'studio' | 'store' | 'library'>('studio');
+    const [isLandscape, setIsLandscape] = useState(false);
+
+    useEffect(() => {
+        const checkOrientation = () => setIsLandscape(window.innerWidth > window.innerHeight);
+        checkOrientation();
+        window.addEventListener('resize', checkOrientation);
+        return () => window.removeEventListener('resize', checkOrientation);
+    }, []);
+    const [mainView, setMainView] = useState<'studio' | 'store' | 'library'>('store');
 
     const [importedLyrics, setImportedLyrics] = useState<LyricLine[]>([]);
     const [importedChords, setImportedChords] = useState<LyricLine[]>([]);
@@ -1448,7 +1456,7 @@ export default function App() {
             const zipContent = await zip.generateAsync({ type: "blob" });
 
             // 5. SAVE TO DEXIE DB
-            await db.myLibrary.add({
+            await (db as any).myLibrary.add({
                 title: saveTitle,
                 artist: saveArtist || "Me",
                 genre: saveGenre || "User Project",
@@ -1888,6 +1896,7 @@ export default function App() {
                         setKeySignature(text.trim().substring(0, 3));
                     }
                 }
+
             }
         } catch (err: any) {
             console.error("Error loading song from library:", err);
@@ -1951,7 +1960,7 @@ export default function App() {
 
                 {/* CENTER AREA - KEY (Absolute) */}
                 <div className="absolute left-1/2 -translate-x-1/2 top-[60%] -translate-y-1/2 pointer-events-none">
-                    {keySignature && (
+                    {!isLandscape && keySignature && (
                         <div className="animate-pulse flex items-center justify-center">
                             <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-lime-300 to-lime-500 drop-shadow-[0_0_10px_rgba(132,204,22,0.8)] select-none">
                                 {keySignature}
@@ -2012,7 +2021,7 @@ export default function App() {
 
                                     <button
                                         onClick={() => { vibrate(10); document.querySelector('input[type="file"]')?.dispatchEvent(new MouseEvent('click')); setShowMenu(false); }}
-                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-white transition-colors"
+                                        className="px-4 py-3 text-left hover:bg-slate-800 flex items-center gap-3 text-green-500 transition-colors"
                                     >
                                         <Upload size={18} className="text-green-500" />
                                         <span>Importar Audio/Zip</span>
@@ -2218,7 +2227,7 @@ export default function App() {
                                         onClick={() => { vibrate(5); setSelectedTrackId(track.id); }}
                                         className={`
                             snap-center shrink-0 h-[96%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
-                            ${appMode === 'SIMPLE' ? 'w-[70px]' : 'w-[110px]'}
+                            ${isLandscape ? 'w-[180px]' : (appMode === 'SIMPLE' ? 'w-[70px]' : 'w-[110px]')}
                             ${track.isMaster ? 'mr-2 shadow-[4px_0_15px_rgba(0,0,0,0.5)]' : ''}
                             ${selectedTrackId === track.id
                                                 ? (appMode === 'ULTRA'
@@ -2452,6 +2461,45 @@ export default function App() {
                                                                 }}
                                                             />
                                                         </div>
+                                                        {/* LANDSCAPE CONTROLS: SOLO & PAN */}
+                                                        {isLandscape && (
+                                                            <div className="flex flex-col gap-2 ml-2 pb-1">
+                                                                {/* PAN */}
+                                                                <div className="h-20 w-6 bg-slate-900 rounded-full border border-slate-700 relative flex justify-center overflow-hidden">
+                                                                    <input
+                                                                        type="range"
+                                                                        min="0" max="1" step="0.05"
+                                                                        value={track.pan ?? 0.5}
+                                                                        // @ts-ignore
+                                                                        orient="vertical"
+                                                                        className="w-1 h-full appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-slate-400 [&::-webkit-slider-thumb]:rounded-full absolute top-0 bottom-0 left-1/2 -translate-x-1/2 z-20 cursor-pointer"
+                                                                        style={{ WebkitAppearance: 'slider-vertical' } as any}
+                                                                        onChange={(e) => {
+                                                                            const val = parseFloat(e.target.value);
+                                                                            setTracks(tracks.map(t => t.id === track.id ? { ...t, pan: val } : t));
+                                                                            if (trackPanNodesRef.current[track.id]) {
+                                                                                trackPanNodesRef.current[track.id].pan.value = (val * 2) - 1;
+                                                                            }
+                                                                            setSelectedTrackId(track.id);
+                                                                        }}
+                                                                    />
+                                                                    <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-600 pointer-events-none"></div>
+                                                                    <MoveHorizontal size={10} className="absolute bottom-1 text-slate-500 pointer-events-none" />
+                                                                </div>
+
+                                                                {/* SOLO */}
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        vibrate(5);
+                                                                        setTracks(tracks.map(t => t.id === track.id ? { ...t, solo: !t.solo } : t));
+                                                                    }}
+                                                                    className={`w-6 h-6 rounded flex items-center justify-center font-black text-[9px] border transition-colors
+                                                                        ${track.solo ? 'bg-yellow-500 text-black border-yellow-600' : 'bg-slate-800 text-slate-500 border-slate-700'}
+                                                                    `}
+                                                                >S</button>
+                                                            </div>
+                                                        )}
                                                         <div className="flex flex-col items-center justify-end gap-2 h-full">
                                                             {/* FX BUTTONS STACK (EQ + REVERB) */}
                                                             <div className="flex flex-col gap-1 mb-1">
@@ -2670,7 +2718,7 @@ export default function App() {
                                         <span className="text-[10px] font-bold text-purple-400">LOW</span>
                                         <Knob
                                             value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.low.gain || 0}
-                                            min={-15} max={15} size="sm"
+                                            min={-15} max={15} size="sm" color="#a78bfa"
                                             onChange={(v) => {
                                                 const t = tracks.find(t => t.id === eqActiveTrackId);
                                                 if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, low: { ...tr.eq!.low, gain: v } } } : tr));
@@ -2686,7 +2734,7 @@ export default function App() {
                                         <span className="text-[10px] font-bold text-indigo-400">L-MID</span>
                                         <Knob
                                             value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.lowMid.gain || 0}
-                                            min={-15} max={15} size="sm"
+                                            min={-15} max={15} size="sm" color="#818cf8"
                                             onChange={(v) => {
                                                 const t = tracks.find(t => t.id === eqActiveTrackId);
                                                 if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, lowMid: { ...tr.eq!.lowMid, gain: v } } } : tr));
@@ -2702,7 +2750,7 @@ export default function App() {
                                         <span className="text-[10px] font-bold text-teal-400">MID</span>
                                         <Knob
                                             value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.mid.gain || 0}
-                                            min={-15} max={15} size="sm"
+                                            min={-15} max={15} size="sm" color="#2dd4bf"
                                             onChange={(v) => {
                                                 const t = tracks.find(t => t.id === eqActiveTrackId);
                                                 if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, mid: { ...tr.eq!.mid, gain: v } } } : tr));
@@ -2718,7 +2766,7 @@ export default function App() {
                                         <span className="text-[10px] font-bold text-yellow-400">H-MID</span>
                                         <Knob
                                             value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.highMid.gain || 0}
-                                            min={-15} max={15} size="sm"
+                                            min={-15} max={15} size="sm" color="#facc15"
                                             onChange={(v) => {
                                                 const t = tracks.find(t => t.id === eqActiveTrackId);
                                                 if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, highMid: { ...tr.eq!.highMid, gain: v } } } : tr));
@@ -2734,7 +2782,7 @@ export default function App() {
                                         <span className="text-[10px] font-bold text-pink-400">HIGH</span>
                                         <Knob
                                             value={tracks.find(t => t.id === eqActiveTrackId)?.eq?.high.gain || 0}
-                                            min={-15} max={15} size="sm"
+                                            min={-15} max={15} size="sm" color="#f472b6"
                                             onChange={(v) => {
                                                 const t = tracks.find(t => t.id === eqActiveTrackId);
                                                 if (t && t.eq) setTracks(tracks.map(tr => tr.id === t.id ? { ...tr, eq: { ...tr.eq!, high: { ...tr.eq!.high, gain: v } } } : tr));
