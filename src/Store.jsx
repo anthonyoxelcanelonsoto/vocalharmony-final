@@ -22,6 +22,7 @@ const Store = ({ isAdminMode, onLoadSong }) => {
     const localIds = localSongs ? localSongs.map(s => s.id) : [];
 
     useEffect(() => {
+        console.log("Store View Loaded - Version: Mobile Scale Test " + new Date().toISOString());
         fetchSongs();
     }, []);
 
