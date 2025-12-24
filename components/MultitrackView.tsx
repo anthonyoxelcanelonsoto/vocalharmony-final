@@ -43,22 +43,59 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     const [dragStartX, setDragStartX] = useState(0);
     const [dragStartOffset, setDragStartOffset] = useState(0);
 
-    const handleTouchStart = (e: React.TouchEvent | React.MouseEvent, trackId: number, currentOffset: number) => {
+    const lastPinchDist = useRef<number | null>(null);
+
+    const handleClipTouchStart = (e: React.TouchEvent | React.MouseEvent, trackId: number, currentOffset: number) => {
+        e.stopPropagation(); // Prevent triggering container events if any
         setDraggingTrackId(trackId);
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         setDragStartX(clientX);
         setDragStartOffset(currentOffset || 0);
     };
 
-    const handleMove = (e: React.TouchEvent | React.MouseEvent) => {
+    // Global Container Touch Move (Handles Pinch & Clip Drag)
+    const handleContainerTouchMove = (e: React.TouchEvent) => {
+        // PINCH ZOOM (2 Fingers)
+        if (e.touches.length === 2) {
+            e.preventDefault(); // Prevent native page zoom
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+
+            if (lastPinchDist.current !== null) {
+                const delta = dist - lastPinchDist.current;
+                setZoom(prev => Math.max(10, Math.min(300, prev + delta * 0.5)));
+            }
+            lastPinchDist.current = dist;
+            return;
+        }
+
+        // CLIP DRAG (1 Finger)
+        if (draggingTrackId !== null) {
+            e.preventDefault(); // Prevent scrolling while dragging clip
+            const clientX = e.touches[0].clientX;
+            const deltaPx = clientX - dragStartX;
+            const deltaSec = deltaPx / zoom;
+            onUpdateTrackOffset(draggingTrackId, dragStartOffset + deltaSec);
+        }
+    };
+
+    const handleContainerTouchEnd = () => {
+        lastPinchDist.current = null;
+        setDraggingTrackId(null);
+    };
+
+    // Mouse Fallback
+    const handleMouseMove = (e: React.MouseEvent) => {
         if (draggingTrackId === null) return;
-        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+        e.preventDefault();
+        const clientX = e.clientX;
         const deltaPx = clientX - dragStartX;
         const deltaSec = deltaPx / zoom;
         onUpdateTrackOffset(draggingTrackId, dragStartOffset + deltaSec);
     };
 
-    const handleUp = () => {
+    const handleMouseUp = () => {
         setDraggingTrackId(null);
     };
 
@@ -74,11 +111,13 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
 
     return (
         <div
-            className="flex-1 flex flex-col bg-zinc-950 overflow-hidden relative select-none"
-            onMouseMove={handleMove}
-            onMouseUp={handleUp}
-            onTouchMove={handleMove}
-            onTouchEnd={handleUp}
+            className="flex-1 flex flex-col bg-zinc-950 overflow-hidden relative select-none touch-none"
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchMove={handleContainerTouchMove}
+            onTouchEnd={handleContainerTouchEnd}
+            onTouchCancel={handleContainerTouchEnd}
             onWheel={handleWheel}
         >
             {/* TIMELINE RULER */}
@@ -147,8 +186,8 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                             backgroundColor: `${track.color}40`,
                                             border: `1px solid ${track.color}`
                                         }}
-                                        onMouseDown={(e) => handleTouchStart(e, track.id, track.offset || 0)}
-                                        onTouchStart={(e) => handleTouchStart(e, track.id, track.offset || 0)}
+                                        onMouseDown={(e) => handleClipTouchStart(e, track.id, track.offset || 0)}
+                                        onTouchStart={(e) => handleClipTouchStart(e, track.id, track.offset || 0)}
                                     >
                                         <WaveformClip buffer={audioBuffers[track.id]} color={track.color} />
                                         <div className="absolute top-1 left-2 text-[10px] bg-black/50 px-1 rounded text-white/70 font-mono pointer-events-none">
