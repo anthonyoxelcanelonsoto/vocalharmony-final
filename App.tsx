@@ -362,7 +362,7 @@ export default function App() {
     // --- REFS ---
     const audioBuffersRef = useRef<{ [id: number]: AudioBuffer }>({});
     const processedBuffersRef = useRef<{ [key: number]: AudioBuffer }>({}); // Cache for pitch-shifted buffers
-    const activeSourcesRef = useRef<{ [id: number]: AudioBufferSourceNode }>({});
+    const activeSourcesRef = useRef<{ [id: number]: AudioBufferSourceNode | Tone.GrainPlayer }>({});
     const trackGainNodesRef = useRef<{ [key: number]: GainNode }>({});
     const trackPanNodesRef = useRef<{ [key: number]: StereoPannerNode }>({});
     const trackPitchShiftNodesRef = useRef<{ [key: number]: Tone.PitchShift }>({}); // LIVE Pitch Shifter Nodes
@@ -549,10 +549,15 @@ export default function App() {
         isPlayingRef.current = false;
 
         // Stop Sources
-        Object.values(activeSourcesRef.current).forEach((source: AudioBufferSourceNode) => {
+        Object.values(activeSourcesRef.current).forEach((source: AudioBufferSourceNode | Tone.GrainPlayer) => {
             try {
-                source.stop();
-                source.disconnect();
+                if (source instanceof Tone.GrainPlayer) {
+                    source.stop();
+                    source.dispose(); // Clean up Tone node
+                } else {
+                    source.stop();
+                    source.disconnect();
+                }
             } catch (e) { }
         });
         activeSourcesRef.current = {};
@@ -592,88 +597,130 @@ export default function App() {
             }
 
             if (buffer) {
-                const source = ctx.createBufferSource();
-                source.buffer = buffer;
-
                 const gainNode = ctx.createGain();
                 const panNode = ctx.createStereoPanner();
                 const analyser = ctx.createAnalyser();
                 analyser.fftSize = 2048;
 
-                // --- LIVE PITCH SHIFT LOGIC ---
+                // --- LIVE PITCH SHIFT LOGIC (GrainPlayer Strategy) ---
                 if (track.pitchMethod === 'live' && track.pitchShift !== 0) {
-                    // Create PitchShift Node
-                    const ps = new Tone.PitchShift({
-                        pitch: track.pitchShift,
-                        windowSize: 0.05, // Lower window size for vocals (less delay/smearing)
-                        feedback: 0,
-                        delayTime: 0
+                    // Reemplazamos source nativo con Tone.GrainPlayer para evitar problemas de fase/doble voz
+                    const gp = new Tone.GrainPlayer({
+                        url: buffer,
+                        detune: track.pitchShift * 100, // Semitones to Cents
+                        playbackRate: 1, // Maintain speed
+                        grainSize: 0.1,
+                        overlap: 0.05,
                     });
-                    ps.wet.value = 1; // Explicitly enforce wet signal only
-                    trackPitchShiftNodesRef.current[track.id] = ps;
 
-                    // Connect: Source (Native) -> PitchShift (Tone) -> Gain (Native)
-                    Tone.connect(source, ps);
-                    ps.connect(gainNode);
-                } else {
-                    // Standard: Source -> Gain
-                    source.connect(gainNode);
-                }
+                    // Important: GrainPlayer handles loop logic differently, usually sync to Transport or manual
+                    // We will manually sync start
+                    gp.connect(gainNode);
 
-                // NoteBlock fine-tuning (NewTone) - runs on top of the base buffer
-                if (appMode === 'ULTRA' && track.id === selectedTrackId && noteBlocksRef.current.length > 0) {
-                    noteBlocksRef.current.forEach(block => {
-                        if (block.shiftCents !== 0) {
-                            const s = Math.max(0, block.start);
-                            const e = Math.min(buffer.duration, block.end);
-                            const cents = block.shiftCents;
+                    activeSourcesRef.current[track.id] = gp;
 
-                            try {
-                                const absStart = startTime - offset + s;
-                                const absEnd = startTime - offset + e;
-
-                                if (absStart >= ctx.currentTime) {
-                                    source.detune.setValueAtTime(0, absStart);
-                                    source.detune.linearRampToValueAtTime(cents, absStart + 0.05);
-                                    source.detune.setValueAtTime(cents, absEnd - 0.05);
-                                    source.detune.linearRampToValueAtTime(0, absEnd);
-                                }
-                            } catch (err) { console.warn("Auto-tune scheduling error", err); }
-                        }
-                    });
-                } else {
-                    source.detune.value = 0;
-                }
-
-                if (currentLoopStart !== null && currentLoopEnd !== null) {
-                    source.loop = true;
-                    source.loopStart = currentLoopStart;
-                    source.loopEnd = currentLoopEnd;
-                    let startPos = offset;
-                    if (offset < currentLoopStart || offset > currentLoopEnd) {
-                        startPos = currentLoopStart;
-                        startTimeRef.current = startTime - currentLoopStart;
+                    // Handle Loop properties if needed (Simplified for GP)
+                    if (currentLoopStart !== null && currentLoopEnd !== null) {
+                        gp.loop = true;
+                        gp.loopStart = currentLoopStart;
+                        gp.loopEnd = currentLoopEnd;
+                    } else {
+                        gp.loop = false;
                     }
-                    try { source.start(startTime, startPos); } catch (e) { }
+
+                    // Start logic for GrainPlayer
+                    // Note: GP starts relative to Transport usually, or immediately if no argument.
+                    // We try to match the offset behavior
+                    try {
+                        // Tone players take (startTime, offset, duration)
+                        // But we want to sync with ctx.currentTime
+                        // GP.start(when, offset)
+                        gp.start(startTime, offset);
+                    } catch (e) { }
+
                 } else {
-                    source.loop = false;
-                    try { source.start(startTime, offset); } catch (e) { }
+                    // Standard Native Path (Processed or Normal)
+                    const source = ctx.createBufferSource();
+                    source.buffer = buffer;
+
+                    // --- EQ SETUP FOR STANDARD SOURCE ---
+                    // 4. EQ Stage (5-Band)
+                    const eqLow = ctx.createBiquadFilter(); eqLow.type = "lowshelf";
+                    const eqLowMid = ctx.createBiquadFilter(); eqLowMid.type = "peaking";
+                    const eqMid = ctx.createBiquadFilter(); eqMid.type = "peaking";
+                    const eqHighMid = ctx.createBiquadFilter(); eqHighMid.type = "peaking";
+                    const eqHigh = ctx.createBiquadFilter(); eqHigh.type = "highshelf";
+
+                    // Connect EQ Chain: Source -> Low -> LowMid -> Mid -> HighMid -> High -> Gain
+                    source.connect(eqLow);
+                    eqLow.connect(eqLowMid);
+                    eqLowMid.connect(eqMid);
+                    eqMid.connect(eqHighMid);
+                    eqHighMid.connect(eqHigh);
+                    eqHigh.connect(gainNode);
+
+                    // Set EQ Values
+                    if (track.eq && track.eq.enabled) {
+                        eqLow.frequency.value = track.eq.low.freq; eqLow.gain.value = track.eq.low.gain;
+                        eqLowMid.frequency.value = track.eq.lowMid.freq; eqLowMid.Q.value = track.eq.lowMid.q; eqLowMid.gain.value = track.eq.lowMid.gain;
+                        eqMid.frequency.value = track.eq.mid.freq; eqMid.Q.value = track.eq.mid.q; eqMid.gain.value = track.eq.mid.gain;
+                        eqHighMid.frequency.value = track.eq.highMid.freq; eqHighMid.Q.value = track.eq.highMid.q; eqHighMid.gain.value = track.eq.highMid.gain;
+                        eqHigh.frequency.value = track.eq.high.freq; eqHigh.gain.value = track.eq.high.gain;
+                    } else {
+                        eqLow.gain.value = 0; eqLowMid.gain.value = 0; eqMid.gain.value = 0; eqHighMid.gain.value = 0; eqHigh.gain.value = 0;
+                    }
+                    trackEQNodesRef.current[track.id] = { low: eqLow, lowMid: eqLowMid, mid: eqMid, highMid: eqHighMid, high: eqHigh };
+
+                    // REVERB SEND FOR STANDARD SOURCE
+                    let sendNode = trackReverbSendsRef.current[track.id];
+                    if (!sendNode) {
+                        sendNode = new Tone.Gain(0);
+                        sendNode.connect(reverbNodeRef.current!);
+                        trackReverbSendsRef.current[track.id] = sendNode;
+                    }
+                    Tone.connect(eqHigh, sendNode);
+                    const shouldSend = !track.mute && track.reverbSend && track.reverbSend > 0;
+                    sendNode.gain.value = shouldSend ? track.reverbSend! : 0;
+
+                    activeSourcesRef.current[track.id] = source;
+
+                    // Handle Loop & Start for Native Source
+                    if (currentLoopStart !== null && currentLoopEnd !== null) {
+                        source.loop = true;
+                        source.loopStart = currentLoopStart;
+                        source.loopEnd = currentLoopEnd;
+                        let startPos = offset;
+                        if (offset < currentLoopStart || offset > currentLoopEnd) {
+                            startPos = currentLoopStart;
+                            startTimeRef.current = startTime - currentLoopStart;
+                        }
+                        try { source.start(startTime, startPos); } catch (e) { }
+                    } else {
+                        source.loop = false;
+                        try { source.start(startTime, offset); } catch (e) { }
+                    }
+
+                    // NoteBlock fine-tuning (Native Only)
+                    if (appMode === 'ULTRA' && track.id === selectedTrackId && noteBlocksRef.current.length > 0) {
+                        noteBlocksRef.current.forEach(block => {
+                            if (block.shiftCents !== 0) {
+                                const s = Math.max(0, block.start);
+                                const e = Math.min(buffer.duration, block.end);
+                                const cents = block.shiftCents;
+                                try {
+                                    const absStart = startTime - offset + s;
+                                    const absEnd = startTime - offset + e;
+                                    if (absStart >= ctx.currentTime) {
+                                        source.detune.setValueAtTime(0, absStart);
+                                        source.detune.linearRampToValueAtTime(cents, absStart + 0.05);
+                                        source.detune.setValueAtTime(cents, absEnd - 0.05);
+                                        source.detune.linearRampToValueAtTime(0, absEnd);
+                                    }
+                                } catch (err) { }
+                            }
+                        });
+                    }
                 }
-
-                // 4. EQ Stage (5-Band)
-                const eqLow = ctx.createBiquadFilter(); eqLow.type = "lowshelf";
-                const eqLowMid = ctx.createBiquadFilter(); eqLowMid.type = "peaking";
-                const eqMid = ctx.createBiquadFilter(); eqMid.type = "peaking";
-                const eqHighMid = ctx.createBiquadFilter(); eqHighMid.type = "peaking";
-                const eqHigh = ctx.createBiquadFilter(); eqHigh.type = "highshelf";
-
-                // Connect EQ Chain: Source -> Low -> LowMid -> Mid -> HighMid -> High -> Gain
-                source.connect(eqLow);
-                eqLow.connect(eqLowMid);
-                eqLowMid.connect(eqMid);
-                eqMid.connect(eqHighMid);
-                eqHighMid.connect(eqHigh);
-                eqHigh.connect(gainNode);
 
                 // Set Initial Values
                 if (track.eq && track.eq.enabled) {
