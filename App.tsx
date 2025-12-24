@@ -2006,7 +2006,6 @@ export default function App() {
             <header className={`relative shrink-0 flex items-center justify-between px-4 pt-safe pb-2 border-b z-30 transition-all duration-300 
             opacity-100
              ${appMode === 'ULTRA' ? 'bg-black border-orange-900/50' : 'bg-slate-950 border-orange-900/30'}
-             ${isLandscape ? 'hidden' : ''}
       `}>
                 {/* LOGO AREA - LEFT */}
                 <div className="flex items-center gap-3">
