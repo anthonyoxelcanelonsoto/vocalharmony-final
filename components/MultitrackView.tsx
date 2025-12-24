@@ -168,7 +168,13 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                             onClick={() => onTrackSelect(track.id)}
                         >
                             {/* LEFT SIDEBAR CONTROLS */}
-                            <div className="w-[140px] shrink-0 bg-zinc-900 border-r border-zinc-800 sticky left-0 z-20 flex flex-col justify-center px-2 gap-1 backdrop-blur shadow-lg">
+                            {/* LEFT SIDEBAR CONTROLS */}
+                            <div
+                                className="w-[140px] shrink-0 bg-zinc-900 border-r border-zinc-800 sticky left-0 z-20 flex flex-col justify-center px-2 gap-1 backdrop-blur shadow-lg"
+                                onMouseDown={e => e.stopPropagation()}
+                                onTouchStart={e => e.stopPropagation()}
+                                onPointerDown={e => e.stopPropagation()}
+                            >
                                 <div className="font-bold text-xs text-white truncate px-1 mb-1">{track.name}</div>
 
                                 {/* Volume Slider (Lite Mode) */}
