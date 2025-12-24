@@ -2267,8 +2267,8 @@ export default function App() {
                                 if (backing) sorted.push(backing);
                                 return sorted;
                             })().map(track => {
-                                // HIDE MASTER IN LITE MODE
-                                if (appMode === 'SIMPLE' && track.isMaster) return null;
+                                // HIDE MASTER IN LITE & PRO MODES (ONLY VISIBLE IN ULTRA)
+                                if (track.isMaster && appMode !== 'ULTRA') return null;
 
                                 const isProCollapsed = appMode === 'PRO' && expandedTrackId !== track.id;
                                 const isCollapsedView = appMode === 'SIMPLE' || isProCollapsed;
