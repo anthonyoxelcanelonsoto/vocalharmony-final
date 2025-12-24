@@ -137,7 +137,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                     <Ruler duration={Math.max(duration, 300)} zoom={zoom} scroll={scrollX} />
                     <div
                         className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-20 pointer-events-none"
-                        style={{ left: currentTime * zoom - scrollX }}
+                        style={{ left: currentTime * zoom }}
                     />
                 </div>
             </div>
