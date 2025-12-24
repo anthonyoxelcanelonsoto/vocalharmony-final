@@ -17,6 +17,7 @@ interface MultitrackViewProps {
     onToggleMute: (trackId: number) => void;
     onToggleSolo: (trackId: number) => void;
     onTrackSelect: (trackId: number) => void;
+    onDragEnd?: () => void;
     selectedTrackId: number;
 }
 
@@ -34,6 +35,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     onToggleMute,
     onToggleSolo,
     onTrackSelect,
+    onDragEnd,
     selectedTrackId
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -81,6 +83,9 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     };
 
     const handleContainerTouchEnd = () => {
+        if (draggingTrackId !== null) {
+            onDragEnd?.();
+        }
         lastPinchDist.current = null;
         setDraggingTrackId(null);
     };
@@ -96,6 +101,9 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     };
 
     const handleMouseUp = () => {
+        if (draggingTrackId !== null) {
+            onDragEnd?.();
+        }
         setDraggingTrackId(null);
     };
 

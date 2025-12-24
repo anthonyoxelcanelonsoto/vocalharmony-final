@@ -2221,6 +2221,23 @@ export default function App() {
                                             setTracks(prev => prev.map(t => t.id === id ? { ...t, solo: !t.solo } : t));
                                         }}
                                         onTrackSelect={setSelectedTrackId}
+                                        onDragEnd={() => {
+                                            // RESYNC AUDIO ON DROP
+                                            if (isPlaying) {
+                                                Tone.Transport.pause();
+                                                setTimeout(() => {
+                                                    Tone.Transport.start();
+                                                    // Trigger a re-sync of players implicitly via useEffects or ensure logic handles it
+                                                    // For now, pausing and starting forces players to check their schedule if logical position changed
+                                                    // A more robust way is to re-trigger handleTogglePlay or seek
+                                                    handleSeek(currentTime);
+                                                    handleTogglePlay();
+                                                }, 50);
+                                            } else {
+                                                // If paused, just seek to current time to update buffer positions
+                                                handleSeek(currentTime);
+                                            }
+                                        }}
                                     />
                                 </div>
                             ) : (
