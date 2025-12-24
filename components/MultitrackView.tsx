@@ -129,14 +129,14 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
             onWheel={handleWheel}
         >
             {/* TIMELINE RULER */}
-            <div className="h-8 bg-zinc-900 border-b border-zinc-800 flex relative overflow-hidden" style={{ minHeight: '32px' }}>
-                <div className="w-[140px] bg-zinc-900 border-r border-zinc-800 shrink-0 z-10 shadow-lg text-[10px] flex items-center justify-center text-zinc-500 font-bold tracking-widest">
+            <div className="h-8 bg-zinc-900 border-b border-zinc-800 flex relative overflow-hidden shrink-0 z-40">
+                <div className="w-[140px] bg-zinc-900 border-r border-zinc-800 shrink-0 z-20 shadow-lg text-[10px] flex items-center justify-center text-zinc-500 font-bold tracking-widest">
                     TRACKS ({tracks.length})
                 </div>
-                <div className="flex-1 relative overflow-hidden" ref={el => { if (el && containerRef.current) el.scrollLeft = containerRef.current.scrollLeft }}>
+                <div className="flex-1 relative overflow-hidden bg-zinc-800/30" ref={el => { if (el && containerRef.current) el.scrollLeft = containerRef.current.scrollLeft }}>
                     <Ruler duration={Math.max(duration, 300)} zoom={zoom} scroll={scrollX} />
                     <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-20 pointer-events-none"
+                        className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-30 pointer-events-none"
                         style={{ left: currentTime * zoom }}
                     />
                 </div>
@@ -150,14 +150,16 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
             >
                 <div className="relative min-w-full flex flex-col" style={{ width: Math.max(duration * zoom + 500, window.innerWidth) }}>
 
-                    {/* GRID LINES */}
-                    <BackgroundGrid zoom={zoom} height={tracks.length * 100 + 200} />
+                    <div className="absolute inset-0 ml-[140px]">
+                        {/* GRID LINES (Inside offset area) */}
+                        <BackgroundGrid zoom={zoom} height={tracks.length * 100 + 500} />
 
-                    {/* PLAYHEAD */}
-                    <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-30 pointer-events-none shadow-[0_0_10px_orange]"
-                        style={{ left: currentTime * zoom }}
-                    />
+                        {/* PLAYHEAD (Inside offset area) */}
+                        <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-30 pointer-events-none shadow-[0_0_10px_orange]"
+                            style={{ left: currentTime * zoom }}
+                        />
+                    </div>
 
                     {tracks.map(track => (
                         <div
@@ -169,7 +171,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                             <div className="w-[140px] shrink-0 bg-zinc-900 border-r border-zinc-800 sticky left-0 z-20 flex flex-col justify-center px-2 gap-1 backdrop-blur shadow-lg">
                                 <div className="font-bold text-xs text-white truncate px-1 mb-1">{track.name}</div>
 
-                                {/* Volume Slider Only (Lite Mode) */}
+                                {/* Volume Slider (Lite Mode) */}
                                 <div className="flex items-center gap-1 px-1">
                                     <Volume2 size={12} className={track.mute ? "text-red-500" : "text-zinc-400"} />
                                     <input
@@ -178,13 +180,18 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                         value={track.vol}
                                         onClick={e => e.stopPropagation()}
                                         onChange={(e) => onUpdateTrackVolume(track.id, parseFloat(e.target.value))}
-                                        className="w-full h-1 bg-zinc-700 rounded-full appearance-none accent-orange-500"
+                                        className="flex-1 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-zinc-400 [&::-webkit-slider-thumb]:rounded-full"
                                     />
+                                </div>
+                                <div className="flex justify-between px-1 mt-1">
+                                    <button onClick={(e) => { e.stopPropagation(); onToggleMute(track.id); }} className={`px-1.5 py-0.5 text-[9px] rounded border ${track.mute ? 'bg-red-900/50 border-red-500 text-red-200' : 'border-zinc-700 text-zinc-500'}`}>M</button>
+                                    <button onClick={(e) => { e.stopPropagation(); onToggleSolo(track.id); }} className={`px-1.5 py-0.5 text-[9px] rounded border ${track.solo ? 'bg-yellow-600/50 border-yellow-500 text-yellow-100' : 'border-zinc-700 text-zinc-500'}`}>S</button>
                                 </div>
                             </div>
 
-                            {/* Lane Content */}
-                            <div className="flex-1 relative h-full">
+                            {/* Lane Content (Waveforms) */}
+                            {/* Note: This is a flex item next to the 140px sidebar, so it naturally starts at 140px! */}
+                            <div className="flex-1 relative h-full overflow-hidden">
                                 {track.hasFile && audioBuffers[track.id] && (
                                     <div
                                         className="absolute top-2 bottom-2 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing hover:brightness-110 transition-filter shadow-md"
