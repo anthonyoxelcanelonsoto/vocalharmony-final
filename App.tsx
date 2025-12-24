@@ -207,8 +207,8 @@ export default function App() {
     const [viewMode, setViewMode] = useState<'piano' | 'staff'>('staff');
     const [showControls, setShowControls] = useState(true);
 
-    // New AppMode state: SIMPLE | PRO | ULTRA
-    const [appMode, setAppMode] = useState<AppMode>('SIMPLE');
+    // New AppMode state: PRO | ULTRA
+    const [appMode, setAppMode] = useState<AppMode>('PRO');
     const quickLibrarySongs = useLiveQuery(() => (db as any).myLibrary.toArray(), []);
     const [pendingMode, setPendingMode] = useState<AppMode | null>(null); // For mode switch confirmation
     const [isLandscape, setIsLandscape] = useState(false);
@@ -1591,10 +1591,9 @@ export default function App() {
 
     const handleModeToggle = () => {
         vibrate(10);
-        let nextMode: AppMode = 'SIMPLE';
-        if (appMode === 'SIMPLE') nextMode = 'PRO';
-        else if (appMode === 'PRO') nextMode = 'ULTRA';
-
+        let nextMode: AppMode = 'PRO';
+        if (appMode === 'PRO') nextMode = 'ULTRA';
+        // Toggle only between PRO and ULTRA
         setPendingMode(nextMode);
     };
 
@@ -2156,27 +2155,17 @@ export default function App() {
 
                     {audioContext && (
                         <div className={`absolute top-2 right-2 z-30 flex gap-2 transition-transform duration-300 ${!showControls ? 'translate-y-safe' : ''}`}>
-                            {appMode !== 'SIMPLE' && (
-                                <button
-                                    onClick={() => setViewMode(prev => prev === 'piano' ? 'staff' : 'piano')}
-                                    className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 p-1 rounded-full text-slate-400 shadow-lg h-9"
-                                >
-                                    <div className={`p-1 rounded-full transition-all ${viewMode === 'staff' ? 'bg-orange-500 text-black' : 'hover:text-white'}`}>
-                                        <Music size={14} />
-                                    </div>
-                                    <div className={`p-1 rounded-full transition-all ${viewMode === 'piano' ? 'bg-lime-400 text-black' : 'hover:text-white'}`}>
-                                        <Activity size={14} />
-                                    </div>
-                                </button>
-                            )}
-                            {appMode === 'SIMPLE' && (
-                                <button
-                                    onClick={() => setViewMode(prev => prev === 'piano' ? 'staff' : 'piano')}
-                                    className="p-2 rounded-full bg-slate-800/80 border border-slate-600 text-slate-300 shadow-lg"
-                                >
-                                    {viewMode === 'staff' ? <Music size={18} /> : <Activity size={18} />}
-                                </button>
-                            )}
+                            <button
+                                onClick={() => setViewMode(prev => prev === 'piano' ? 'staff' : 'piano')}
+                                className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 p-1 rounded-full text-slate-400 shadow-lg h-9"
+                            >
+                                <div className={`p-1 rounded-full transition-all ${viewMode === 'staff' ? 'bg-orange-500 text-black' : 'hover:text-white'}`}>
+                                    <Music size={14} />
+                                </div>
+                                <div className={`p-1 rounded-full transition-all ${viewMode === 'piano' ? 'bg-lime-400 text-black' : 'hover:text-white'}`}>
+                                    <Activity size={14} />
+                                </div>
+                            </button>
                         </div>
                     )}
 
@@ -2255,7 +2244,7 @@ export default function App() {
 
                     <div className={`shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe relative overflow-hidden transition-all duration-500 ease-in-out
               ${showControls ? 'h-[260px] opacity-100 mb-20 pb-6' : 'h-0 opacity-0 mb-0 pb-0'}
-              ${appMode === 'ULTRA' ? 'bg-black/90' : (appMode === 'SIMPLE' ? 'bg-slate-900/90' : 'bg-slate-900/90')}
+              ${appMode === 'ULTRA' ? 'bg-black/90' : 'bg-slate-900/90'}
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
                             {(() => {
@@ -2267,11 +2256,11 @@ export default function App() {
                                 if (backing) sorted.push(backing);
                                 return sorted;
                             })().map(track => {
-                                // HIDE MASTER IN LITE & PRO MODES (ONLY VISIBLE IN ULTRA)
+                                // HIDE MASTER IN PRO MODE (ONLY VISIBLE IN ULTRA)
                                 if (track.isMaster && appMode !== 'ULTRA') return null;
 
                                 const isProCollapsed = appMode === 'PRO' && expandedTrackId !== track.id;
-                                const isCollapsedView = appMode === 'SIMPLE' || isProCollapsed;
+                                const isCollapsedView = isProCollapsed;
 
                                 return (
                                     <div
@@ -2284,8 +2273,8 @@ export default function App() {
                             ${selectedTrackId === track.id
                                                 ? (appMode === 'ULTRA'
                                                     ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
-                                                    : (appMode === 'SIMPLE' ? 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20' : 'bg-slate-800/60 border-orange-500/30'))
-                                                : (appMode === 'SIMPLE' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-950/40 border-slate-800')
+                                                    : 'bg-slate-800/60 border-orange-500/30')
+                                                : 'bg-slate-950/40 border-slate-800'
                                             }
                             ${track.isMaster && selectedTrackId !== track.id ? 'bg-slate-900 border-orange-500/30' : ''}
                         `}
@@ -2311,9 +2300,9 @@ export default function App() {
                                         </div>
                                         <div className="flex flex-col gap-1 mb-1 w-full">
                                             <div className="flex items-center gap-1.5 px-1">
-                                                <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
+                                                <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : 'bg-slate-700 text-slate-700'}`}></div>
 
-                                                {/* HIDE NAME HEADER IN SIMPLE / COLLAPSED MODE */}
+                                                {/* HIDE NAME HEADER IN COLLAPSED MODE */}
                                                 {!isCollapsedView && (
                                                     <>
                                                         <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
@@ -2659,13 +2648,9 @@ export default function App() {
                                     // Disarm others and add new track
                                     setTracks([...tracks.map(t => ({ ...t, isArmed: false })), newTrack]);
                                 }}
-                                className={`snap-center shrink-0 w-[80px] h-[90%] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 active:bg-slate-800 transition-colors
-                         ${appMode === 'SIMPLE' ? 'border-slate-600' : 'border-slate-800'}
-                    `}
+                                className="snap-center shrink-0 w-[80px] h-[90%] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 active:bg-slate-800 transition-colors border-slate-800"
                             >
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-lg
-                        ${appMode === 'SIMPLE' ? 'bg-slate-800 border-slate-600' : 'bg-slate-900 border-slate-700'}
-                    `}>
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center border shadow-lg bg-slate-900 border-slate-700">
                                     <Plus size={20} className="text-orange-500" />
                                 </div>
                                 <span className="text-[9px] text-slate-500 font-bold tracking-widest">ADD</span>
@@ -3549,33 +3534,28 @@ export default function App() {
                 pendingMode && (
                     <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
                         <div className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col
-                  ${pendingMode === 'SIMPLE' ? 'bg-slate-900 border-slate-700' : ''}
                   ${pendingMode === 'PRO' ? 'bg-lime-900/10 border-lime-500/20' : ''}
                   ${pendingMode === 'ULTRA' ? 'bg-black border-orange-500/50' : ''}
               `}>
                             {/* Modal Header */}
                             <div className={`p-6 flex flex-col items-center text-center gap-4 border-b
-                      ${pendingMode === 'SIMPLE' ? 'bg-slate-800/50 border-slate-700' : ''}
                       ${pendingMode === 'PRO' ? 'bg-lime-900/10 border-lime-500/20' : ''}
                       ${pendingMode === 'ULTRA' ? 'bg-orange-950/20 border-orange-500/20' : ''}
                   `}>
                                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg
-                          ${pendingMode === 'SIMPLE' ? 'bg-slate-800 text-slate-400' : ''}
                           ${pendingMode === 'PRO' ? 'bg-lime-400 text-black' : ''}
                           ${pendingMode === 'ULTRA' ? 'bg-orange-500 text-black shadow-orange-500/50' : ''}
                       `}>
-                                    {pendingMode === 'SIMPLE' && <Zap size={32} fill="currentColor" />}
                                     {pendingMode === 'PRO' && <Sliders size={32} />}
                                     {pendingMode === 'ULTRA' && <Wand2 size={32} />}
                                 </div>
 
                                 <div>
                                     <h2 className={`text-2xl font-black tracking-tighter
-                              ${pendingMode === 'SIMPLE' ? 'text-slate-300' : ''}
                               ${pendingMode === 'PRO' ? 'text-lime-400' : ''}
                               ${pendingMode === 'ULTRA' ? 'text-orange-500' : ''}
                           `}>
-                                        SWITCH TO {pendingMode === 'SIMPLE' ? 'LITE' : pendingMode}
+                                        SWITCH TO {pendingMode}
                                     </h2>
                                     <p className="text-slate-500 text-xs font-bold tracking-widest uppercase mt-1">Mode Selection</p>
                                 </div>
@@ -3583,13 +3563,6 @@ export default function App() {
 
                             {/* Features List */}
                             <div className="p-6 space-y-4">
-                                {pendingMode === 'SIMPLE' && (
-                                    <ul className="space-y-3">
-                                        <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Simplified Interface</li>
-                                        <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Karaoke Focus</li>
-                                        <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={16} className="text-slate-500" /> Performance Optimized</li>
-                                    </ul>
-                                )}
                                 {pendingMode === 'PRO' && (
                                     <ul className="space-y-3">
                                         <li className="flex items-center gap-3 text-white text-sm"><Check size={16} className="text-lime-400" /> Multi-track Mixer Controls</li>
@@ -3617,7 +3590,6 @@ export default function App() {
                                 <button
                                     onClick={confirmModeSwitch}
                                     className={`flex-1 py-3 rounded-xl font-bold text-black active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-lg
-                              ${pendingMode === 'SIMPLE' ? 'bg-slate-400 hover:bg-slate-300' : ''}
                               ${pendingMode === 'PRO' ? 'bg-lime-400 hover:bg-lime-300 shadow-lime-400/20' : ''}
                               ${pendingMode === 'ULTRA' ? 'bg-orange-500 hover:bg-orange-400 shadow-orange-500/20' : ''}
                           `}
@@ -3679,10 +3651,9 @@ export default function App() {
                     <button
                         onClick={handleModeToggle}
                         className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95
-                                ${appMode === 'SIMPLE' ? 'text-lime-400' : (appMode === 'ULTRA' ? 'text-orange-500' : 'text-slate-500 hover:text-white')}
+                                ${appMode === 'ULTRA' ? 'text-orange-500' : 'text-slate-500 hover:text-white'}
                         `}
                     >
-                        {appMode === 'SIMPLE' && <Zap size={20} fill="currentColor" />}
                         {appMode === 'PRO' && <Sliders size={20} />}
                         {appMode === 'ULTRA' && <Wand2 size={20} />}
                     </button>

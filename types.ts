@@ -62,6 +62,6 @@ export interface NoteBlock {
   shiftCents: number; // Visual shift
 }
 
-export type AppMode = 'SIMPLE' | 'PRO' | 'ULTRA';
+export type AppMode = 'PRO' | 'ULTRA';
 
 export const NOTE_STRINGS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
