@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
@@ -2595,10 +2596,10 @@ export default function App() {
                                                                 </button>
                                                             </div>
 
-                                                            <SimpleKnob
+                                                            <Knob
                                                                 value={track.pan}
                                                                 min={0} max={1}
-                                                                size={28}
+                                                                size="sm"
                                                                 color={appMode === 'ULTRA' ? '#f97316' : '#84cc16'}
                                                                 onChange={(v) => {
                                                                     const newTracks = [...tracks];
