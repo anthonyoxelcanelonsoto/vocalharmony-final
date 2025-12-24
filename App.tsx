@@ -1958,13 +1958,13 @@ export default function App() {
 
     return (
         <div className={`flex flex-col h-safe-screen text-white font-sans overflow-hidden transition-colors duration-500
-        ${appMode === 'ULTRA' ? 'bg-black' : (appMode === 'SIMPLE' ? 'bg-slate-900' : 'bg-slate-950')}
+        ${appMode === 'ULTRA' ? 'bg-black' : 'bg-slate-950'}
     `}>
 
             {/* 1. HEADER */}
             <header className={`relative shrink-0 flex items-center justify-between px-4 pt-safe pb-2 border-b z-30 transition-all duration-300 
             opacity-100
-             ${appMode === 'ULTRA' ? 'bg-black border-orange-900/50' : (appMode === 'SIMPLE' ? 'bg-slate-900 border-lime-500/30' : 'bg-slate-950 border-orange-900/30')}
+             ${appMode === 'ULTRA' ? 'bg-black border-orange-900/50' : 'bg-slate-950 border-orange-900/30'}
       `}>
                 {/* LOGO AREA - LEFT */}
                 <div className="flex items-center gap-3">
@@ -2127,13 +2127,13 @@ export default function App() {
             {mainView === 'studio' && (<>
                 {/* 2. VISUALIZER */}
                 <div className={`flex-1 min-h-0 relative transition-all duration-300
-         ${appMode === 'SIMPLE' ? 'bg-slate-800/50' : 'bg-slate-900/50'}
+         bg-slate-900/50
       `}>
                     <div className={`absolute top-2 left-0 right-0 z-10 flex justify-center pointer-events-none transition-opacity`}>
                         <div className={`px-3 py-1 rounded-full border flex items-center gap-2 shadow-lg backdrop-blur
                 ${appMode === 'ULTRA'
                                 ? 'bg-orange-950/80 border-orange-500/50'
-                                : (appMode === 'SIMPLE' ? 'bg-slate-800/90 border-lime-400/30' : 'bg-slate-950/80 border-orange-900/50')}
+                                : 'bg-slate-950/80 border-orange-900/50'}
             `}>
                             <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : (appMode === 'ULTRA' ? 'bg-orange-500' : 'bg-lime-400')}`}></div>
                             <span className={`text-[10px] font-bold tracking-wider uppercase ${appMode === 'ULTRA' ? 'text-orange-100' : 'text-orange-100'}`}>
@@ -2235,7 +2235,7 @@ export default function App() {
 
                 {/* COLLAPSIBLE CONTROLS */}
                 <div className={`shrink-0 border-t border-orange-900/30 flex flex-col transition-all duration-300 ease-in-out
-          ${appMode === 'ULTRA' ? 'bg-black' : (appMode === 'SIMPLE' ? 'bg-slate-900' : 'bg-slate-950')}
+          ${appMode === 'ULTRA' ? 'bg-black' : 'bg-slate-950'}
       `}>
 
                     <div className="shrink-0 flex flex-col pb-1 relative z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
@@ -2280,8 +2280,8 @@ export default function App() {
                             ${selectedTrackId === track.id
                                                 ? (appMode === 'ULTRA'
                                                     ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
-                                                    : (appMode === 'SIMPLE' ? 'bg-slate-700 border-lime-400 shadow-[0_0_10px_rgba(132,204,22,0.2)]' : 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20'))
-                                                : (appMode === 'SIMPLE' ? 'bg-slate-800 border-slate-600' : 'bg-slate-950/40 border-slate-800')
+                                                    : 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20')
+                                                : 'bg-slate-950/40 border-slate-800'
                                             }
                             ${track.isMaster && selectedTrackId !== track.id ? 'bg-slate-900 border-orange-500/30' : ''}
                         `}
