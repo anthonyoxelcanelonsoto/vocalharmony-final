@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -234,7 +233,8 @@ export default function App() {
     // Settings State
     const [showSettings, setShowSettings] = useState(false);
     const [isAdminMode, setIsAdminMode] = useState(false);
-    const [showResetConfirm, setShowResetConfirm] = useState(false); // Modal state for reset
+    const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+    const [expandedTrackId, setExpandedTrackId] = useState<number | null>(null);
     const [loadingAuth, setLoadingAuth] = useState(false);
     const [deleteTrackId, setDeleteTrackId] = useState<number | null>(null); // State for track deletion confirmation
     const [renamingTrackId, setRenamingTrackId] = useState<number | null>(null);
@@ -2269,25 +2269,28 @@ export default function App() {
                                 // HIDE MASTER IN LITE MODE
                                 if (appMode === 'SIMPLE' && track.isMaster) return null;
 
+                                const isProCollapsed = appMode === 'PRO' && expandedTrackId !== track.id;
+                                const isCollapsedView = appMode === 'SIMPLE' || isProCollapsed;
+
                                 return (
                                     <div
                                         key={track.id}
                                         onClick={() => { vibrate(5); setSelectedTrackId(track.id); }}
                                         className={`
                             snap-center shrink-0 h-[96%] rounded-2xl p-2 flex flex-col justify-between transition-all border relative overflow-hidden group
-                            ${isLandscape ? 'w-[180px]' : (appMode === 'SIMPLE' ? 'w-[70px]' : 'w-[110px]')}
+                            ${isLandscape ? 'w-[180px]' : (isCollapsedView ? 'w-[70px]' : 'w-[110px]')}
                             ${track.isMaster ? 'mr-2 shadow-[4px_0_15px_rgba(0,0,0,0.5)]' : ''}
                             ${selectedTrackId === track.id
                                                 ? (appMode === 'ULTRA'
                                                     ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
-                                                    : 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20')
-                                                : 'bg-slate-950/40 border-slate-800'
+                                                    : (appMode === 'SIMPLE' ? 'bg-slate-800/80 border-lime-400/50 shadow-[0_0_15px_rgba(132,204,22,0.15)] ring-1 ring-lime-400/20' : 'bg-slate-800/60 border-orange-500/30'))
+                                                : (appMode === 'SIMPLE' ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-950/40 border-slate-800')
                                             }
                             ${track.isMaster && selectedTrackId !== track.id ? 'bg-slate-900 border-orange-500/30' : ''}
                         `}
                                     >
-                                        {/* SIMPLE MODE VERTICAL NAME (READ ONLY) */}
-                                        {appMode === 'SIMPLE' && (
+                                        {/* SIMPLE / COLLAPSED PRO MODE VERTICAL NAME (READ ONLY) */}
+                                        {isCollapsedView && (
                                             <div
                                                 className="absolute left-0.5 top-12 bottom-12 w-4 flex items-center justify-center z-20 opacity-50 select-none"
                                             >
@@ -2309,8 +2312,8 @@ export default function App() {
                                             <div className="flex items-center gap-1.5 px-1">
                                                 <div className={`shrink-0 w-1.5 h-1.5 rounded-full shadow-[0_0_5px_currentColor] ${track.hasFile ? 'bg-lime-500 text-lime-500' : (appMode === 'SIMPLE' ? 'bg-slate-600 text-slate-600' : 'bg-slate-700 text-slate-700')}`}></div>
 
-                                                {/* HIDE NAME HEADER IN SIMPLE MODE */}
-                                                {appMode !== 'SIMPLE' && (
+                                                {/* HIDE NAME HEADER IN SIMPLE / COLLAPSED MODE */}
+                                                {!isCollapsedView && (
                                                     <>
                                                         <div className="text-[10px] font-bold text-slate-300 truncate tracking-tight flex-1">{track.name}</div>
                                                         <button
@@ -2338,7 +2341,7 @@ export default function App() {
                                                     ) : (
                                                         <>
                                                             {/* MODE/MIC BUTTON (PRO/ULTRA) OR SOLO (SIMPLE) */}
-                                                            {appMode === 'SIMPLE' ? (
+                                                            {isCollapsedView ? (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -2375,7 +2378,7 @@ export default function App() {
                                                             )}
 
                                                             {/* TUNING BUTTON - PRO & ULTRA */}
-                                                            {appMode !== 'SIMPLE' && (
+                                                            {!isCollapsedView && (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         if (track.hasFile) openPitchModal(track.id, track.pitchShift || 0, e);
@@ -2396,7 +2399,7 @@ export default function App() {
                                                             )}
 
                                                             {/* DELETE BUTTON - PRO/ULTRA ONLY */}
-                                                            {appMode !== 'SIMPLE' && (
+                                                            {!isCollapsedView && (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -2449,10 +2452,10 @@ export default function App() {
                                                 </span>
                                             </div>
                                         ) : (
-                                            appMode === 'SIMPLE' ? (
+                                            isCollapsedView ? (
                                                 <div className="flex-1 flex flex-col items-center justify-center gap-2">
                                                     {/* LITE MODE: ONLY VOLUME */}
-                                                    <div className="h-full flex items-center justify-center pb-1 w-full">
+                                                    <div className="h-full flex items-center justify-center pb-1 w-full relative">
                                                         <MiniFader
                                                             disabled={isUILocked || track.id !== selectedTrackId}
                                                             value={track.vol}
@@ -2465,6 +2468,19 @@ export default function App() {
                                                                 setSelectedTrackId(track.id);
                                                             }}
                                                         />
+
+                                                        {/* EXPAND BUTTON FOR PRO MODE */}
+                                                        {appMode === 'PRO' && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setExpandedTrackId(track.id === expandedTrackId ? null : track.id);
+                                                                }}
+                                                                className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 p-1.5 rounded-full bg-slate-800 text-orange-500 border border-slate-700 shadow-lg hover:scale-110 transition-transform z-30 opacity-80 hover:opacity-100"
+                                                            >
+                                                                <ChevronsUpDown size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ) : (
@@ -2579,21 +2595,34 @@ export default function App() {
                                                                 </button>
                                                             </div>
 
-                                                            <Knob
-                                                                disabled={isUILocked || track.id !== selectedTrackId}
+                                                            <SimpleKnob
                                                                 value={track.pan}
-                                                                color={track.color}
-                                                                size="sm"
-                                                                label="PAN"
-                                                                onChange={(val) => {
+                                                                min={0} max={1}
+                                                                size={28}
+                                                                color={appMode === 'ULTRA' ? '#f97316' : '#84cc16'}
+                                                                onChange={(v) => {
                                                                     const newTracks = [...tracks];
                                                                     const t = newTracks.find(x => x.id === track.id);
-                                                                    if (t) t.pan = val;
+                                                                    if (t) t.pan = v;
                                                                     setTracks(newTracks);
                                                                     setSelectedTrackId(track.id);
                                                                 }}
+                                                                label="PAN"
                                                             />
-                                                            {/* Old VuMeter Removed */}
+
+                                                            {/* COLLAPSE BUTTON FOR PRO MODE */}
+                                                            {appMode === 'PRO' && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setExpandedTrackId(null);
+                                                                    }}
+                                                                    className="absolute bottom-2 left-1/2 -translate-x-1/2 p-1 rounded-full text-slate-500 hover:text-orange-500 transition-colors z-30"
+                                                                >
+                                                                    <ChevronsUpDown size={14} className="rotate-180" />
+                                                                </button>
+                                                            )}
+
                                                         </div>
                                                     </div>
                                                 </div>
