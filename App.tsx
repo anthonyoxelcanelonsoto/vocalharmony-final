@@ -605,11 +605,11 @@ export default function App() {
                     // Create PitchShift Node
                     const ps = new Tone.PitchShift({
                         pitch: track.pitchShift,
-                        windowSize: 0.1,
+                        windowSize: 0.05, // Lower window size for vocals (less delay/smearing)
                         feedback: 0,
-                        delayTime: 0,
-                        wet: 1 // Ensure 100% wet signal to prevent doubling
+                        delayTime: 0
                     });
+                    ps.wet.value = 1; // Explicitly enforce wet signal only
                     trackPitchShiftNodesRef.current[track.id] = ps;
 
                     // Connect: Source (Native) -> PitchShift (Tone) -> Gain (Native)
