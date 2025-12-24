@@ -98,6 +98,7 @@ const getInitialTracks = (): Track[] => [
         isTuning: false,
         duration: 0,
         pitchShift: 0,
+        pitchMethod: 'live', // Default to Fast/Live mode
         isMaster: true,
         eq: {
             enabled: true,
@@ -227,6 +228,7 @@ export default function App() {
     const [noteBlocks, setNoteBlocks] = useState<NoteBlock[]>([]);
     const [pitchEditTrackId, setPitchEditTrackId] = useState<number | null>(null);
     const [tempPitch, setTempPitch] = useState(0);
+    const [tempPitchMethod, setTempPitchMethod] = useState<'live' | 'processed'>('live'); // New state for tuning method
     const [isProcessingPitch, setIsProcessingPitch] = useState(false);
 
     // Settings State
@@ -363,12 +365,13 @@ export default function App() {
     const activeSourcesRef = useRef<{ [id: number]: AudioBufferSourceNode }>({});
     const trackGainNodesRef = useRef<{ [key: number]: GainNode }>({});
     const trackPanNodesRef = useRef<{ [key: number]: StereoPannerNode }>({});
+    const trackPitchShiftNodesRef = useRef<{ [key: number]: Tone.PitchShift }>({}); // LIVE Pitch Shifter Nodes
     const trackAnalysersRef = useRef<{ [key: number]: AnalyserNode }>({});
     const masterGainNodeRef = useRef<GainNode | null>(null); // NEW: Native Master Gain
     const startTimeRef = useRef<number>(0);
     const pauseOffsetRef = useRef<number>(0);
     const animationFrameRef = useRef<number | undefined>(undefined);
-    const playbackRafRef = useRef<number>(); // Added playbackRafRef
+    const playbackRafRef = useRef<number | undefined>(undefined); // Added playbackRafRef
 
     const isPlayingRef = useRef(false);
     const isRecordingRef = useRef(false);
@@ -583,8 +586,8 @@ export default function App() {
             // Decide which buffer to use: Processed (if shifted) or Original
             let buffer = audioBuffersRef.current[track.id];
 
-            // Check if we have a processed buffer for this track
-            if (track.pitchShift !== 0 && processedBuffersRef.current[track.id]) {
+            // Check if we have a processed buffer for this track (ONLY for 'processed' method)
+            if (track.pitchShift !== 0 && track.pitchMethod === 'processed' && processedBuffersRef.current[track.id]) {
                 buffer = processedBuffersRef.current[track.id];
             }
 
@@ -597,7 +600,24 @@ export default function App() {
                 const analyser = ctx.createAnalyser();
                 analyser.fftSize = 2048;
 
-                source.connect(gainNode);
+                // --- LIVE PITCH SHIFT LOGIC ---
+                if (track.pitchMethod === 'live' && track.pitchShift !== 0) {
+                    // Create PitchShift Node
+                    const ps = new Tone.PitchShift({
+                        pitch: track.pitchShift,
+                        windowSize: 0.1,
+                        feedback: 0,
+                        delayTime: 0
+                    });
+                    trackPitchShiftNodesRef.current[track.id] = ps;
+
+                    // Connect: Source (Native) -> PitchShift (Tone) -> Gain (Native)
+                    Tone.connect(source, ps);
+                    ps.connect(gainNode);
+                } else {
+                    // Standard: Source -> Gain
+                    source.connect(gainNode);
+                }
 
                 // NoteBlock fine-tuning (NewTone) - runs on top of the base buffer
                 if (appMode === 'ULTRA' && track.id === selectedTrackId && noteBlocksRef.current.length > 0) {
@@ -1504,34 +1524,47 @@ export default function App() {
 
     const openPitchModal = (trackId: number, currentPitch: number, e: React.MouseEvent) => {
         e.stopPropagation();
+        const t = tracks.find(track => track.id === trackId);
         setPitchEditTrackId(trackId);
         setTempPitch(currentPitch);
+        setTempPitchMethod(t?.pitchMethod || 'live');
     };
 
     const confirmPitchChange = async () => {
         if (pitchEditTrackId !== null) {
-            setIsProcessingPitch(true);
 
-            const originalBuffer = audioBuffersRef.current[pitchEditTrackId];
-            if (originalBuffer) {
-                if (tempPitch !== 0) {
-                    const processed = await processPitchShift(originalBuffer, tempPitch);
-                    processedBuffersRef.current[pitchEditTrackId] = processed;
-                } else {
-                    // If 0, remove cached processed buffer to revert to original
-                    delete processedBuffersRef.current[pitchEditTrackId];
+            if (tempPitchMethod === 'processed') {
+                // --- PROCESSED (SLOW / HIGH QUALITY) ---
+                setIsProcessingPitch(true);
+                const originalBuffer = audioBuffersRef.current[pitchEditTrackId];
+                if (originalBuffer) {
+                    if (tempPitch !== 0) {
+                        const processed = await processPitchShift(originalBuffer, tempPitch);
+                        processedBuffersRef.current[pitchEditTrackId] = processed;
+                    } else {
+                        delete processedBuffersRef.current[pitchEditTrackId];
+                    }
                 }
+                setIsProcessingPitch(false);
+            } else {
+                // --- LIVE (FAST / INSTANT) ---
+                // No Processing Needed. Using Realtime Node.
+                // Clear any old processed buffer to be clean
+                delete processedBuffersRef.current[pitchEditTrackId];
             }
 
-            setTracks(prev => prev.map(t => t.id === pitchEditTrackId ? { ...t, pitchShift: tempPitch } : t));
+            setTracks(prev => prev.map(t => t.id === pitchEditTrackId ? {
+                ...t,
+                pitchShift: tempPitch,
+                pitchMethod: tempPitchMethod
+            } : t));
 
-            setIsProcessingPitch(false);
-            // Stop/Start audio to apply changes if playing
+            setPitchEditTrackId(null);
+
             if (isPlaying) {
                 stopAudio();
                 playAudio(currentTime);
             }
-            setPitchEditTrackId(null);
         }
     };
 
@@ -1590,6 +1623,12 @@ export default function App() {
             const panNode = trackPanNodesRef.current[track.id];
             if (panNode) {
                 panNode.pan.setTargetAtTime((track.pan * 2) - 1, audioContext.currentTime, 0.05);
+            }
+
+            // Update Live Pitch Shift
+            const psNode = trackPitchShiftNodesRef.current[track.id];
+            if (psNode && track.pitchMethod === 'live') {
+                psNode.pitch = track.pitchShift;
             }
         });
     }, [tracks, audioContext]); // Run when tracks change (volume/pan updates)
@@ -2829,7 +2868,22 @@ export default function App() {
                             </div>
 
                             <h3 className="text-xl font-black text-white uppercase tracking-tighter">Track Tuning</h3>
-                            <p className="text-xs text-orange-500/80 font-bold tracking-widest mb-6">OFFLINE PITCH ENGINE</p>
+                            <div className="flex bg-zinc-900 p-1 rounded-lg mb-6 mt-2 border border-zinc-800 w-full max-w-[200px]">
+                                <button
+                                    onClick={() => setTempPitchMethod('live')}
+                                    className={`flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${tempPitchMethod === 'live' ? 'bg-orange-500 text-black shadow-lg' : 'text-zinc-500 hover:text-zinc-300'
+                                        }`}
+                                >
+                                    ⚡ Fast
+                                </button>
+                                <button
+                                    onClick={() => setTempPitchMethod('processed')}
+                                    className={`flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${tempPitchMethod === 'processed' ? 'bg-orange-500 text-black shadow-lg' : 'text-zinc-500 hover:text-zinc-300'
+                                        }`}
+                                >
+                                    ✨ Quality
+                                </button>
+                            </div>
 
                             <div className="flex items-center gap-6 mb-8">
                                 <button
@@ -2875,8 +2929,10 @@ export default function App() {
 
                             <p className="mt-4 text-[10px] text-zinc-600 text-center max-w-[200px]">
                                 {tempPitch === 0
-                                    ? "Bypass Active: 0% CPU Usage. Original Audio."
-                                    : "High-Quality Granular Processing. Takes a moment to render."}
+                                    ? "Bypass Active: Original Audio."
+                                    : (tempPitchMethod === 'live'
+                                        ? "Live Mode: Instant (Low Latency)."
+                                        : "Processed Mode: High-Fidelity Rendering (Wait).")}
                             </p>
                         </div>
                     </div>

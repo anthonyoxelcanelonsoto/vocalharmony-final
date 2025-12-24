@@ -37,7 +37,7 @@ export const PitchVisualizer: React.FC<VisualizerProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const requestRef = useRef<number>();
+    const requestRef = useRef<number | undefined>(undefined);
 
     // Interaction State
     const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);

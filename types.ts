@@ -23,6 +23,7 @@ export interface Track {
 
   offset?: number; // Start time offset in seconds
   pitchShift: number; // Semitones for Ultra mode
+  pitchMethod?: 'live' | 'processed'; // 'live' = Realtime (Fast), 'processed' = Offline (High Quality)
   reverbSend?: number; // Reverb send amount 0-1
   eq?: {
     enabled: boolean;
