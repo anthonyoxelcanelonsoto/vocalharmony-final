@@ -240,16 +240,17 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
             </div>
 
             {/* FLOATING TRANSPORTS */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur border border-zinc-700 rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl z-50">
-                <button onClick={onTogglePlay} className="p-3 bg-white rounded-full text-black hover:scale-105 transition shadow-lg shadow-white/20">
-                    {isPlaying ? <Pause fill="black" /> : <Play fill="black" />}
+            {/* FLOATING TRANSPORTS */}
+            <div className="fixed bottom-2 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur border border-zinc-700 rounded-full px-4 py-2 flex items-center gap-4 shadow-xl z-50">
+                <button onClick={onTogglePlay} className="p-2 bg-white rounded-full text-black hover:scale-105 transition shadow-lg shadow-white/20">
+                    {isPlaying ? <Pause fill="black" size={20} /> : <Play fill="black" size={20} />}
                 </button>
-                <div className="text-2xl font-mono font-bold text-orange-500 w-32 text-center">
+                <div className="text-xl font-mono font-bold text-orange-500 w-28 text-center">
                     {formatTime(currentTime, true)}
                 </div>
-                <div className="flex gap-4 text-zinc-400">
-                    <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="active:text-white"><Activity size={18} /></button>
-                    <button onClick={() => setZoom(z => Math.min(200, z * 1.5))} className="active:text-white"><Activity size={24} /></button>
+                <div className="flex gap-3 text-zinc-400">
+                    <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="active:text-white"><Activity size={16} /></button>
+                    <button onClick={() => setZoom(z => Math.min(200, z * 1.5))} className="active:text-white"><Activity size={20} /></button>
                 </div>
             </div>
         </div>
