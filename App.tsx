@@ -871,7 +871,15 @@ export default function App() {
             throw new Error("No hay pistas activas (con audio y sin silencio) para exportar.");
         }
 
+        // Create Offline Master Gain
+        const masterTrack = tracks.find(t => t.isMaster);
+        const offlineMasterGain = offlineCtx.createGain();
+        offlineMasterGain.gain.value = masterTrack ? masterTrack.vol : 1.0;
+        offlineMasterGain.connect(offlineCtx.destination);
+
         for (const track of activeTracks) {
+            if (track.isMaster) continue; // Skip Master track iteration, it's the bus
+
             const buffer = processedBuffersRef.current[track.id] || audioBuffersRef.current[track.id];
             if (buffer) {
                 const source = offlineCtx.createBufferSource();
@@ -879,27 +887,27 @@ export default function App() {
 
                 const pannerNode = offlineCtx.createStereoPanner();
                 const gainNode = offlineCtx.createGain();
-                const analyser = offlineCtx.createAnalyser(); // Added analyser for consistency, though not strictly needed for mixdown
 
-                // Connect Graph
-                // source -> analyser -> gain -> pan -> MASTER -> destination
-                source.connect(analyser);
-                analyser.connect(gainNode);
+                // Connect Graph: Source -> Gain -> Panner -> Master
+                source.connect(gainNode);
                 gainNode.connect(pannerNode);
-
-                // Connect to MASTER GAIN if available, otherwise destination
-                if (masterGainNodeRef.current) {
-                    pannerNode.connect(masterGainNodeRef.current);
-                } else {
-                    pannerNode.connect(offlineCtx.destination); // Fallback
-                }
+                pannerNode.connect(offlineMasterGain);
 
                 // Set track properties
                 gainNode.gain.value = track.vol;
-                pannerNode.pan.value = (track.pan * 2) - 1; // Convert 0-1 to -1 to 1
+                pannerNode.pan.value = (track.pan * 2) - 1;
 
-                // Start source at 0 (offline context starts from beginning)
-                source.start(0);
+                // SCHEDULE WITH OFFSET
+                // Note: OfflineContext runs from t=0. We place audio at t=offset.
+                const startTime = track.offset || 0;
+                if (startTime >= 0) {
+                    source.start(startTime);
+                } else {
+                    // Handle negative offset (crop start) if needed, 
+                    // but for simple "timeline alignment" usually we just start at 0 if negative, with offset into buffer? 
+                    // Logic from playAudio: start(0, -offset).
+                    source.start(0, -startTime);
+                }
             }
         }
 
