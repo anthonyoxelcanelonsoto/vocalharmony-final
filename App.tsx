@@ -638,7 +638,27 @@ export default function App() {
                         // Tone players take (startTime, offset, duration)
                         // But we want to sync with ctx.currentTime
                         // GP.start(when, offset)
-                        gp.start(startTime, offset);
+                        // FIX: Account for individual TRACK OFFSET (Drag & Drop)
+                        // If track has an offset (e.g. moved 2s to the right), it should start playing 2s later
+                        // relative to the global start time.
+                        const trackStartDelay = track.offset || 0;
+                        const startAt = startTime + trackStartDelay;
+
+                        // We also need to determine where IN the buffer to start reading.
+                        // If the global cursor (offset) is 5s, and track is shifted 2s, we read from 3s in the buffer.
+                        // If global cursor is 1s, and track is shifted 2s, we wait 1s then start reading from 0.
+                        let bufferReadPos = offset - trackStartDelay;
+                        let playAt = startAt;
+
+                        if (bufferReadPos < 0) {
+                            // Track starts in the future relative to current playhead
+                            playAt = startTime + (trackStartDelay - offset); // Wait until playhead reaches track
+                            bufferReadPos = 0;
+                        }
+
+                        if (bufferReadPos < buffer.duration) {
+                            gp.start(playAt, bufferReadPos);
+                        }
                     } catch (e) { }
 
                 } else {
@@ -701,7 +721,26 @@ export default function App() {
                         try { source.start(startTime, startPos); } catch (e) { }
                     } else {
                         source.loop = false;
-                        try { source.start(startTime, offset); } catch (e) { }
+                        source.loop = false;
+
+                        // FIX: Account for TRACK OFFSET (Drag & Drop) for Native Source
+                        const trackStartDelay = track.offset || 0;
+
+                        // "offset" is the global playhead position (e.g. 5.0 seconds)
+                        // We want to play the portion of the buffer corresponding to: Playhead - TrackStart
+                        let bufferOffset = offset - trackStartDelay;
+                        let startWhen = startTime;
+
+                        if (bufferOffset < 0) {
+                            // The playhead is BEFORE the track starts (e.g. Playhead @ 1s, Track starts @ 3s)
+                            // We need to schedule the start in the future: (3s - 1s) = 2s from now
+                            startWhen = startTime + (-bufferOffset);
+                            bufferOffset = 0;
+                        }
+
+                        if (bufferOffset < buffer.duration) {
+                            try { source.start(startWhen, bufferOffset); } catch (e) { }
+                        }
                     }
 
                     // NoteBlock fine-tuning (Native Only)
