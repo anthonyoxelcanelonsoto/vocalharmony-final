@@ -1965,6 +1965,7 @@ export default function App() {
             <header className={`relative shrink-0 flex items-center justify-between px-4 pt-safe pb-2 border-b z-30 transition-all duration-300 
             opacity-100
              ${appMode === 'ULTRA' ? 'bg-black border-orange-900/50' : 'bg-slate-950 border-orange-900/30'}
+             ${isLandscape ? 'hidden' : ''}
       `}>
                 {/* LOGO AREA - LEFT */}
                 <div className="flex items-center gap-3">
@@ -2099,8 +2100,8 @@ export default function App() {
                 </div>
             </header>
 
-            {/* QUICK LIBRARY BAR (Horizontal Scroll) */}
-            {mainView === 'studio' && quickLibrarySongs && quickLibrarySongs.length > 0 && (
+            {/* QUICK LIBRARY BAR (Horizontal Scroll) - Hide in Landscape */}
+            {!isLandscape && mainView === 'studio' && quickLibrarySongs && quickLibrarySongs.length > 0 && (
                 <div className="w-full h-28 bg-slate-950/80 backdrop-blur-md border-b border-white/5 flex items-center px-4 gap-3 overflow-x-auto no-scrollbar shrink-0 z-20">
                     {quickLibrarySongs.map((song: any) => (
                         <button
@@ -2125,9 +2126,10 @@ export default function App() {
             )}
 
             {mainView === 'studio' && (<>
-                {/* 2. VISUALIZER */}
+                {/* 2. VISUALIZER - Hide in Landscape to focus on Mixer */}
                 <div className={`flex-1 min-h-0 relative transition-all duration-300
          bg-slate-900/50
+         ${isLandscape ? 'hidden' : ''}
       `}>
                     <div className={`absolute top-2 left-0 right-0 z-10 flex justify-center pointer-events-none transition-opacity`}>
                         <div className={`px-3 py-1 rounded-full border flex items-center gap-2 shadow-lg backdrop-blur
@@ -2226,6 +2228,7 @@ export default function App() {
                 {/* COLLAPSIBLE CONTROLS */}
                 <div className={`shrink-0 border-t border-orange-900/30 flex flex-col transition-all duration-300 ease-in-out
           ${appMode === 'ULTRA' ? 'bg-black' : 'bg-slate-950'}
+          ${isLandscape ? 'flex-1 h-full' : ''}
       `}>
 
                     <div className="shrink-0 flex flex-col pb-1 relative z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
@@ -2243,7 +2246,9 @@ export default function App() {
                     </div>
 
                     <div className={`shrink-0 backdrop-blur-xl border-t border-orange-900/30 pb-safe relative overflow-hidden transition-all duration-500 ease-in-out
-              ${showControls ? 'h-[260px] opacity-100 mb-20 pb-6' : 'h-0 opacity-0 mb-0 pb-0'}
+              ${isLandscape
+                            ? 'h-full opacity-100 mb-0 pb-20'
+                            : (showControls ? 'h-[260px] opacity-100 mb-20 pb-6' : 'h-0 opacity-0 mb-0 pb-0')}
               ${appMode === 'ULTRA' ? 'bg-black/90' : 'bg-slate-900/90'}
           `}>
                         <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
