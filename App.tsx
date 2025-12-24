@@ -2326,8 +2326,8 @@ export default function App() {
                                                                 </button>
                                                             )}
 
-                                                            {/* TUNING BUTTON - ULTRA MODE ONLY */}
-                                                            {appMode === 'ULTRA' && (
+                                                            {/* TUNING BUTTON - PRO & ULTRA */}
+                                                            {appMode !== 'SIMPLE' && (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         if (track.hasFile) openPitchModal(track.id, track.pitchShift || 0, e);
