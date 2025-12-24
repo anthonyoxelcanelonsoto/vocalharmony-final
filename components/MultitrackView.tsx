@@ -46,17 +46,52 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     const [dragStartOffset, setDragStartOffset] = useState(0);
 
     const lastPinchDist = useRef<number | null>(null);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const isDragUnlockedRef = useRef(false);
+
+    // Haptic Helper (Local)
+    const vibe = () => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15); };
 
     const handleClipTouchStart = (e: React.TouchEvent | React.MouseEvent, trackId: number, currentOffset: number) => {
-        e.stopPropagation(); // Prevent triggering container events if any
-        setDraggingTrackId(trackId);
+        // Only stop propagation if we are actually interacting, but needed for scroll? 
+        // We stop propagation so we can handle logic, but we must decide if it's a scroll or drag.
+        // Actually, we should NOT stop propagation immediately if we want to allow scrolling of parent?
+        // No, the parent scroll is handled by overflow. We need to prevent the drag logic from kicking in immediately.
+
+        // e.stopPropagation(); // Removed to allow potential scrolling if drag doesn't engage? No, clips are reliable targets.
+
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+
+        // Prepare Drag Data but DON'T activate it yet
         setDragStartX(clientX);
         setDragStartOffset(currentOffset || 0);
+        isDragUnlockedRef.current = false;
+
+        // Start Long Press Timer
+        longPressTimerRef.current = setTimeout(() => {
+            isDragUnlockedRef.current = true;
+            setDraggingTrackId(trackId);
+            vibe(); // Haptic feedback: Unlocked!
+        }, 300); // 300ms hold to unlock
     };
+
+    const handleClipMoveCheck = (e: React.TouchEvent | React.MouseEvent) => {
+        // If user moves significantly BEFORE unlock, cancel the timer (it's a scroll)
+        if (!isDragUnlockedRef.current && longPressTimerRef.current) {
+            const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+            if (Math.abs(clientX - dragStartX) > 10) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+            }
+        }
+    };
+
 
     // Global Container Touch Move (Handles Pinch & Clip Drag)
     const handleContainerTouchMove = (e: React.TouchEvent) => {
+        // Check if we need to cancel long press due to early movement
+        handleClipMoveCheck(e);
+
         // PINCH ZOOM (2 Fingers)
         if (e.touches.length === 2) {
             e.preventDefault(); // Prevent native page zoom
@@ -72,8 +107,8 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
             return;
         }
 
-        // CLIP DRAG (1 Finger)
-        if (draggingTrackId !== null) {
+        // CLIP DRAG (1 Finger) - Only if UNLOCKED
+        if (draggingTrackId !== null && isDragUnlockedRef.current) {
             e.preventDefault(); // Prevent scrolling while dragging clip
             const clientX = e.touches[0].clientX;
             const deltaPx = clientX - dragStartX;
@@ -83,16 +118,24 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     };
 
     const handleContainerTouchEnd = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+
         if (draggingTrackId !== null) {
             onDragEnd?.();
         }
         lastPinchDist.current = null;
         setDraggingTrackId(null);
+        isDragUnlockedRef.current = false;
     };
 
     // Mouse Fallback
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (draggingTrackId === null) return;
+        handleClipMoveCheck(e);
+        if (draggingTrackId === null || !isDragUnlockedRef.current) return;
+
         e.preventDefault();
         const clientX = e.clientX;
         const deltaPx = clientX - dragStartX;
@@ -101,10 +144,15 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     };
 
     const handleMouseUp = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
         if (draggingTrackId !== null) {
             onDragEnd?.();
         }
         setDraggingTrackId(null);
+        isDragUnlockedRef.current = false;
     };
 
     const handleWheel = (e: React.WheelEvent) => {
@@ -215,7 +263,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                             <div className="flex-1 relative h-full overflow-hidden">
                                 {track.hasFile && audioBuffers[track.id] && (
                                     <div
-                                        className="absolute top-2 bottom-2 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing hover:brightness-110 transition-filter shadow-md"
+                                        className={`absolute top-2 bottom-2 rounded-lg overflow-hidden transition-all shadow-md ${draggingTrackId === track.id ? 'scale-y-110 brightness-110 z-10 ring-2 ring-white/50 cursor-grabbing' : 'cursor-grab hover:brightness-105'}`}
                                         style={{
                                             left: (track.offset || 0) * zoom,
                                             width: audioBuffers[track.id].duration * zoom,
@@ -226,7 +274,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                         onTouchStart={(e) => handleClipTouchStart(e, track.id, track.offset || 0)}
                                     >
                                         <WaveformClip buffer={audioBuffers[track.id]} color={track.color} />
-                                        <div className="absolute top-1 left-2 text-[10px] bg-black/50 px-1 rounded text-white/70 font-mono pointer-events-none">
+                                        <div className="absolute top-1 left-2 text-[10px] bg-black/50 px-1 rounded text-white/70 font-mono pointer-events-none select-none">
                                             {track.name}
                                         </div>
                                     </div>
