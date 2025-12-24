@@ -2142,8 +2142,8 @@ export default function App() {
             </header>
 
             {/* QUICK LIBRARY BAR (Horizontal Scroll) - Hide in Landscape */}
-            {!isLandscape && mainView === 'studio' && quickLibrarySongs && quickLibrarySongs.length > 0 && (
-                <div className="w-full h-28 bg-slate-950/80 backdrop-blur-md border-b border-white/5 flex items-center px-4 gap-3 overflow-x-auto no-scrollbar shrink-0 z-20">
+            {mainView === 'studio' && quickLibrarySongs && quickLibrarySongs.length > 0 && (
+                <div className={`w-full h-28 bg-slate-950/80 backdrop-blur-md border-b border-white/5 flex items-center px-4 gap-3 overflow-x-auto no-scrollbar shrink-0 z-20 transition-all duration-300 ${isLandscape ? 'h-0 opacity-0 overflow-hidden py-0 border-0' : ''}`}>
                     {quickLibrarySongs.map((song: any) => (
                         <button
                             key={song.id}
@@ -2170,7 +2170,7 @@ export default function App() {
                 {/* 2. VISUALIZER - Hide in Landscape to focus on Mixer */}
                 <div className={`flex-1 min-h-0 relative transition-all duration-300
          bg-slate-900/50
-         ${isLandscape ? 'hidden' : ''}
+         flex flex-col
       `}>
                     <div className={`absolute top-2 left-0 right-0 z-10 flex justify-center pointer-events-none transition-opacity`}>
                         <div className={`px-3 py-1 rounded-full border flex items-center gap-2 shadow-lg backdrop-blur

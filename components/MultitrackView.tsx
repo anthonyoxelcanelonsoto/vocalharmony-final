@@ -117,34 +117,6 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
         }
     };
 
-    // AUTO-SCROLL (FOLLOW PLAYHEAD)
-    useEffect(() => {
-        if (isPlaying && containerRef.current) {
-            const playheadPos = currentTime * zoom;
-            const containerWidth = containerRef.current.clientWidth;
-            const scroll = containerRef.current.scrollLeft;
-            const margin = containerWidth * 0.8; // Scroll when 80% across
-
-            // Just subtract 140px logic from "view" if needed, but playhead is relative to container start.
-            // Actually, because we utilize ml-[140px], the scrollable content effectively includes the sidebar offset?
-            // No, the sidebar "sticky" is inside the container. So scrollLeft=0 means sidebar is at left.
-            // The Playhead is at currentTime * zoom + 140 (visually).
-            // Let's keep it simple: Ensure playhead is visible.
-
-            const visibleStart = scroll;
-            const visibleEnd = scroll + containerWidth;
-            const actualPlayheadX = (currentTime * zoom) + 140; // Including sidebar offset
-
-            if (actualPlayheadX > visibleEnd - 50) {
-                // Scroll forward
-                containerRef.current.scrollTo({ left: actualPlayheadX - 150, behavior: 'smooth' });
-            } else if (actualPlayheadX < visibleStart) {
-                // Jump back (Loop)
-                containerRef.current.scrollTo({ left: Math.max(0, actualPlayheadX - 150), behavior: 'smooth' });
-            }
-        }
-    }, [currentTime, isPlaying, zoom]);
-
     return (
         <div
             className="flex-1 flex flex-col bg-zinc-950 overflow-hidden relative select-none touch-none"
@@ -176,7 +148,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                 ref={containerRef}
                 onScroll={(e) => setScrollX(e.currentTarget.scrollLeft)}
             >
-                <div className="relative min-w-full flex flex-col min-h-full" style={{ width: Math.max(duration * zoom + 500, window.innerWidth) }}>
+                <div className="relative min-w-full flex flex-col" style={{ width: Math.max(duration * zoom + 500, window.innerWidth) }}>
 
                     <div className="absolute inset-0 ml-[140px]">
                         {/* GRID LINES (Inside offset area) */}
@@ -238,9 +210,6 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                 </div>
                             </div>
 
-                            {/* BORDER EXTENSION FOR FULL HEIGHT FEEL */}
-                            <div className="absolute top-0 bottom-0 left-[139px] w-[1px] bg-zinc-800 z-30"></div>
-
                             {/* Lane Content (Waveforms) */}
                             {/* Note: This is a flex item next to the 140px sidebar, so it naturally starts at 140px! */}
                             <div className="flex-1 relative h-full overflow-hidden">
@@ -266,12 +235,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                         </div>
                     ))}
 
-                    <div className="flex-1 bg-zinc-950 flex relative">
-                        {/* EMPTY SPACE FILLER FOR SIDEBAR */}
-                        <div className="w-[140px] sticky left-0 border-r border-zinc-800 bg-zinc-950 z-10"></div>
-                        {/* GRID EXTENSION */}
-                        <div className="flex-1 border-b border-zinc-800/10"></div>
-                    </div>
+                    <div className="h-40"></div>
                 </div>
             </div>
 
