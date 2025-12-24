@@ -178,29 +178,47 @@ export const loadLameJS = (): Promise<any> => {
 
 export const audioBufferToMp3 = async (buffer: AudioBuffer): Promise<Blob> => {
   const lamejs = await loadLameJS();
-  const channels = buffer.numberOfChannels || 1;
+  const channels = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate || 44100;
-  const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
-  const samples = buffer.getChannelData(0);
+  const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 192); // 192kbps
   const sampleBlockSize = 1152;
   const mp3Data = [];
 
-  // Float to Short
-  const samples16 = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    samples16[i] = samples[i] < 0 ? samples[i] * 0x8000 : samples[i] * 0x7FFF;
+  const left = buffer.getChannelData(0);
+  const left16 = new Int16Array(left.length);
+  for (let i = 0; i < left.length; i++) {
+    const s = Math.max(-1, Math.min(1, left[i]));
+    left16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
   }
 
-  let remaining = samples16.length;
+  let right16: Int16Array | null = null;
+  if (channels === 2) {
+    const right = buffer.getChannelData(1);
+    right16 = new Int16Array(right.length);
+    for (let i = 0; i < right.length; i++) {
+      const s = Math.max(-1, Math.min(1, right[i]));
+      right16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+  }
+
+  let remaining = left16.length;
   for (let i = 0; remaining >= sampleBlockSize; i += sampleBlockSize) {
-    const left = samples16.subarray(i, i + sampleBlockSize);
-    // Mono encoding for now to simplify
-    const mp3buf = mp3encoder.encodeBuffer(left);
+    const leftChunk = left16.subarray(i, i + sampleBlockSize);
+    let mp3buf;
+
+    if (channels === 2 && right16) {
+      const rightChunk = right16.subarray(i, i + sampleBlockSize);
+      mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+    } else {
+      mp3buf = mp3encoder.encodeBuffer(leftChunk);
+    }
+
     if (mp3buf.length > 0) {
       mp3Data.push(mp3buf);
     }
     remaining -= sampleBlockSize;
   }
+
   const mp3buf = mp3encoder.flush();
   if (mp3buf.length > 0) {
     mp3Data.push(mp3buf);
