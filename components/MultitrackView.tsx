@@ -178,14 +178,29 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                         type="range"
                                         min="0" max="1" step="0.01"
                                         value={track.vol}
+                                        onPointerDown={e => e.stopPropagation()}
+                                        onTouchStart={e => e.stopPropagation()}
+                                        onMouseDown={e => e.stopPropagation()}
                                         onClick={e => e.stopPropagation()}
                                         onChange={(e) => onUpdateTrackVolume(track.id, parseFloat(e.target.value))}
                                         className="flex-1 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-zinc-400 [&::-webkit-slider-thumb]:rounded-full"
                                     />
                                 </div>
                                 <div className="flex justify-between px-1 mt-1">
-                                    <button onClick={(e) => { e.stopPropagation(); onToggleMute(track.id); }} className={`px-1.5 py-0.5 text-[9px] rounded border ${track.mute ? 'bg-red-900/50 border-red-500 text-red-200' : 'border-zinc-700 text-zinc-500'}`}>M</button>
-                                    <button onClick={(e) => { e.stopPropagation(); onToggleSolo(track.id); }} className={`px-1.5 py-0.5 text-[9px] rounded border ${track.solo ? 'bg-yellow-600/50 border-yellow-500 text-yellow-100' : 'border-zinc-700 text-zinc-500'}`}>S</button>
+                                    <button
+                                        onPointerDown={e => e.stopPropagation()}
+                                        onTouchStart={e => e.stopPropagation()}
+                                        onMouseDown={e => e.stopPropagation()}
+                                        onClick={(e) => { e.stopPropagation(); onToggleMute(track.id); }}
+                                        className={`px-1.5 py-0.5 text-[9px] rounded border ${track.mute ? 'bg-red-900/50 border-red-500 text-red-200' : 'border-zinc-700 text-zinc-500'}`}
+                                    >M</button>
+                                    <button
+                                        onPointerDown={e => e.stopPropagation()}
+                                        onTouchStart={e => e.stopPropagation()}
+                                        onMouseDown={e => e.stopPropagation()}
+                                        onClick={(e) => { e.stopPropagation(); onToggleSolo(track.id); }}
+                                        className={`px-1.5 py-0.5 text-[9px] rounded border ${track.solo ? 'bg-yellow-600/50 border-yellow-500 text-yellow-100' : 'border-zinc-700 text-zinc-500'}`}
+                                    >S</button>
                                 </div>
                             </div>
 
