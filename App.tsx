@@ -607,7 +607,8 @@ export default function App() {
                         pitch: track.pitchShift,
                         windowSize: 0.1,
                         feedback: 0,
-                        delayTime: 0
+                        delayTime: 0,
+                        wet: 1 // Ensure 100% wet signal to prevent doubling
                     });
                     trackPitchShiftNodesRef.current[track.id] = ps;
 
