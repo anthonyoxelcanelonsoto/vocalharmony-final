@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, AudioLines, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -75,7 +75,9 @@ import { WaveformEditor } from './components/WaveformEditor';
 import { PanEditor } from './components/PanEditor';
 import { TimeShiftEditor } from './components/TimeShiftEditor';
 import { Timeline } from './components/Timeline';
+
 import { LyricsOverlay } from './components/LyricsOverlay';
+import { MultitrackView } from './components/MultitrackView';
 
 // --- HAPTIC HELPER ---
 const vibrate = (ms: number = 10) => {
@@ -204,7 +206,7 @@ export default function App() {
 
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
     const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
-    const [viewMode, setViewMode] = useState<'piano' | 'staff'>('staff');
+    const [viewMode, setViewMode] = useState<'piano' | 'staff' | 'wave'>('staff');
     const [showControls, setShowControls] = useState(true);
 
     // New AppMode state: PRO | ULTRA
@@ -2158,14 +2160,21 @@ export default function App() {
                     {audioContext && (
                         <div className={`absolute top-2 right-2 z-30 flex gap-2 transition-transform duration-300 ${!showControls ? 'translate-y-safe' : ''}`}>
                             <button
-                                onClick={() => setViewMode(prev => prev === 'piano' ? 'staff' : 'piano')}
-                                className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 p-1 rounded-full text-slate-400 shadow-lg h-9"
+                                onClick={() => setViewMode(prev => {
+                                    if (prev === 'staff') return 'piano';
+                                    if (prev === 'piano') return 'wave';
+                                    return 'staff';
+                                })}
+                                className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 p-1.5 rounded-full text-slate-400 shadow-lg h-9"
                             >
                                 <div className={`p-1 rounded-full transition-all ${viewMode === 'staff' ? 'bg-orange-500 text-black' : 'hover:text-white'}`}>
                                     <Music size={14} />
                                 </div>
                                 <div className={`p-1 rounded-full transition-all ${viewMode === 'piano' ? 'bg-lime-400 text-black' : 'hover:text-white'}`}>
                                     <Activity size={14} />
+                                </div>
+                                <div className={`p-1 rounded-full transition-all ${viewMode === 'wave' ? 'bg-blue-500 text-black' : 'hover:text-white'}`}>
+                                    <AudioLines size={14} />
                                 </div>
                             </button>
                         </div>
@@ -2182,24 +2191,58 @@ export default function App() {
 
                     {audioContext ? (
                         <>
-                            <PitchVisualizer
-                                ctx={audioContext}
-                                analyser={activeAnalyser || null}
-                                isActive={true}
-                                color={isRecording ? '#f43f5e' : (appMode === 'ULTRA' ? '#f97316' : activeTrackColor)}
-                                viewMode={viewMode}
-                                isFullscreen={!showControls}
-                                isUltraMode={appMode === 'ULTRA'}
-                                appMode={appMode}
-                                noteBlocks={noteBlocks}
-                                currentTime={currentTime}
-                                pitchShift={selectedTrack ? selectedTrack.pitchShift : 0}
-                                onBlockChange={(id, shift) => {
-                                    setNoteBlocks(prev => prev.map(b => b.id === id ? { ...b, shiftCents: shift } : b));
-                                }}
-                            />
+                            {viewMode === 'wave' ? (
+                                <div className="absolute inset-0 z-20 bg-slate-950/80">
+                                    <MultitrackView
+                                        tracks={tracks}
+                                        audioBuffers={audioBuffersRef.current}
+                                        currentTime={currentTime}
+                                        isPlaying={isPlaying}
+                                        duration={maxDuration}
+                                        selectedTrackId={selectedTrackId}
+                                        onSeek={(t) => {
+                                            handleSeek(t);
+                                            setCurrentTime(t);
+                                        }}
+                                        onTogglePlay={handleTogglePlay}
+                                        onUpdateTrackOffset={(id, off) => {
+                                            setTracks(prev => prev.map(t => t.id === id ? { ...t, offset: off } : t));
+                                        }}
+                                        onUpdateTrackVolume={(id, vol) => {
+                                            setTracks(prev => prev.map(t => t.id === id ? { ...t, vol } : t));
+                                        }}
+                                        onUpdateTrackPan={(id, pan) => {
+                                            setTracks(prev => prev.map(t => t.id === id ? { ...t, pan } : t));
+                                        }}
+                                        onToggleMute={(id) => {
+                                            setTracks(prev => prev.map(t => t.id === id ? { ...t, mute: !t.mute } : t));
+                                        }}
+                                        onToggleSolo={(id) => {
+                                            setTracks(prev => prev.map(t => t.id === id ? { ...t, solo: !t.solo } : t));
+                                        }}
+                                        onTrackSelect={setSelectedTrackId}
+                                    />
+                                </div>
+                            ) : (
+                                <PitchVisualizer
+                                    ctx={audioContext}
+                                    analyser={activeAnalyser || null}
+                                    isActive={true}
+                                    color={isRecording ? '#f43f5e' : (appMode === 'ULTRA' ? '#f97316' : activeTrackColor)}
+                                    viewMode={viewMode}
+                                    isFullscreen={!showControls}
+                                    isUltraMode={appMode === 'ULTRA'}
+                                    appMode={appMode}
+                                    noteBlocks={noteBlocks}
+                                    currentTime={currentTime}
+                                    pitchShift={selectedTrack ? selectedTrack.pitchShift : 0}
+                                    onBlockChange={(id, shift) => {
+                                        setNoteBlocks(prev => prev.map(b => b.id === id ? { ...b, shiftCents: shift } : b));
+                                    }}
+                                />
+                            )}
                             <LyricsOverlay
-                                isVisible={!showControls}
+                                isVisible={!showControls && viewMode !== 'wave'}
                                 currentTime={currentTime}
                                 isPlaying={isPlaying}
                                 importedLyrics={importedLyrics}
