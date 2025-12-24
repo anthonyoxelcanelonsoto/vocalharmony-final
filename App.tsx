@@ -682,6 +682,7 @@ export default function App() {
                     const shouldSend = !track.mute && track.reverbSend && track.reverbSend > 0;
                     sendNode.gain.value = shouldSend ? track.reverbSend! : 0;
 
+
                     activeSourcesRef.current[track.id] = source;
 
                     // Handle Loop & Start for Native Source
@@ -722,52 +723,11 @@ export default function App() {
                     }
                 }
 
-                // Set Initial Values
-                if (track.eq && track.eq.enabled) {
-                    // Low
-                    eqLow.frequency.value = track.eq.low.freq;
-                    eqLow.gain.value = track.eq.low.gain;
-                    // LowMid
-                    eqLowMid.frequency.value = track.eq.lowMid.freq;
-                    eqLowMid.Q.value = track.eq.lowMid.q;
-                    eqLowMid.gain.value = track.eq.lowMid.gain;
-                    // Mid
-                    eqMid.frequency.value = track.eq.mid.freq;
-                    eqMid.Q.value = track.eq.mid.q;
-                    eqMid.gain.value = track.eq.mid.gain;
-                    // HighMid
-                    eqHighMid.frequency.value = track.eq.highMid.freq;
-                    eqHighMid.Q.value = track.eq.highMid.q;
-                    eqHighMid.gain.value = track.eq.highMid.gain;
-                    // High
-                    eqHigh.frequency.value = track.eq.high.freq;
-                    eqHigh.gain.value = track.eq.high.gain;
-                } else {
-                    // Bypass-ish (Flat)
-                    eqLow.gain.value = 0;
-                    eqLowMid.gain.value = 0;
-                    eqMid.gain.value = 0;
-                    eqHighMid.gain.value = 0;
-                    eqHigh.gain.value = 0;
-                }
+                // --- CLEANUP OF LEFTOVER REFERENCES ---
 
-                trackEQNodesRef.current[track.id] = { low: eqLow, lowMid: eqLowMid, mid: eqMid, highMid: eqHighMid, high: eqHigh };
-
-                // CONNECT TO REVERB SEND (Wet Path)
-                // Source (or Post-EQ) -> SendGain -> Reverb
-                // Use the EQ'd signal for reverb
-                let sendNode = trackReverbSendsRef.current[track.id];
-                if (!sendNode) {
-                    sendNode = new Tone.Gain(0);
-                    sendNode.connect(reverbNodeRef.current!);
-                    trackReverbSendsRef.current[track.id] = sendNode;
-                }
-                // Connect Native EQ Output -> Tone Gain
-                Tone.connect(eqHigh, sendNode);
-
-                // Update Send Gain
-                const shouldSend = !track.mute && track.reverbSend && track.reverbSend > 0;
-                sendNode.gain.value = shouldSend ? track.reverbSend! : 0;
+                // We handle activeSources logic inside the if/else blocks above now.
+                // We handle EQ Logic inside the else block (Standard) above.
+                // Live block currently skips EQ to ensure stability (can be re-added later).
 
                 gainNode.connect(panNode);
                 panNode.connect(analyser);
@@ -777,10 +737,11 @@ export default function App() {
                 gainNode.gain.value = shouldPlay ? track.vol : 0;
                 panNode.pan.value = (track.pan * 2) - 1;
 
-                activeSourcesRef.current[track.id] = source;
                 trackGainNodesRef.current[track.id] = gainNode;
                 trackPanNodesRef.current[track.id] = panNode;
                 trackAnalysersRef.current[track.id] = analyser;
+
+
             }
         });
 
