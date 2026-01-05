@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Track } from '../types';
-import { Play, Pause, Volume2, Mic, Activity, Clock, MoveHorizontal } from 'lucide-react';
+import { Play, Pause, Volume2, Mic, Activity, Clock, MoveHorizontal, SkipBack, SkipForward } from 'lucide-react';
 import { formatTime } from '../utils';
 
 interface MultitrackViewProps {
@@ -317,33 +317,48 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                 </div>
 
                 {/* CONTROLS ROW (Bottom) */}
-                <div className="w-full flex items-center justify-between px-6 py-3">
+                <div className="w-full flex items-center justify-between px-4 py-3 gap-2">
 
-                    {/* LEFT: ZOOM OUT */}
-                    <button
-                        onClick={() => setZoom(z => Math.max(10, z / 1.5))}
-                        className="p-3 bg-zinc-800 rounded-xl active:bg-zinc-700 active:scale-95 transition text-zinc-400"
-                    >
-                        <Activity size={18} />
-                    </button>
+                    {/* LEFT: LOOP & SEEK BACK */}
+                    <div className="flex items-center gap-1">
+                        {/* Loop Controls */}
+                        <div className="flex bg-zinc-800 rounded-lg p-1 mr-1">
+                            <button className="w-8 h-8 flex items-center justify-center text-[10px] font-black text-zinc-500 hover:text-white" title="Loop A">A</button>
+                            <button className="w-8 h-8 flex items-center justify-center text-[10px] font-black text-zinc-500 hover:text-white" title="Loop B">B</button>
+                        </div>
+
+                        <button
+                            onClick={() => onSeek(Math.max(0, currentTime - 5))}
+                            className="p-3 bg-zinc-800 rounded-full active:bg-zinc-700 active:scale-95 transition text-zinc-400"
+                        >
+                            <SkipBack size={18} fill="currentColor" />
+                        </button>
+                    </div>
 
                     {/* CENTER: PLAY/PAUSE (Big) */}
                     <button
                         onClick={onTogglePlay}
-                        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90
+                        className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90
                         ${isPlaying ? 'bg-zinc-100 text-black shadow-white/20' : 'bg-orange-500 text-black shadow-orange-500/40 animate-pulse'}
                         `}
                     >
                         {isPlaying ? <Pause fill="black" size={24} /> : <Play fill="black" size={24} className="ml-1" />}
                     </button>
 
-                    {/* RIGHT: ZOOM IN */}
-                    <button
-                        onClick={() => setZoom(z => Math.min(200, z * 1.5))}
-                        className="p-3 bg-zinc-800 rounded-xl active:bg-zinc-700 active:scale-95 transition text-zinc-400"
-                    >
-                        <Activity size={22} />
-                    </button>
+                    {/* RIGHT: SEEK FWD & ZOOM */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => onSeek(Math.min(duration, currentTime + 5))}
+                            className="p-3 bg-zinc-800 rounded-full active:bg-zinc-700 active:scale-95 transition text-zinc-400"
+                        >
+                            <SkipForward size={18} fill="currentColor" />
+                        </button>
+
+                        <div className="flex bg-zinc-800 rounded-lg p-1">
+                            <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="p-2 hover:text-white text-zinc-500"><Activity size={16} /></button>
+                            <button onClick={() => setZoom(z => Math.min(200, z * 1.5))} className="p-2 hover:text-white text-zinc-500"><Activity size={20} /></button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
