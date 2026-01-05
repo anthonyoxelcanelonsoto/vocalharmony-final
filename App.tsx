@@ -3852,60 +3852,63 @@ export default function App() {
 
 
             {/* MODERN FLOATING BOTTOM BAR */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 h-14 bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl flex items-center px-4 gap-2 z-[60] transition-all hover:scale-105 active:scale-100 hover:bg-slate-900">
+            {viewMode !== 'wave' && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 h-14 bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl flex items-center px-4 gap-2 z-[60] transition-all hover:scale-105 active:scale-100 hover:bg-slate-900">
 
-                {/* Loop Controls (Mini) */}
-                <div className="flex items-center gap-1 border-r border-white/10 pr-3 mr-1">
+
+                    {/* Loop Controls (Mini) */}
+                    <div className="flex items-center gap-1 border-r border-white/10 pr-3 mr-1">
+                        <button
+                            onClick={() => toggleLoopPoint('A')}
+                            className={`w-8 h-8 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${loopStart !== null ? 'bg-orange-500 text-black' : 'text-slate-500 hover:bg-white/10'}`}
+                        >A</button>
+                        <button
+                            onClick={() => toggleLoopPoint('B')}
+                            className={`w-8 h-8 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${loopEnd !== null ? 'bg-orange-500 text-black' : 'text-slate-500 hover:bg-white/10'}`}
+                        >B</button>
+                    </div>
+
+                    {/* Transport */}
                     <button
-                        onClick={() => toggleLoopPoint('A')}
-                        className={`w-8 h-8 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${loopStart !== null ? 'bg-orange-500 text-black' : 'text-slate-500 hover:bg-white/10'}`}
-                    >A</button>
+                        onClick={() => { vibrate(10); handleSeek(Math.max(0, currentTime - 5)); }}
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                    >
+                        <SkipBack size={20} fill="currentColor" />
+                    </button>
+
                     <button
-                        onClick={() => toggleLoopPoint('B')}
-                        className={`w-8 h-8 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${loopEnd !== null ? 'bg-orange-500 text-black' : 'text-slate-500 hover:bg-white/10'}`}
-                    >B</button>
-                </div>
-
-                {/* Transport */}
-                <button
-                    onClick={() => { vibrate(10); handleSeek(Math.max(0, currentTime - 5)); }}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
-                    <SkipBack size={20} fill="currentColor" />
-                </button>
-
-                <button
-                    onClick={handleTogglePlay}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 mx-1
+                        onClick={handleTogglePlay}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 mx-1
                         ${isPlaying
-                            ? 'bg-slate-100 text-black shadow-white/20'
-                            : 'bg-orange-500 text-black shadow-orange-500/40'
-                        }
+                                ? 'bg-slate-100 text-black shadow-white/20'
+                                : 'bg-orange-500 text-black shadow-orange-500/40'
+                            }
                     `}
-                >
-                    {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}
-                </button>
+                    >
+                        {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-0.5" />}
+                    </button>
 
-                <button
-                    onClick={() => { vibrate(10); handleSeek(Math.min(maxDuration, currentTime + 5)); }}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                >
-                    <SkipForward size={20} fill="currentColor" />
-                </button>
-
-                {/* Mode Switcher (Mini) */}
-                <div className="flex items-center gap-1 border-l border-white/10 pl-3 ml-1">
                     <button
-                        onClick={handleModeToggle}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95
+                        onClick={() => { vibrate(10); handleSeek(Math.min(maxDuration, currentTime + 5)); }}
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                    >
+                        <SkipForward size={20} fill="currentColor" />
+                    </button>
+
+                    {/* Mode Switcher (Mini) */}
+                    <div className="flex items-center gap-1 border-l border-white/10 pl-3 ml-1">
+                        <button
+                            onClick={handleModeToggle}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95
                                 ${appMode === 'ULTRA' ? 'text-orange-500' : 'text-slate-500 hover:text-white'}
                         `}
-                    >
-                        {appMode === 'PRO' && <Sliders size={20} />}
-                        {appMode === 'ULTRA' && <Wand2 size={20} />}
-                    </button>
+                        >
+                            {appMode === 'PRO' && <Sliders size={20} />}
+                            {appMode === 'ULTRA' && <Wand2 size={20} />}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* HIDDEN FILE INPUT */}
             <input
