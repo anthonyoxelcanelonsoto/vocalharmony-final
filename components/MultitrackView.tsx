@@ -305,17 +305,21 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
             </div>
 
             {/* FLOATING TRANSPORTS */}
-            {/* FLOATING TRANSPORTS */}
-            <div className="fixed bottom-2 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur border border-zinc-700 rounded-full px-4 py-2 flex items-center gap-4 shadow-xl z-50">
-                <button onClick={onTogglePlay} className="p-2 bg-white rounded-full text-black hover:scale-105 transition shadow-lg shadow-white/20">
-                    {isPlaying ? <Pause fill="black" size={20} /> : <Play fill="black" size={20} />}
-                </button>
-                <div className="text-xl font-mono font-bold text-orange-500 w-28 text-center">
-                    {formatTime(currentTime, true)}
+            {/* FIXED BOTTOM TRANSPORT BAR */}
+            <div className="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 p-4 pb-8 flex items-center justify-between z-50 shadow-2xl">
+                <div className="flex gap-4 items-center">
+                    <button onClick={onTogglePlay} className="p-3 bg-white rounded-full text-black hover:scale-105 transition shadow-lg shadow-white/20">
+                        {isPlaying ? <Pause fill="black" size={24} /> : <Play fill="black" size={24} />}
+                    </button>
+                    <div className="text-2xl font-mono font-bold text-orange-500 w-32 tracking-wider">
+                        {formatTime(currentTime, true)}
+                    </div>
                 </div>
-                <div className="flex gap-3 text-zinc-400">
-                    <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="active:text-white"><Activity size={16} /></button>
-                    <button onClick={() => setZoom(z => Math.min(200, z * 1.5))} className="active:text-white"><Activity size={20} /></button>
+
+                <div className="flex gap-4 text-zinc-400 items-center">
+                    <span className="text-[10px] uppercase font-bold text-zinc-600 tracking-widest hidden sm:block">Zoom</span>
+                    <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="p-2 hover:bg-zinc-900 rounded active:text-white border border-zinc-800"><Activity size={16} /></button>
+                    <button onClick={() => setZoom(z => Math.min(200, z * 1.5))} className="p-2 hover:bg-zinc-900 rounded active:text-white border border-zinc-800"><Activity size={20} /></button>
                 </div>
             </div>
         </div>
