@@ -165,6 +165,23 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
         }
     };
 
+    // AUTO-SCROLL TO CENTER PLAYHEAD
+    useEffect(() => {
+        if (isPlaying && containerRef.current) {
+            const container = containerRef.current;
+            const containerWidth = container.clientWidth;
+            // Playhead absolute X position inside the scrolling container
+            // The content starts after 140px sidebar margin
+            const playheadX = 140 + (currentTime * zoom);
+
+            // Calculate target scrollLeft to center the playhead
+            const targetScrollLeft = playheadX - (containerWidth / 2);
+
+            // Apply scroll
+            container.scrollLeft = Math.max(0, targetScrollLeft);
+        }
+    }, [currentTime, isPlaying, zoom]);
+
     return (
         <div
             className="flex-1 flex flex-col bg-zinc-950 overflow-hidden relative select-none touch-none"
@@ -273,7 +290,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                         onMouseDown={(e) => handleClipTouchStart(e, track.id, track.offset || 0)}
                                         onTouchStart={(e) => handleClipTouchStart(e, track.id, track.offset || 0)}
                                     >
-                                        <WaveformClip buffer={audioBuffers[track.id]} color={track.color} />
+                                        <WaveformClip buffer={audioBuffers[track.id]} color={track.color} zoom={zoom} />
                                         <div className="absolute top-1 left-2 text-[10px] bg-black/50 px-1 rounded text-white/70 font-mono pointer-events-none select-none">
                                             {track.name}
                                         </div>
@@ -340,7 +357,7 @@ const BackgroundGrid: React.FC<{ zoom: number, height: number }> = ({ zoom, heig
 };
 
 
-const WaveformClip: React.FC<{ buffer: AudioBuffer, color: string }> = ({ buffer, color }) => {
+const WaveformClip: React.FC<{ buffer: AudioBuffer, color: string, zoom: number }> = ({ buffer, color, zoom }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -356,11 +373,15 @@ const WaveformClip: React.FC<{ buffer: AudioBuffer, color: string }> = ({ buffer
             if (width === 0 || height === 0) return;
             if (buffer.numberOfChannels === 0) return;
 
-            canvas.width = width;
-            canvas.height = height;
+            // Handle High DPI displays for crisp rendering
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
 
             try {
                 const data = buffer.getChannelData(0);
+                // Step logic: how many samples per pixel?
                 const step = Math.ceil(data.length / width);
                 const amp = height / 2;
 
@@ -394,9 +415,10 @@ const WaveformClip: React.FC<{ buffer: AudioBuffer, color: string }> = ({ buffer
         };
 
         // Defer rendering slightly to ensure layout is done
+        // We need to re-render when ZOOM changes (as width changes)
         const timeout = setTimeout(renderWaveform, 0);
         return () => clearTimeout(timeout);
-    }, [buffer, color]);
+    }, [buffer, color, zoom]); // Added zoom dependency
 
     return <canvas ref={canvasRef} className="w-full h-full" />;
 };
