@@ -2390,6 +2390,7 @@ export default function App() {
                                             setTracks(prev => prev.map(t => t.id === id ? { ...t, solo: !t.solo } : t));
                                         }}
                                         onTrackSelect={setSelectedTrackId}
+                                        onToggleMixer={() => setShowControls(prev => !prev)}
                                         onDragEnd={() => {
                                             // RESYNC AUDIO ON DROP
                                             if (isPlaying) {
@@ -2455,7 +2456,7 @@ export default function App() {
                 </div>
 
                 {/* COLLAPSIBLE CONTROLS */}
-                {viewMode !== 'wave' && (
+                {(viewMode !== 'wave' || showControls) && (
                     <div className={`shrink-0 border-t border-orange-900/30 flex flex-col transition-all duration-300 ease-in-out
           ${appMode === 'ULTRA' ? 'bg-black' : 'bg-slate-950'}
           ${isLandscape ? 'flex-1 h-full' : ''}

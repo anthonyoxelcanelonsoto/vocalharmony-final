@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Track } from '../types';
-import { Play, Pause, Volume2, Mic, Activity, Clock, MoveHorizontal, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, Volume2, Mic, Activity, Clock, MoveHorizontal, SkipBack, SkipForward, SlidersHorizontal } from 'lucide-react';
 import { formatTime } from '../utils';
 
 interface MultitrackViewProps {
@@ -18,6 +18,7 @@ interface MultitrackViewProps {
     onToggleSolo: (trackId: number) => void;
     onTrackSelect: (trackId: number) => void;
     onDragEnd?: () => void;
+    onToggleMixer?: () => void;
     selectedTrackId: number;
 }
 
@@ -36,6 +37,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     onToggleSolo,
     onTrackSelect,
     onDragEnd,
+    onToggleMixer,
     selectedTrackId
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -358,6 +360,13 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                             <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="p-2 hover:text-white text-zinc-500"><Activity size={16} /></button>
                             <button onClick={() => setZoom(z => Math.min(200, z * 1.5))} className="p-2 hover:text-white text-zinc-500"><Activity size={20} /></button>
                         </div>
+
+                        <button
+                            onClick={onToggleMixer}
+                            className="p-3 bg-zinc-800 rounded-full active:bg-zinc-700 active:scale-95 transition text-zinc-400 border border-zinc-700 hover:text-orange-500 hover:border-orange-500"
+                        >
+                            <SlidersHorizontal size={18} />
+                        </button>
                     </div>
                 </div>
             </div>
