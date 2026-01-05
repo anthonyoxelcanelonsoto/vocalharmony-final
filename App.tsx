@@ -3368,10 +3368,13 @@ export default function App() {
 
                                 <div className="flex justify-between items-center pt-2 border-t border-slate-800">
                                     {/* ADMIN TOGGLE - RESTRICTED */}
-                                    {user?.email?.trim().toLowerCase() === 'anthonyoxelcanelonsoto@gmail.com' ? (
+                                    {/* ADMIN TOGGLE - RESTRICTED OR SECRET PASSWORD */}
+                                    {(user?.email?.trim().toLowerCase() === 'anthonyoxelcanelonsoto@gmail.com' || localStorage.getItem('secretAdmin') === 'true') ? (
                                         <button
                                             onClick={() => {
-                                                setIsAdminMode(prev => !prev);
+                                                const newStatus = !isAdminMode;
+                                                setIsAdminMode(newStatus);
+                                                if (!newStatus) localStorage.removeItem('secretAdmin'); // Logout on toggle off
                                                 setMainView('store');
                                                 setShowSettings(false);
                                             }}
@@ -3385,8 +3388,30 @@ export default function App() {
                                             {isAdminMode ? 'ADMIN ACTIVE' : 'ENABLE ADMIN MODE'}
                                         </button>
                                     ) : (
-                                        <div className="text-[10px] text-slate-700 select-none">
-                                            Admin: {user ? 'Restricted' : 'Login Req'}
+                                        <div className="flex flex-col gap-2 w-full">
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    id="admin-secret-ws"
+                                                    placeholder="Admin Code..."
+                                                    className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[10px] text-white focus:border-red-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        const el = document.getElementById('admin-secret-ws') as HTMLInputElement;
+                                                        if (el && el.value === 'SantomiJesus98917771') {
+                                                            localStorage.setItem('secretAdmin', 'true');
+                                                            setIsAdminMode(true);
+                                                            alert("Secret Admin Mode Enabled");
+                                                        } else {
+                                                            alert("Access Denied");
+                                                        }
+                                                    }}
+                                                    className="bg-slate-800 hover:bg-red-900/50 text-slate-400 hover:text-red-400 px-3 py-1 rounded text-[10px] font-bold border border-slate-700 hover:border-red-500/50 transition-all"
+                                                >
+                                                    <Lock size={12} />
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
 
