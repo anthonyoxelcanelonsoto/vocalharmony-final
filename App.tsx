@@ -252,6 +252,7 @@ export default function App() {
     const [isAdminMode, setIsAdminMode] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
     const [expandedTrackId, setExpandedTrackId] = useState<number | null>(null);
+    const [areAllTracksExpanded, setAreAllTracksExpanded] = useState(false);
     const [loadingAuth, setLoadingAuth] = useState(false);
     const [deleteTrackId, setDeleteTrackId] = useState<number | null>(null); // State for track deletion confirmation
     const [renamingTrackId, setRenamingTrackId] = useState<number | null>(null);
@@ -2390,7 +2391,6 @@ export default function App() {
                                             setTracks(prev => prev.map(t => t.id === id ? { ...t, solo: !t.solo } : t));
                                         }}
                                         onTrackSelect={setSelectedTrackId}
-                                        onToggleMixer={() => setShowControls(prev => !prev)}
                                         onDragEnd={() => {
                                             // RESYNC AUDIO ON DROP
                                             if (isPlaying) {
@@ -2456,7 +2456,7 @@ export default function App() {
                 </div>
 
                 {/* COLLAPSIBLE CONTROLS */}
-                {(viewMode !== 'wave' || showControls) && (
+                {viewMode !== 'wave' && (
                     <div className={`shrink-0 border-t border-orange-900/30 flex flex-col transition-all duration-300 ease-in-out
           ${appMode === 'ULTRA' ? 'bg-black' : 'bg-slate-950'}
           ${isLandscape ? 'flex-1 h-full' : ''}
@@ -2495,7 +2495,7 @@ export default function App() {
                                     // HIDE MASTER IN PRO MODE (ONLY VISIBLE IN ULTRA)
                                     if (track.isMaster && appMode !== 'ULTRA') return null;
 
-                                    const isProCollapsed = appMode === 'PRO' && expandedTrackId !== track.id;
+                                    const isProCollapsed = appMode === 'PRO' && expandedTrackId !== track.id && !areAllTracksExpanded;
                                     const isCollapsedView = isProCollapsed;
 
                                     return (
@@ -3909,6 +3909,22 @@ export default function App() {
                     >
                         <SkipForward size={20} fill="currentColor" />
                     </button>
+
+                    {/* EXPAND ALL TRACKS BUTTON (Staff/Piano only) */}
+                    {(viewMode === 'staff' || viewMode === 'piano') && (
+                        <button
+                            onClick={() => {
+                                vibrate(10);
+                                setAreAllTracksExpanded(!areAllTracksExpanded);
+                            }}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 ml-1 border border-white/10
+                                ${areAllTracksExpanded ? 'bg-orange-500 text-black shadow-lg shadow-orange-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}
+                            `}
+                            title="Expand All Tracks"
+                        >
+                            <ChevronsUpDown size={18} />
+                        </button>
+                    )}
 
                     {/* Mode Switcher (Mini) */}
                     <div className="flex items-center gap-1 border-l border-white/10 pl-3 ml-1">
