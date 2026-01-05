@@ -2874,14 +2874,14 @@ export default function App() {
                                             mute: false,
                                             solo: false,
                                             hasFile: false,
-                                            isArmed: true, // Auto-arm
+                                            isArmed: false, // Don't Auto-arm
                                             isTuning: false,
                                             duration: 0,
                                             pitchShift: 0
                                         };
 
-                                        // Disarm others and add new track
-                                        setTracks([...tracks.map(t => ({ ...t, isArmed: false })), newTrack]);
+                                        // Add new track without auto-arming or affecting others
+                                        setTracks([...tracks, newTrack]);
                                     }}
                                     className="snap-center shrink-0 w-[80px] h-[90%] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 active:bg-slate-800 transition-colors border-slate-800"
                                 >
