@@ -1679,8 +1679,21 @@ export default function App() {
     const confirmModeSwitch = () => {
         if (pendingMode) {
             vibrate(20);
-            setAppMode(pendingMode);
-            setPendingMode(null);
+
+            // Password Check for Ultra Mode
+            if (pendingMode === 'ULTRA') {
+                const pass = prompt("Enter Ultra Password:");
+                if (pass === '123456789') {
+                    setAppMode(pendingMode);
+                    setPendingMode(null);
+                } else {
+                    alert("Incorrect Password");
+                }
+            } else {
+                // Switching back to PRO (No password needed)
+                setAppMode(pendingMode);
+                setPendingMode(null);
+            }
         }
     };
 
