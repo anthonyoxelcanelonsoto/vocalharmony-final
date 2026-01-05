@@ -2028,20 +2028,80 @@ export default function App() {
 
                 // Fallback Removed per User Request
             }
-            // APPLY MIX RULES (If any)
+            // APPLY MIX RULES (Individual Tracks / Stems)
             if (song.mix_rules && Array.isArray(song.mix_rules)) {
-                console.log("Applying Mix Rules:", song.mix_rules);
-                newTracks.forEach(track => {
-                    const rule = song.mix_rules.find((r: any) =>
-                        track.name && track.name.toLowerCase().includes(r.keyword.toLowerCase())
-                    );
-                    if (rule) {
-                        track.vol = (rule.vol / 100);
-                        track.pan = rule.pan !== undefined ? (rule.pan / 100) : 0; // -1 to 1
-                        track.mute = !!rule.mute;
-                        console.log(`Applied rule to ${track.name}: Vol ${rule.vol}%, Pan ${rule.pan}, Mute ${rule.mute}`);
+                console.log("Processing Individual Tracks (Mix Rules)...");
+
+                // Helper for fetching audio
+                const fetchAudio = async (url: string) => {
+                    try {
+                        const response = await fetch(url);
+                        const arrayBuffer = await response.arrayBuffer();
+                        return await ctx.decodeAudioData(arrayBuffer);
+                    } catch (e) {
+                        console.error("Error fetching track audio:", url, e);
+                        return null;
                     }
+                };
+
+                // 1. Process URL Tracks (Async)
+                const urlPromises = song.mix_rules
+                    .filter((r: any) => r.url && r.url.trim() !== "")
+                    .map(async (r: any) => {
+                        const buffer = await fetchAudio(r.url);
+                        return buffer ? { rule: r, buffer } : null;
+                    });
+
+                const urlResults = await Promise.all(urlPromises);
+
+                urlResults.filter((res: any) => res !== null).forEach((res: any) => {
+                    const { rule, buffer } = res;
+                    // Find next available ID
+                    const id = Math.max(...newTracks.map(t => t.id), 0) + 1;
+
+                    const newTrack: Track = {
+                        id,
+                        name: rule.name || "Track",
+                        color: colors[id % colors.length],
+                        vol: (rule.vol / 100),
+                        pan: rule.pan !== undefined ? (rule.pan / 100) : 0,
+                        mute: !!rule.mute,
+                        solo: false,
+                        hasFile: true,
+                        isArmed: false,
+                        isTuning: false,
+                        duration: buffer.duration,
+                        pitchShift: 0,
+                        eq: {
+                            enabled: true,
+                            low: { gain: 0, freq: 80 },
+                            lowMid: { gain: 0, freq: 300, q: 1 },
+                            mid: { gain: 0, freq: 1000, q: 1 },
+                            highMid: { gain: 0, freq: 3000, q: 1 },
+                            high: { gain: 0, freq: 10000 }
+                        }
+                    };
+
+                    audioBuffersRef.current[id] = buffer;
+                    newTracks.push(newTrack);
+                    if (buffer.duration > maxDur) maxDur = buffer.duration;
                 });
+
+                // 2. Apply rules to existing ZIP tracks
+                song.mix_rules
+                    .filter((r: any) => !r.url || r.url.trim() === "")
+                    .forEach((r: any) => {
+                        const searchName = (r.name || r.keyword || "").toLowerCase();
+                        if (!searchName) return;
+
+                        const target = newTracks.find(t => t.name && t.name.toLowerCase().includes(searchName));
+                        if (target) {
+                            target.vol = (r.vol / 100);
+                            target.pan = r.pan !== undefined ? (r.pan / 100) : 0;
+                            target.mute = !!r.mute;
+                            console.log(`Applied rule to ${target.name}: Vol ${r.vol}%, Pan ${r.pan}, Mute ${r.mute}`);
+                        }
+                    });
             }
 
         } catch (err: any) {

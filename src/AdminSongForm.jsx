@@ -12,8 +12,8 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
         mix_rules: []
     });
 
-    // Mix Rule State
-    const [newRule, setNewRule] = useState({ keyword: '', vol: 75, pan: 0, mute: false });
+    // Track State (was mix_rules)
+    const [newTrack, setNewTrack] = useState({ name: '', url: '', vol: 75, pan: 0, mute: false });
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -36,13 +36,13 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const addRule = () => {
-        if (!newRule.keyword) return;
+    const addTrack = () => {
+        if (!newTrack.name) return;
         setFormData(prev => ({
             ...prev,
-            mix_rules: [...prev.mix_rules, { ...newRule, id: Date.now() }]
+            mix_rules: [...prev.mix_rules, { ...newTrack, id: Date.now() }]
         }));
-        setNewRule({ keyword: '', vol: 75, pan: 0, mute: false });
+        setNewTrack({ name: '', url: '', vol: 75, pan: 0, mute: false });
     };
 
     const removeRule = (id) => {
@@ -171,90 +171,95 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
 
                         {/* MIX RULES SECTION */}
                         {/* TRACK MIX CONFIGURATION */}
+                        {/* INDIVIDUAL TRACKS / STEMS */}
                         <div className="border-t border-slate-800 pt-4 mt-4">
                             <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                <AlertTriangle size={14} /> Configuración de Pistas (Mix)
+                                <Link size={14} /> Pistas Individuales (Stems)
                             </label>
 
                             <div className="bg-slate-950/50 rounded-lg border border-slate-800 overflow-hidden">
                                 {/* Table Header */}
                                 <div className="grid grid-cols-12 gap-2 p-2 bg-slate-900 border-b border-slate-800 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                    <div className="col-span-4">Nombre / Archivo</div>
+                                    <div className="col-span-3">Nombre Pista</div>
+                                    <div className="col-span-3">Link Audio (MP3/WAV)</div>
                                     <div className="col-span-2 text-center">Vol %</div>
-                                    <div className="col-span-2 text-center">Pan (L/R)</div>
-                                    <div className="col-span-2 text-center">Estado</div>
+                                    <div className="col-span-2 text-center">Pan</div>
                                     <div className="col-span-2 text-right">Acción</div>
                                 </div>
 
                                 {/* Input Row */}
                                 <div className="grid grid-cols-12 gap-2 p-2 bg-slate-800/30 items-center border-b border-slate-800/50">
-                                    <div className="col-span-4">
+                                    <div className="col-span-3">
                                         <input
-                                            value={newRule.keyword}
-                                            onChange={e => setNewRule({ ...newRule, keyword: e.target.value })}
-                                            placeholder="ej. Bateria, click.mp3"
+                                            value={newTrack.name}
+                                            onChange={e => setNewTrack({ ...newTrack, name: e.target.value })}
+                                            placeholder="ej. Bateria"
                                             className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                                        />
+                                    </div>
+                                    <div className="col-span-3">
+                                        <input
+                                            value={newTrack.url}
+                                            onChange={e => setNewTrack({ ...newTrack, url: e.target.value })}
+                                            placeholder="https://..."
+                                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-blue-200"
                                         />
                                     </div>
                                     <div className="col-span-2">
                                         <input
                                             type="number"
                                             min="0" max="100"
-                                            value={newRule.vol}
-                                            onChange={e => setNewRule({ ...newRule, vol: parseInt(e.target.value) })}
+                                            value={newTrack.vol}
+                                            onChange={e => setNewTrack({ ...newTrack, vol: parseInt(e.target.value) })}
                                             className="w-full bg-slate-900 border border-slate-700 rounded px-1 py-1 text-xs text-white text-center"
                                         />
                                     </div>
-                                    <div className="col-span-2">
+                                    <div className="col-span-2 flex gap-1">
                                         <input
                                             type="number"
                                             min="-100" max="100"
-                                            value={newRule.pan}
-                                            onChange={e => setNewRule({ ...newRule, pan: parseInt(e.target.value) })}
-                                            className="w-full bg-slate-900 border border-slate-700 rounded px-1 py-1 text-xs text-white text-center"
+                                            value={newTrack.pan}
+                                            onChange={e => setNewTrack({ ...newTrack, pan: parseInt(e.target.value) })}
+                                            className="w-12 bg-slate-900 border border-slate-700 rounded px-1 py-1 text-xs text-white text-center"
                                             placeholder="0"
                                         />
-                                    </div>
-                                    <div className="col-span-2 flex justify-center">
-                                        <label className="flex items-center gap-1 cursor-pointer bg-slate-900 px-2 py-1 rounded border border-slate-700">
+                                        <label className="flex items-center justify-center bg-slate-900 px-1 rounded border border-slate-700 cursor-pointer flex-1">
                                             <input
                                                 type="checkbox"
-                                                checked={newRule.mute}
-                                                onChange={e => setNewRule({ ...newRule, mute: e.target.checked })}
-                                                className="w-3 h-3 rounded bg-slate-600"
+                                                checked={newTrack.mute}
+                                                onChange={e => setNewTrack({ ...newTrack, mute: e.target.checked })}
+                                                className="hidden"
                                             />
-                                            <span className={`text-[10px] ${newRule.mute ? 'text-red-400 font-bold' : 'text-slate-400'}`}>
-                                                {newRule.mute ? 'MUTE' : 'ON'}
+                                            <span className={`text-[9px] font-bold ${newTrack.mute ? 'text-red-400' : 'text-slate-500'}`}>
+                                                {newTrack.mute ? 'M' : 'ON'}
                                             </span>
                                         </label>
                                     </div>
+
                                     <div className="col-span-2 flex justify-end">
                                         <button
                                             type="button"
-                                            onClick={addRule}
-                                            className="bg-green-600 hover:bg-green-500 text-white p-1.5 rounded shadow-lg shadow-green-900/20"
+                                            onClick={addTrack}
+                                            className="bg-green-600 hover:bg-green-500 text-white p-1.5 rounded shadow-lg shadow-green-900/20 w-full flex justify-center"
                                         >
                                             <Save size={14} />
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* List of Rules */}
-                                <div className="max-h-32 overflow-y-auto">
-                                    {formData.mix_rules?.map((rule, idx) => (
+                                {/* List of Tracks */}
+                                <div className="max-h-40 overflow-y-auto">
+                                    {formData.mix_rules?.map((track, idx) => (
                                         <div key={idx} className="grid grid-cols-12 gap-2 p-2 border-b border-white/5 items-center hover:bg-slate-800/50 transition-colors">
-                                            <div className="col-span-4 text-xs text-white truncate" title={rule.keyword}>{rule.keyword}</div>
-                                            <div className="col-span-2 text-xs text-slate-300 text-center">{rule.vol}%</div>
-                                            <div className="col-span-2 text-xs text-slate-300 text-center">{rule.pan || 0}</div>
-                                            <div className="col-span-2 text-center">
-                                                {rule.mute ? (
-                                                    <span className="text-[9px] bg-red-500/20 text-red-400 px-1 py-0.5 rounded border border-red-500/30">MUTED</span>
-                                                ) : (
-                                                    <span className="text-[9px] bg-green-500/20 text-green-400 px-1 py-0.5 rounded border border-green-500/30">ACTIVE</span>
-                                                )}
+                                            <div className="col-span-3 text-xs text-white font-medium truncate" title={track.name}>{track.name}</div>
+                                            <div className="col-span-3 text-[10px] text-blue-300 truncate font-mono" title={track.url}>{track.url || '(En ZIP)'}</div>
+                                            <div className="col-span-2 text-xs text-slate-300 text-center">{track.vol}%</div>
+                                            <div className="col-span-2 text-xs text-slate-300 text-center flex justify-center gap-1">
+                                                <span>P:{track.pan || 0}</span>
+                                                {track.mute && <span className="text-red-400 font-bold text-[9px]">M</span>}
                                             </div>
                                             <div className="col-span-2 flex justify-end">
-                                                <button type="button" onClick={() => removeRule(rule.id)} className="text-slate-500 hover:text-red-400 p-1">
+                                                <button type="button" onClick={() => removeRule(track.id)} className="text-slate-500 hover:text-red-400 p-1">
                                                     <X size={14} />
                                                 </button>
                                             </div>
@@ -262,13 +267,13 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
                                     ))}
                                     {(!formData.mix_rules || formData.mix_rules.length === 0) && (
                                         <div className="p-4 text-center">
-                                            <p className="text-[10px] text-slate-600 italic">No hay pistas configuradas</p>
+                                            <p className="text-[10px] text-slate-600 italic">No hay pistas agregadas</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
                             <p className="text-[10px] text-slate-500 mt-2">
-                                * Agrega el nombre exacto del archivo o una palabra clave (ej. "Bajo") para aplicar estos ajustes al cargar.
+                                * Si dejas el Link vacío, el sistema buscará un archivo coincidente dentro del ZIP principal.
                             </p>
                         </div>
 
