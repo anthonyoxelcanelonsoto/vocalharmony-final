@@ -2037,8 +2037,9 @@ export default function App() {
                     );
                     if (rule) {
                         track.vol = (rule.vol / 100);
+                        track.pan = rule.pan !== undefined ? (rule.pan / 100) : 0; // -1 to 1
                         track.mute = !!rule.mute;
-                        console.log(`Applied rule to ${track.name}: Vol ${rule.vol}%, Mute ${rule.mute}`);
+                        console.log(`Applied rule to ${track.name}: Vol ${rule.vol}%, Pan ${rule.pan}, Mute ${rule.mute}`);
                     }
                 });
             }

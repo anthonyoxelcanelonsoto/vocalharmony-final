@@ -13,7 +13,7 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
     });
 
     // Mix Rule State
-    const [newRule, setNewRule] = useState({ keyword: '', vol: 70, mute: false });
+    const [newRule, setNewRule] = useState({ keyword: '', vol: 75, pan: 0, mute: false });
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -42,7 +42,7 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
             ...prev,
             mix_rules: [...prev.mix_rules, { ...newRule, id: Date.now() }]
         }));
-        setNewRule({ keyword: '', vol: 70, mute: false });
+        setNewRule({ keyword: '', vol: 75, pan: 0, mute: false });
     };
 
     const removeRule = (id) => {
@@ -170,67 +170,106 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
                         </div>
 
                         {/* MIX RULES SECTION */}
+                        {/* TRACK MIX CONFIGURATION */}
                         <div className="border-t border-slate-800 pt-4 mt-4">
                             <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                <AlertTriangle size={14} /> Reglas de Mezcla (Auto-Mix)
+                                <AlertTriangle size={14} /> Configuración de Pistas (Mix)
                             </label>
 
-                            <div className="bg-slate-950/50 rounded-lg p-3 border border-slate-800">
-                                <div className="flex gap-2 items-end mb-2">
-                                    <div className="flex-1">
-                                        <p className="text-[10px] text-slate-500 mb-1">Si la pista contiene:</p>
+                            <div className="bg-slate-950/50 rounded-lg border border-slate-800 overflow-hidden">
+                                {/* Table Header */}
+                                <div className="grid grid-cols-12 gap-2 p-2 bg-slate-900 border-b border-slate-800 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                    <div className="col-span-4">Nombre / Archivo</div>
+                                    <div className="col-span-2 text-center">Vol %</div>
+                                    <div className="col-span-2 text-center">Pan (L/R)</div>
+                                    <div className="col-span-2 text-center">Estado</div>
+                                    <div className="col-span-2 text-right">Acción</div>
+                                </div>
+
+                                {/* Input Row */}
+                                <div className="grid grid-cols-12 gap-2 p-2 bg-slate-800/30 items-center border-b border-slate-800/50">
+                                    <div className="col-span-4">
                                         <input
                                             value={newRule.keyword}
                                             onChange={e => setNewRule({ ...newRule, keyword: e.target.value })}
-                                            placeholder="ej. Guia, Click"
+                                            placeholder="ej. Bateria, click.mp3"
                                             className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
                                         />
                                     </div>
-                                    <div className="w-16">
-                                        <p className="text-[10px] text-slate-500 mb-1">Vol %</p>
+                                    <div className="col-span-2">
                                         <input
                                             type="number"
+                                            min="0" max="100"
                                             value={newRule.vol}
                                             onChange={e => setNewRule({ ...newRule, vol: parseInt(e.target.value) })}
-                                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                                            className="w-full bg-slate-900 border border-slate-700 rounded px-1 py-1 text-xs text-white text-center"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="flex items-center gap-1 cursor-pointer">
+                                    <div className="col-span-2">
+                                        <input
+                                            type="number"
+                                            min="-100" max="100"
+                                            value={newRule.pan}
+                                            onChange={e => setNewRule({ ...newRule, pan: parseInt(e.target.value) })}
+                                            className="w-full bg-slate-900 border border-slate-700 rounded px-1 py-1 text-xs text-white text-center"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div className="col-span-2 flex justify-center">
+                                        <label className="flex items-center gap-1 cursor-pointer bg-slate-900 px-2 py-1 rounded border border-slate-700">
                                             <input
                                                 type="checkbox"
                                                 checked={newRule.mute}
                                                 onChange={e => setNewRule({ ...newRule, mute: e.target.checked })}
-                                                className="w-4 h-4 rounded bg-slate-700"
+                                                className="w-3 h-3 rounded bg-slate-600"
                                             />
-                                            <span className="text-xs text-slate-400">Mute</span>
+                                            <span className={`text-[10px] ${newRule.mute ? 'text-red-400 font-bold' : 'text-slate-400'}`}>
+                                                {newRule.mute ? 'MUTE' : 'ON'}
+                                            </span>
                                         </label>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={addRule}
-                                        className="bg-green-600 hover:bg-green-500 text-white p-1.5 rounded"
-                                    >
-                                        <Save size={14} />
-                                    </button>
+                                    <div className="col-span-2 flex justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={addRule}
+                                            className="bg-green-600 hover:bg-green-500 text-white p-1.5 rounded shadow-lg shadow-green-900/20"
+                                        >
+                                            <Save size={14} />
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* List of Rules */}
-                                <div className="space-y-1">
+                                <div className="max-h-32 overflow-y-auto">
                                     {formData.mix_rules?.map((rule, idx) => (
-                                        <div key={idx} className="flex items-center justify-between bg-slate-800/50 px-2 py-1 rounded text-xs border border-white/5">
-                                            <span className="text-slate-300">"{rule.keyword}" &rarr; <b className="text-white">{rule.vol}%</b> {rule.mute && <span className="text-red-400 ml-1">(MUTED)</span>}</span>
-                                            <button type="button" onClick={() => removeRule(rule.id)} className="text-slate-500 hover:text-red-400">
-                                                <X size={12} />
-                                            </button>
+                                        <div key={idx} className="grid grid-cols-12 gap-2 p-2 border-b border-white/5 items-center hover:bg-slate-800/50 transition-colors">
+                                            <div className="col-span-4 text-xs text-white truncate" title={rule.keyword}>{rule.keyword}</div>
+                                            <div className="col-span-2 text-xs text-slate-300 text-center">{rule.vol}%</div>
+                                            <div className="col-span-2 text-xs text-slate-300 text-center">{rule.pan || 0}</div>
+                                            <div className="col-span-2 text-center">
+                                                {rule.mute ? (
+                                                    <span className="text-[9px] bg-red-500/20 text-red-400 px-1 py-0.5 rounded border border-red-500/30">MUTED</span>
+                                                ) : (
+                                                    <span className="text-[9px] bg-green-500/20 text-green-400 px-1 py-0.5 rounded border border-green-500/30">ACTIVE</span>
+                                                )}
+                                            </div>
+                                            <div className="col-span-2 flex justify-end">
+                                                <button type="button" onClick={() => removeRule(rule.id)} className="text-slate-500 hover:text-red-400 p-1">
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                     {(!formData.mix_rules || formData.mix_rules.length === 0) && (
-                                        <p className="text-[10px] text-slate-600 italic text-center py-2">No hay reglas definidas</p>
+                                        <div className="p-4 text-center">
+                                            <p className="text-[10px] text-slate-600 italic">No hay pistas configuradas</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
-                            <p className="text-[10px] text-slate-500 mt-1">Define el volumen inicial para pistas que coincidan con estos nombres.</p>
+                            <p className="text-[10px] text-slate-500 mt-2">
+                                * Agrega el nombre exacto del archivo o una palabra clave (ej. "Bajo") para aplicar estos ajustes al cargar.
+                            </p>
                         </div>
 
                         {error && (
