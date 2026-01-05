@@ -180,6 +180,20 @@ const DEFAULT_REVERB_WET = 1.0; // Bus is 100% wet
 export default function App() {
     // --- STATE ---
     const [user, setUser] = useState<any>(null); // Auth User
+
+    // --- KEEP ALIVE SUPABASE ---
+    useEffect(() => {
+        const keepAlive = setInterval(async () => {
+            // Lightweight ping to keep connection active
+            const { error } = await supabase.from('songs').select('id').limit(1);
+            if (!error) {
+                // console.log("Supabase Heartbeat: Alive"); // Optional debug
+            }
+        }, 300000); // 5 minutes
+
+        return () => clearInterval(keepAlive);
+    }, []);
+
     const [tracks, setTracks] = useState<Track[]>(getInitialTracks());
     const [isUILocked, setIsUILocked] = useState(false); // UI Protection Lock
     const [selectedTrackId, setSelectedTrackId] = useState(99);
