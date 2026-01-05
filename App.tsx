@@ -1332,6 +1332,9 @@ export default function App() {
                     const JSZip = await loadJSZip();
                     const zip = new JSZip();
                     const content = await zip.loadAsync(file);
+
+                    const lrcCandidates: { filename: string, parsed: LyricLine[] }[] = [];
+
                     for (const filename of Object.keys(content.files)) {
                         if (filename.match(/\.(mp3|wav|ogg|m4a)$/i)) {
                             const u8 = await content.files[filename].async('uint8array');
@@ -1345,13 +1348,7 @@ export default function App() {
                                 const lrcText = await content.files[filename].async('string');
                                 const parsed = parseLRC(lrcText);
                                 if (parsed.length > 0) {
-                                    if (filename.match(/chord|acorde|harmony/i)) {
-                                        setImportedChords(parsed);
-                                        // console.log("Imported Chords locally:", parsed.length);
-                                    } else {
-                                        setImportedLyrics(parsed);
-                                        // console.log("Imported Lyrics locally:", parsed.length);
-                                    }
+                                    lrcCandidates.push({ filename, parsed });
                                 }
                             } catch (e) {
                                 console.error("Error parsing local LRC", e);
@@ -1368,6 +1365,24 @@ export default function App() {
                             } catch (e) {
                                 console.error("Error parsing local key file", e);
                             }
+                        }
+                    }
+
+                    // Process Collected LRCs
+                    if (lrcCandidates.length > 0) {
+                        const chordCandidate = lrcCandidates.find(c => c.filename.match(/chord|acorde|harmony/i));
+                        const lyricCandidate = lrcCandidates.find(c => !c.filename.match(/chord|acorde|harmony/i));
+
+                        if (chordCandidate) {
+                            setImportedChords(chordCandidate.parsed);
+                        }
+                        if (lyricCandidate) {
+                            setImportedLyrics(lyricCandidate.parsed);
+                        }
+
+                        // Fallback: If only chords found, show them in lyrics view too
+                        if (chordCandidate && !lyricCandidate) {
+                            setImportedLyrics(chordCandidate.parsed);
                         }
                     }
                 } catch (err) { console.error(err); }
@@ -1896,6 +1911,7 @@ export default function App() {
             } // Closes if (projectData.trackState)
             // Removed extra brace to keep loop inside TRY block
 
+            const lrcCandidates: { filename: string, parsed: LyricLine[] }[] = [];
             for (const filename of Object.keys(content.files)) {
                 if (filename.match(/\.(mp3|wav|ogg|m4a)$/i)) {
                     const u8 = await content.files[filename].async('uint8array');
@@ -1976,15 +1992,16 @@ export default function App() {
                 // alert(`ZIP Loaded. Files: ${allFiles}`);
 
                 // Keep LRC/Chord logic
+                // Keep LRC/Chord logic
                 if (filename.match(/\.lrc$/i)) {
-                    // alert(`Found LRC: ${filename}`);
-                    const lrcText = await content.files[filename].async('string');
-                    const parsedLyrics = parseLRC(lrcText);
-                    // alert(`Parsed Lines: ${parsedLyrics.length}`);
-                    if (filename.match(/chord|acorde|harmony/i)) {
-                        if (parsedLyrics.length > 0) setImportedChords(parsedLyrics);
-                    } else {
-                        if (parsedLyrics.length > 0) setImportedLyrics(parsedLyrics);
+                    try {
+                        const lrcText = await content.files[filename].async('string');
+                        const parsedLyrics = parseLRC(lrcText);
+                        if (parsedLyrics.length > 0) {
+                            lrcCandidates.push({ filename, parsed: parsedLyrics });
+                        }
+                    } catch (e) {
+                        console.error("Error parsing local LRC", e);
                     }
                 }
                 if (filename.match(/(tonalidad|tonality|key)\.txt$/i)) {
@@ -1994,6 +2011,24 @@ export default function App() {
                     }
                 }
 
+            }
+
+            // Process Collected LRCs
+            if (lrcCandidates.length > 0) {
+                const chordCandidate = lrcCandidates.find(c => c.filename.match(/chord|acorde|harmony/i));
+                const lyricCandidate = lrcCandidates.find(c => !c.filename.match(/chord|acorde|harmony/i));
+
+                if (chordCandidate) {
+                    setImportedChords(chordCandidate.parsed);
+                }
+                if (lyricCandidate) {
+                    setImportedLyrics(lyricCandidate.parsed);
+                }
+
+                // Fallback: If only chords found, show them in lyrics view too
+                if (chordCandidate && !lyricCandidate) {
+                    setImportedLyrics(chordCandidate.parsed);
+                }
             }
         } catch (err: any) {
             console.error("Error loading song from library:", err);
