@@ -306,20 +306,44 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
 
             {/* FLOATING TRANSPORTS */}
             {/* FIXED BOTTOM TRANSPORT BAR */}
-            <div className="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 p-4 pb-8 flex items-center justify-between z-50 shadow-2xl">
-                <div className="flex gap-4 items-center">
-                    <button onClick={onTogglePlay} className="p-3 bg-white rounded-full text-black hover:scale-105 transition shadow-lg shadow-white/20">
-                        {isPlaying ? <Pause fill="black" size={24} /> : <Play fill="black" size={24} />}
-                    </button>
-                    <div className="text-2xl font-mono font-bold text-orange-500 w-32 tracking-wider">
+            {/* FIXED BOTTOM TRANSPORT BAR - MOBILE OPTIMIZED */}
+            <div className="fixed bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur border-t border-zinc-800 pb-safe z-50 shadow-[0_-5px_30px_rgba(0,0,0,0.5)] flex flex-col items-center">
+
+                {/* TIME DISPLAY (Top) */}
+                <div className="w-full bg-zinc-900/50 border-b border-zinc-800 py-1 flex justify-center">
+                    <div className="text-xl font-mono font-black text-orange-500 tracking-widest shadow-black drop-shadow-md">
                         {formatTime(currentTime, true)}
                     </div>
                 </div>
 
-                <div className="flex gap-4 text-zinc-400 items-center">
-                    <span className="text-[10px] uppercase font-bold text-zinc-600 tracking-widest hidden sm:block">Zoom</span>
-                    <button onClick={() => setZoom(z => Math.max(10, z / 1.5))} className="p-2 hover:bg-zinc-900 rounded active:text-white border border-zinc-800"><Activity size={16} /></button>
-                    <button onClick={() => setZoom(z => Math.min(200, z * 1.5))} className="p-2 hover:bg-zinc-900 rounded active:text-white border border-zinc-800"><Activity size={20} /></button>
+                {/* CONTROLS ROW (Bottom) */}
+                <div className="w-full flex items-center justify-between px-6 py-3">
+
+                    {/* LEFT: ZOOM OUT */}
+                    <button
+                        onClick={() => setZoom(z => Math.max(10, z / 1.5))}
+                        className="p-3 bg-zinc-800 rounded-xl active:bg-zinc-700 active:scale-95 transition text-zinc-400"
+                    >
+                        <Activity size={18} />
+                    </button>
+
+                    {/* CENTER: PLAY/PAUSE (Big) */}
+                    <button
+                        onClick={onTogglePlay}
+                        className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90
+                        ${isPlaying ? 'bg-zinc-100 text-black shadow-white/20' : 'bg-orange-500 text-black shadow-orange-500/40 animate-pulse'}
+                        `}
+                    >
+                        {isPlaying ? <Pause fill="black" size={24} /> : <Play fill="black" size={24} className="ml-1" />}
+                    </button>
+
+                    {/* RIGHT: ZOOM IN */}
+                    <button
+                        onClick={() => setZoom(z => Math.min(200, z * 1.5))}
+                        className="p-3 bg-zinc-800 rounded-xl active:bg-zinc-700 active:scale-95 transition text-zinc-400"
+                    >
+                        <Activity size={22} />
+                    </button>
                 </div>
             </div>
         </div>
