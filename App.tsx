@@ -1913,6 +1913,7 @@ export default function App() {
 
             const lrcCandidates: { filename: string, parsed: LyricLine[] }[] = [];
             for (const filename of Object.keys(content.files)) {
+                console.log("ZIP Content File:", filename); // DEBUG
                 if (filename.match(/\.(mp3|wav|ogg|m4a)$/i)) {
                     const u8 = await content.files[filename].async('uint8array');
                     const buffer = await ctx.decodeAudioData(u8.buffer);
@@ -2025,10 +2026,7 @@ export default function App() {
                     setImportedLyrics(lyricCandidate.parsed);
                 }
 
-                // Fallback: If only chords found, show them in lyrics view too
-                if (chordCandidate && !lyricCandidate) {
-                    setImportedLyrics(chordCandidate.parsed);
-                }
+                // Fallback Removed per User Request
             }
         } catch (err: any) {
             console.error("Error loading song from library:", err);

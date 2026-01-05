@@ -187,49 +187,53 @@ const Store = ({ isAdminMode, onLoadSong }) => {
                                             />
 
                                             {/* ADMIN ACTIONS OVERLAY */}
-                                            {isAdminMode ? (
-                                                <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
-                                                    <button
-                                                        onClick={() => handleEditClick(song)}
-                                                        className="w-8 h-8 rounded-full bg-slate-900/90 text-blue-400 flex items-center justify-center hover:bg-white hover:scale-110 transition shadow-lg border border-white/10"
-                                                    >
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteClick(song.id)}
-                                                        className="w-8 h-8 rounded-full bg-slate-900/90 text-red-500 flex items-center justify-center hover:bg-red-600 hover:text-white hover:scale-110 transition shadow-lg border border-white/10"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                /* NORMAL ACTIONS */
-                                                <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300
-                                                    ${isDownloaded
-                                                        ? 'bg-black/20 opacity-100'
-                                                        : 'bg-black/40 opacity-0 group-hover:opacity-100 backdrop-blur-[1px]'}
-                                                `}>
-                                                    {isDownloading ? (
-                                                        <Loader2 className="animate-spin text-white" size={24} />
-                                                    ) : isDownloaded ? (
+                                            <div className={`absolute inset-0 flex flex-col justify-between p-2 transition-all duration-300
+                                                ${isDownloaded || isAdminMode ? 'bg-black/40 opacity-100' : 'bg-black/40 opacity-0 group-hover:opacity-100'}
+                                            `}>
+
+                                                {/* Top Right: Edit/Delete (Admin Only) */}
+                                                {isAdminMode && (
+                                                    <div className="flex gap-2 justify-end">
                                                         <button
-                                                            onClick={() => onLoadSong(localSong)}
-                                                            className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/40 hover:scale-110 hover:bg-green-400 transition-all text-black"
-                                                            title="Reproducir"
+                                                            onClick={(e) => { e.stopPropagation(); handleEditClick(song); }}
+                                                            className="w-8 h-8 rounded-full bg-slate-900/90 text-blue-400 flex items-center justify-center hover:bg-white hover:scale-110 transition shadow-lg border border-white/10"
                                                         >
-                                                            <Play size={18} fill="currentColor" />
+                                                            <Edit2 size={14} />
                                                         </button>
-                                                    ) : (
                                                         <button
-                                                            onClick={() => downloadSong(song)}
-                                                            className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-transform shadow-lg hover:bg-blue-50"
-                                                            title="Descargar"
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(song.id); }}
+                                                            className="w-8 h-8 rounded-full bg-slate-900/90 text-red-500 flex items-center justify-center hover:bg-red-600 hover:text-white hover:scale-110 transition shadow-lg border border-white/10"
                                                         >
-                                                            <Download size={18} />
+                                                            <Trash2 size={14} />
                                                         </button>
-                                                    )}
+                                                    </div>
+                                                )}
+
+                                                {/* Center/Bottom: Play/Download (Everyone) */}
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <div className="pointer-events-auto">
+                                                        {isDownloading ? (
+                                                            <Loader2 className="animate-spin text-white" size={24} />
+                                                        ) : isDownloaded ? (
+                                                            <button
+                                                                onClick={() => onLoadSong(localSong)}
+                                                                className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/40 hover:scale-110 hover:bg-green-400 transition-all text-black"
+                                                                title="Reproducir"
+                                                            >
+                                                                <Play size={18} fill="currentColor" />
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => downloadSong(song)}
+                                                                className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-transform shadow-lg hover:bg-blue-50"
+                                                                title="Descargar"
+                                                            >
+                                                                <Download size={18} />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            )}
+                                            </div>
 
                                             {/* Genre Tag */}
                                             {song.genre && !isAdminMode && (
