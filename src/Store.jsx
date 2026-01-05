@@ -53,6 +53,7 @@ const Store = ({ isAdminMode, onLoadSong }) => {
                 artist: song.artist,
                 genre: song.genre,
                 cover_url: song.cover_url,
+                mix_rules: song.mix_rules, // Save rules locally
                 fileBlob: blob
             });
         } catch (error) {

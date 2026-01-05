@@ -2028,6 +2028,21 @@ export default function App() {
 
                 // Fallback Removed per User Request
             }
+            // APPLY MIX RULES (If any)
+            if (song.mix_rules && Array.isArray(song.mix_rules)) {
+                console.log("Applying Mix Rules:", song.mix_rules);
+                newTracks.forEach(track => {
+                    const rule = song.mix_rules.find((r: any) =>
+                        track.name && track.name.toLowerCase().includes(r.keyword.toLowerCase())
+                    );
+                    if (rule) {
+                        track.vol = (rule.vol / 100);
+                        track.mute = !!rule.mute;
+                        console.log(`Applied rule to ${track.name}: Vol ${rule.vol}%, Mute ${rule.mute}`);
+                    }
+                });
+            }
+
         } catch (err: any) {
             console.error("Error loading song from library:", err);
             alert("Error al cargar la canción: " + err.message);

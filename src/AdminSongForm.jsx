@@ -8,8 +8,13 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
         artist: '',
         genre: '',
         zip_url: '',
-        cover_url: ''
+        cover_url: '',
+        mix_rules: []
     });
+
+    // Mix Rule State
+    const [newRule, setNewRule] = useState({ keyword: '', vol: 70, mute: false });
+
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
@@ -20,7 +25,8 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
                 artist: songToEdit.artist,
                 genre: songToEdit.genre || '',
                 zip_url: songToEdit.zip_url || '',
-                cover_url: songToEdit.cover_url || ''
+                cover_url: songToEdit.cover_url || '',
+                mix_rules: songToEdit.mix_rules || []
             });
         }
     }, [songToEdit]);
@@ -28,6 +34,22 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const addRule = () => {
+        if (!newRule.keyword) return;
+        setFormData(prev => ({
+            ...prev,
+            mix_rules: [...prev.mix_rules, { ...newRule, id: Date.now() }]
+        }));
+        setNewRule({ keyword: '', vol: 70, mute: false });
+    };
+
+    const removeRule = (id) => {
+        setFormData(prev => ({
+            ...prev,
+            mix_rules: prev.mix_rules.filter(r => r.id !== id)
+        }));
     };
 
     const handleSubmit = async (e) => {
@@ -145,6 +167,70 @@ const AdminSongForm = ({ songToEdit, onClose, onSave }) => {
                                 className="w-full bg-slate-950 border border-purple-500/30 rounded-lg py-2.5 px-4 text-sm focus:border-purple-500 focus:outline-none text-purple-200"
                                 placeholder="https://imgur.com/..."
                             />
+                        </div>
+
+                        {/* MIX RULES SECTION */}
+                        <div className="border-t border-slate-800 pt-4 mt-4">
+                            <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <AlertTriangle size={14} /> Reglas de Mezcla (Auto-Mix)
+                            </label>
+
+                            <div className="bg-slate-950/50 rounded-lg p-3 border border-slate-800">
+                                <div className="flex gap-2 items-end mb-2">
+                                    <div className="flex-1">
+                                        <p className="text-[10px] text-slate-500 mb-1">Si la pista contiene:</p>
+                                        <input
+                                            value={newRule.keyword}
+                                            onChange={e => setNewRule({ ...newRule, keyword: e.target.value })}
+                                            placeholder="ej. Guia, Click"
+                                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                                        />
+                                    </div>
+                                    <div className="w-16">
+                                        <p className="text-[10px] text-slate-500 mb-1">Vol %</p>
+                                        <input
+                                            type="number"
+                                            value={newRule.vol}
+                                            onChange={e => setNewRule({ ...newRule, vol: parseInt(e.target.value) })}
+                                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="flex items-center gap-1 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={newRule.mute}
+                                                onChange={e => setNewRule({ ...newRule, mute: e.target.checked })}
+                                                className="w-4 h-4 rounded bg-slate-700"
+                                            />
+                                            <span className="text-xs text-slate-400">Mute</span>
+                                        </label>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={addRule}
+                                        className="bg-green-600 hover:bg-green-500 text-white p-1.5 rounded"
+                                    >
+                                        <Save size={14} />
+                                    </button>
+                                </div>
+
+                                {/* List of Rules */}
+                                <div className="space-y-1">
+                                    {formData.mix_rules?.map((rule, idx) => (
+                                        <div key={idx} className="flex items-center justify-between bg-slate-800/50 px-2 py-1 rounded text-xs border border-white/5">
+                                            <span className="text-slate-300">"{rule.keyword}" &rarr; <b className="text-white">{rule.vol}%</b> {rule.mute && <span className="text-red-400 ml-1">(MUTED)</span>}</span>
+                                            <button type="button" onClick={() => removeRule(rule.id)} className="text-slate-500 hover:text-red-400">
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(!formData.mix_rules || formData.mix_rules.length === 0) && (
+                                        <p className="text-[10px] text-slate-600 italic text-center py-2">No hay reglas definidas</p>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Define el volumen inicial para pistas que coincidan con estos nombres.</p>
                         </div>
 
                         {error && (
