@@ -2497,7 +2497,7 @@ export default function App() {
               ${isLandscape
                                 ? 'h-full opacity-100 mb-0 pb-20'
                                 : (showControls ? 'h-[260px] opacity-100 mb-20 pb-6' : 'h-0 opacity-0 mb-0 pb-0')}
-              ${appMode === 'ULTRA' ? 'bg-black/90' : 'bg-slate-900/90'}
+              ${appMode === 'ULTRA' ? 'bg-black/90' : 'bg-[#010101]/95'}
           `}>
                             <div className="h-full overflow-x-auto no-scrollbar snap-x-mandatory flex items-center px-4 gap-3 touch-pan-x">
                                 {(() => {
