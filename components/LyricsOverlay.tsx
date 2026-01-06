@@ -27,10 +27,9 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
     const chordsRef = useRef<HTMLDivElement>(null);
 
     // Sparkle Effect Refs
-    // Sparkle Effect Refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const sparklesRef = useRef<Sparkle[]>([]);
-    const rafRef = useRef<number | undefined>(undefined);
+    const rafRef = useRef<number>();
 
     // Determine active data source
     const activeData = viewStyle === 'CHORDS' ? (importedChords || []) : (importedLyrics || []);
@@ -41,13 +40,8 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
         { time: 9999, text: "..." }
     ];
 
-    // Find current active line index (Polyfill for findLastIndex)
-    const activeIndex = (() => {
-        for (let i = displayLines.length - 1; i >= 0; i--) {
-            if (displayLines[i].time <= currentTime) return i;
-        }
-        return -1;
-    })();
+    // Find current active line index
+    const activeIndex = displayLines.findLastIndex(l => l.time <= currentTime);
 
     // Auto-scroll logic
     useEffect(() => {
@@ -59,18 +53,7 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
         if ((viewStyle === 'KARAOKE' || viewStyle === 'CHORDS') && ref.current && activeIndex !== -1) {
             const activeEl = ref.current.children[activeIndex] as HTMLElement;
             if (activeEl) {
-                const container = ref.current;
-                const containerHeight = container.clientHeight;
-                const elTop = activeEl.offsetTop;
-                const elHeight = activeEl.offsetHeight;
-
-                // Center the active element
-                const targetScroll = elTop - (containerHeight / 2) + (elHeight / 2);
-
-                container.scrollTo({
-                    top: targetScroll,
-                    behavior: 'smooth'
-                });
+                activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
     }, [activeIndex, viewStyle, isVisible]);
@@ -234,7 +217,7 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
                                     ${isFuture ? 'text-slate-700 blur-[0.5px]' : ''}
                                 `}
                                 >
-                                    <p className={`leading-tight transition-all duration-300 ${isActive ? 'text-2xl' : 'text-xl'}`}>
+                                    <p className={`leading-tight ${isActive ? 'text-xl md:text-2xl' : 'text-base'}`}>
                                         {line.text}
                                     </p>
                                 </div>
@@ -259,21 +242,22 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
                 {viewStyle === 'CHORDS' && (
                     <div
                         ref={chordsRef}
-                        className="relative w-full h-full overflow-y-auto no-scrollbar px-2 flex flex-col items-center gap-20 transition-all duration-300 pb-32 pt-20"
+                        className="relative w-full h-full overflow-y-auto no-scrollbar px-2 flex flex-col items-center gap-16 transition-all duration-300 pb-32 pt-20"
                         style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' }}
                     >
                         {displayLines.map((line, idx) => {
                             const isActive = idx === activeIndex;
+                            const isFuture = idx > activeIndex;
 
                             return (
                                 <div
                                     key={idx}
                                     className={`text-center transition-all duration-300 ease-out w-full
-                                    ${isActive ? 'opacity-100 scale-125 z-20' : 'opacity-40 scale-100 blur-[1px]'}
+                                    ${isActive ? 'opacity-100 scale-100 z-20' : 'opacity-20 scale-90 blur-[1px]'}
                                 `}
                                 >
-                                    <p className={`font-mono font-black tracking-tighter transition-all duration-200 text-6xl md:text-7xl
-                                     ${isActive ? 'text-cyan-400 drop-shadow-[0_0_30px_rgba(34,211,238,0.8)]' : 'text-slate-600'}
+                                    <p className={`font-mono font-black tracking-tighter transition-all duration-200
+                                     ${isActive ? 'text-7xl md:text-8xl text-cyan-400 drop-shadow-[0_0_30px_rgba(34,211,238,0.8)]' : 'text-4xl text-slate-500'}
                                 `}>
                                         {line.text}
                                     </p>
