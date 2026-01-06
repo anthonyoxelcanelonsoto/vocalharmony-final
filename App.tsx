@@ -2367,7 +2367,7 @@ export default function App() {
                         </div>
                     )}
 
-                    {audioContext && viewMode !== 'wave' && (
+                    {audioContext && viewMode !== 'wave' && !showSettings && !showShareModal && !showSaveModal && (
                         <button
                             onClick={() => { vibrate(10); setShowControls(!showControls); }}
                             className={`absolute bottom-[35px] right-4 z-[70] px-5 py-2 rounded-full border flex items-center gap-2 font-black text-[11px] tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(249,115,22,0.3)]
