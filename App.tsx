@@ -2366,13 +2366,13 @@ export default function App() {
                     {audioContext && viewMode !== 'wave' && (
                         <button
                             onClick={() => { vibrate(10); setShowControls(!showControls); }}
-                            className={`absolute bottom-[35px] right-4 z-[70] px-3 py-1 rounded-full border flex items-center gap-1.5 font-black text-[9px] tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(249,115,22,0.3)]
+                            className={`absolute bottom-[35px] right-4 z-[70] px-5 py-2 rounded-full border flex items-center gap-2 font-black text-[11px] tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(249,115,22,0.3)]
                             ${showControls
                                     ? 'bg-slate-900/90 border-slate-700 text-slate-500 hover:text-white hover:border-white/50'
                                     : 'bg-black/90 border-orange-500 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.6)] animate-pulse'}`}
                         >
                             <span>Letra y Acordes</span>
-                            {showControls ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                            {showControls ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
                         </button>
                     )}
 
