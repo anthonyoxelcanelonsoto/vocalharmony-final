@@ -19,6 +19,10 @@ interface MultitrackViewProps {
     onTrackSelect: (trackId: number) => void;
     onDragEnd?: () => void;
     selectedTrackId: number;
+    loopStart: number | null;
+    loopEnd: number | null;
+    onSetLoopStart: (time: number | null) => void;
+    onSetLoopEnd: (time: number | null) => void;
 }
 
 export const MultitrackView: React.FC<MultitrackViewProps> = ({
@@ -36,7 +40,11 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
     onToggleSolo,
     onTrackSelect,
     onDragEnd,
-    selectedTrackId
+    selectedTrackId,
+    loopStart,
+    loopEnd,
+    onSetLoopStart,
+    onSetLoopEnd
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [zoom, setZoom] = useState(50);
@@ -321,8 +329,16 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                     <div className="flex items-center gap-3">
                         {/* Loop Controls */}
                         <div className="flex bg-white/5 rounded-full p-1 border border-white/5">
-                            <button className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black text-slate-500 hover:text-white hover:bg-white/10 transition-colors" title="Loop A">A</button>
-                            <button className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black text-slate-500 hover:text-white hover:bg-white/10 transition-colors" title="Loop B">B</button>
+                            <button
+                                onClick={() => onSetLoopStart(loopStart !== null ? null : currentTime)}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${loopStart !== null ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white hover:bg-white/10'}`}
+                                title="Set Loop A"
+                            >A</button>
+                            <button
+                                onClick={() => onSetLoopEnd(loopEnd !== null ? null : currentTime)}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${loopEnd !== null ? 'bg-orange-600 text-white' : 'text-slate-500 hover:text-white hover:bg-white/10'}`}
+                                title="Set Loop B"
+                            >B</button>
                         </div>
 
                         <button

@@ -2408,6 +2408,10 @@ export default function App() {
                                             setTracks(prev => prev.map(t => t.id === id ? { ...t, solo: !t.solo } : t));
                                         }}
                                         onTrackSelect={setSelectedTrackId}
+                                        loopStart={loopStart}
+                                        loopEnd={loopEnd}
+                                        onSetLoopStart={setLoopStart}
+                                        onSetLoopEnd={setLoopEnd}
                                         onDragEnd={() => {
                                             // RESYNC AUDIO ON DROP
                                             if (isPlaying) {
