@@ -27,6 +27,7 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
     const chordsRef = useRef<HTMLDivElement>(null);
 
     // Sparkle Effect Refs
+    // Sparkle Effect Refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const sparklesRef = useRef<Sparkle[]>([]);
     const rafRef = useRef<number | undefined>(undefined);
@@ -40,34 +41,39 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
         { time: 9999, text: "..." }
     ];
 
-    // Find current active line index
-    const activeIndex = displayLines.reduce((acc, _, i, arr) => (arr[i].time <= currentTime ? i : acc), -1);
-
-    // Find current active CHORD index (Always calculated for side-view)
-    const activeChordIndex = (importedChords || []).reduce((acc, _, i, arr) => (arr[i].time <= currentTime ? i : acc), -1);
+    // Find current active line index (Polyfill for findLastIndex)
+    const activeIndex = (() => {
+        for (let i = displayLines.length - 1; i >= 0; i--) {
+            if (displayLines[i].time <= currentTime) return i;
+        }
+        return -1;
+    })();
 
     // Auto-scroll logic
     useEffect(() => {
         if (!isVisible) return;
 
-        const scrollToCenter = (container: HTMLElement, element: HTMLElement) => {
-            // Ensure container is positioned relative for offsetTop to work simply
-            const targetTop = element.offsetTop - (container.clientHeight / 2) + (element.clientHeight / 2);
-            container.scrollTo({ top: targetTop, behavior: 'smooth' });
-        };
+        // Ref depends on mode
+        const ref = viewStyle === 'CHORDS' ? chordsRef : scrollRef;
 
-        // 1. Scroll Lyrics (KARAOKE Mode)
-        if (viewStyle === 'KARAOKE' && scrollRef.current && activeIndex !== -1) {
-            const activeEl = scrollRef.current.children[activeIndex] as HTMLElement;
-            if (activeEl) scrollToCenter(scrollRef.current, activeEl);
-        }
+        if ((viewStyle === 'KARAOKE' || viewStyle === 'CHORDS') && ref.current && activeIndex !== -1) {
+            const activeEl = ref.current.children[activeIndex] as HTMLElement;
+            if (activeEl) {
+                const container = ref.current;
+                const containerHeight = container.clientHeight;
+                const elTop = activeEl.offsetTop;
+                const elHeight = activeEl.offsetHeight;
 
-        // 2. Scroll Chords (KARAOKE Side-Panel or CHORDS Mode)
-        if (chordsRef.current && activeChordIndex !== -1) {
-            const activeEl = chordsRef.current.children[activeChordIndex] as HTMLElement;
-            if (activeEl) scrollToCenter(chordsRef.current, activeEl);
+                // Center the active element
+                const targetScroll = elTop - (containerHeight / 2) + (elHeight / 2);
+
+                container.scrollTo({
+                    top: targetScroll,
+                    behavior: 'smooth'
+                });
+            }
         }
-    }, [activeIndex, activeChordIndex, viewStyle, isVisible]);
+    }, [activeIndex, viewStyle, isVisible]);
 
     // --- SPARKLE EFFECT SPAWNER ---
     useEffect(() => {
@@ -211,60 +217,30 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
                 )}
 
                 {viewStyle === 'KARAOKE' && (
-                    <div className="relative w-full h-full flex px-4 gap-4">
-                        {/* LEFT: LYRICS (Main) */}
-                        <div
-                            ref={scrollRef}
-                            className="flex-1 overflow-y-auto no-scrollbar flex flex-col items-center gap-6 transition-all duration-500 pb-32 pt-10 relative"
-                            style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' }}
-                        >
-                            {(importedLyrics || [{ time: 0, text: "Import .lrc file" }]).map((line, idx) => {
-                                const isActive = idx === activeIndex;
-                                const isFuture = idx > activeIndex;
+                    <div
+                        ref={scrollRef}
+                        className="relative w-full h-full overflow-y-auto no-scrollbar px-6 flex flex-col items-center gap-4 transition-all duration-500 pb-32 pt-10"
+                        style={{ maskImage: 'linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)' }}
+                    >
+                        {displayLines.map((line, idx) => {
+                            const isActive = idx === activeIndex;
+                            const isFuture = idx > activeIndex;
 
-                                return (
-                                    <div
-                                        key={idx}
-                                        className={`text-center transition-all duration-500 ease-out max-w-lg cursor-pointer
-                                    ${isActive ? 'scale-110 text-white font-bold drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'scale-95 text-slate-600 font-medium'}
-                                    ${isFuture ? 'text-slate-700 blur-[1px]' : ''}
+                            return (
+                                <div
+                                    key={idx}
+                                    className={`text-center transition-all duration-500 ease-out max-w-md cursor-pointer
+                                    ${isActive ? 'scale-110 text-white font-bold drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'scale-95 text-slate-600 font-medium'}
+                                    ${isFuture ? 'text-slate-700 blur-[0.5px]' : ''}
                                 `}
-                                    >
-                                        <p className={`leading-tight ${isActive ? 'text-2xl md:text-3xl' : 'text-lg'}`}>
-                                            {line.text}
-                                        </p>
-                                    </div>
-                                );
-                            })}
-                            <div className="h-64 shrink-0" />
-                        </div>
-
-                        {/* RIGHT: CHORDS (Smaller, Side) */}
-                        <div
-                            ref={chordsRef}
-                            className="w-[120px] shrink-0 border-l border-white/5 overflow-y-auto no-scrollbar flex flex-col items-center gap-10 transition-all duration-500 pb-32 pt-24 relative"
-                            style={{ maskImage: 'linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)' }}
-                        >
-                            {(importedChords || [{ time: 0, text: "-" }]).map((line, idx) => {
-                                const isActive = idx === activeChordIndex;
-
-                                return (
-                                    <div
-                                        key={idx}
-                                        className={`text-center transition-all duration-300 ease-out w-full
-                                    ${isActive ? 'opacity-100 scale-110' : 'opacity-30 scale-90 blur-[1px]'}
-                                `}
-                                    >
-                                        <p className={`font-mono font-black tracking-tighter
-                                     ${isActive ? 'text-2xl text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]' : 'text-sm text-slate-600'}
-                                `}>
-                                            {line.text}
-                                        </p>
-                                    </div>
-                                );
-                            })}
-                            <div className="h-64 shrink-0" />
-                        </div>
+                                >
+                                    <p className={`leading-tight transition-all duration-300 ${isActive ? 'text-2xl' : 'text-xl'}`}>
+                                        {line.text}
+                                    </p>
+                                </div>
+                            );
+                        })}
+                        <div className="h-24 shrink-0" />
                     </div>
                 )}
 
@@ -283,22 +259,21 @@ export const LyricsOverlay: React.FC<LyricsOverlayProps> = ({ currentTime, isVis
                 {viewStyle === 'CHORDS' && (
                     <div
                         ref={chordsRef}
-                        className="relative w-full h-full overflow-y-auto no-scrollbar px-2 flex flex-col items-center gap-16 transition-all duration-300 pb-32 pt-20"
+                        className="relative w-full h-full overflow-y-auto no-scrollbar px-2 flex flex-col items-center gap-20 transition-all duration-300 pb-32 pt-20"
                         style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' }}
                     >
                         {displayLines.map((line, idx) => {
                             const isActive = idx === activeIndex;
-                            const isFuture = idx > activeIndex;
 
                             return (
                                 <div
                                     key={idx}
                                     className={`text-center transition-all duration-300 ease-out w-full
-                                    ${isActive ? 'opacity-100 scale-100 z-20' : 'opacity-20 scale-90 blur-[1px]'}
+                                    ${isActive ? 'opacity-100 scale-125 z-20' : 'opacity-40 scale-100 blur-[1px]'}
                                 `}
                                 >
-                                    <p className={`font-mono font-black tracking-tighter transition-all duration-200
-                                     ${isActive ? 'text-7xl md:text-8xl text-cyan-400 drop-shadow-[0_0_30px_rgba(34,211,238,0.8)]' : 'text-4xl text-slate-500'}
+                                    <p className={`font-mono font-black tracking-tighter transition-all duration-200 text-6xl md:text-7xl
+                                     ${isActive ? 'text-cyan-400 drop-shadow-[0_0_30px_rgba(34,211,238,0.8)]' : 'text-slate-600'}
                                 `}>
                                         {line.text}
                                     </p>
