@@ -2144,7 +2144,7 @@ export default function App() {
 
     return (
         <div className={`flex flex-col h-safe-screen text-white font-sans overflow-hidden transition-colors duration-500
-        ${appMode === 'ULTRA' ? 'bg-black' : 'bg-slate-950'}
+        ${appMode === 'ULTRA' ? 'bg-black' : 'bg-[#02040a]'}
     `}>
 
             {/* 1. HEADER */}
@@ -2475,7 +2475,7 @@ export default function App() {
                 {/* COLLAPSIBLE CONTROLS */}
                 {viewMode !== 'wave' && (
                     <div className={`shrink-0 border-t border-orange-900/30 flex flex-col transition-all duration-300 ease-in-out
-          ${appMode === 'ULTRA' ? 'bg-black' : 'bg-slate-950'}
+          ${appMode === 'ULTRA' ? 'bg-black' : 'bg-[#02040a]'}
           ${isLandscape ? 'flex-1 h-full' : ''}
       `}>
 
