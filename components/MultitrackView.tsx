@@ -250,8 +250,8 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                 <div className="font-bold text-xs text-slate-200 truncate px-1" style={{ textShadow: `0 0 10px ${track.color}40` }}>{track.name}</div>
 
                                 {/* Volume Slider (Lite Mode) */}
-                                <div className="flex items-center gap-2 px-1">
-                                    <Volume2 size={12} className={track.mute ? "text-red-500" : "text-slate-500"} />
+                                <div className="flex items-center gap-2 px-1 py-1">
+                                    <Volume2 size={14} className={track.mute ? "text-red-500" : "text-slate-500"} />
                                     <input
                                         type="range"
                                         min="0" max="1" step="0.01"
@@ -261,7 +261,7 @@ export const MultitrackView: React.FC<MultitrackViewProps> = ({
                                         onMouseDown={e => e.stopPropagation()}
                                         onClick={e => e.stopPropagation()}
                                         onChange={(e) => onUpdateTrackVolume(track.id, parseFloat(e.target.value))}
-                                        className="flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-slate-300 [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-white transition-all"
+                                        className="flex-1 h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer focus:outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-slate-300 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-[0_0_5px_rgba(0,0,0,0.5)] hover:[&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:scale-110 transition-all"
                                     />
                                 </div>
                                 <div className="flex justify-between px-1 mt-0.5 gap-2">
