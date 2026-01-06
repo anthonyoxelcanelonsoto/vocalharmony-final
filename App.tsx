@@ -374,6 +374,10 @@ export default function App() {
     const [loopStart, setLoopStart] = useState<number | null>(null);
     const [loopEnd, setLoopEnd] = useState<number | null>(null);
 
+    // Sync Refs for Audio Engine
+    useEffect(() => { loopStartRef.current = loopStart; }, [loopStart]);
+    useEffect(() => { loopEndRef.current = loopEnd; }, [loopEnd]);
+
     // Key Signature State
     const [keySignature, setKeySignature] = useState<string | null>(null);
 
