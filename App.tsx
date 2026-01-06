@@ -2525,11 +2525,11 @@ export default function App() {
                             ${track.isMaster ? 'mr-2 shadow-[4px_0_15px_rgba(0,0,0,0.5)]' : ''}
                             ${selectedTrackId === track.id
                                                     ? (appMode === 'ULTRA'
-                                                        ? 'bg-zinc-900/80 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/20'
-                                                        : 'bg-slate-800/60 border-orange-500/30')
-                                                    : 'bg-slate-950/40 border-slate-800'
+                                                        ? 'bg-zinc-900/90 border-orange-500/60 shadow-[0_0_25px_rgba(249,115,22,0.25)] ring-1 ring-orange-500/30'
+                                                        : 'bg-slate-800/80 border-orange-500/50 shadow-[0_0_20px_rgba(249,115,22,0.15)]')
+                                                    : 'bg-[#0f1119] border-white/5 shadow-[0_0_12px_rgba(255,255,255,0.03)] hover:border-white/10 hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]'
                                                 }
-                            ${track.isMaster && selectedTrackId !== track.id ? 'bg-slate-900 border-orange-500/30' : ''}
+                            ${track.isMaster && selectedTrackId !== track.id ? 'bg-slate-900 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : ''}
                         `}
                                         >
                                             {/* SIMPLE / COLLAPSED PRO MODE VERTICAL NAME (READ ONLY) */}
