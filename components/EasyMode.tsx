@@ -258,8 +258,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                         className={`px - 8 py - 3 rounded - full font - black text - sm tracking - widest uppercase border transition - all
                         ${
     !tracks.some(t => t.solo)
-    ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-110'
-    : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'
+        ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-110'
+        : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'
 }
 `}
                     >
