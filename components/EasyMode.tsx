@@ -286,6 +286,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 pb-8">
                     {visibleTracks.map(track => {
                         const isSolo = track.solo;
+                        const anySolo = tracks.some(t => t.solo);
+                        const isAudible = !track.mute && (anySolo ? isSolo : true);
+                        const isSignalActive = isPlaying && isAudible;
+
                         return (
                             <button
                                 key={track.id}
@@ -305,11 +309,12 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     {track.name}
                                 </h3>
 
-                                {isSolo && (
-                                    <div className="absolute top-4 right-4">
-                                        <div className="w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>
-                                    </div>
-                                )}
+                                {/* Signal LED */}
+                                <div className={`absolute top-4 right-4 w-4 h-4 rounded-full border-2 border-slate-900 transition-all duration-300
+                                    ${isSignalActive
+                                        ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.8)] scale-110'
+                                        : 'bg-slate-700 shadow-none scale-100'}
+                                `}></div>
                             </button>
                         );
                     })}
