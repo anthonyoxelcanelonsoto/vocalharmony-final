@@ -3,6 +3,7 @@ import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Settings2, 
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
+import { EasyMode } from './components/EasyMode';
 import { db } from './src/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import * as Tone from 'tone';
@@ -2207,18 +2208,17 @@ export default function App() {
 
     if (interfaceMode === 'EASY') {
         return (
-            <div className="flex items-center justify-center h-screen bg-black text-white">
-                <div className="text-center space-y-4 animate-pulse">
-                    <Sparkles size={48} className="mx-auto text-sky-500" />
-                    <h2 className="text-2xl font-bold">Modo Fácil en Construcción...</h2>
-                    <button
-                        onClick={() => setInterfaceMode(null)}
-                        className="text-sm text-slate-500 hover:text-white underline mt-4 block"
-                    >
-                        Volver
-                    </button>
-                </div>
-            </div>
+            <EasyMode
+                tracks={tracks}
+                setTracks={setTracks}
+                isPlaying={isPlaying}
+                onTogglePlay={handleTogglePlay}
+                currentTime={currentTime}
+                duration={maxDuration}
+                onSeek={(t) => { handleSeek(t); setCurrentTime(t); }}
+                onLoadSong={handleLoadFromLibrary}
+                onExit={() => setInterfaceMode(null)}
+            />
         );
     }
 
