@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../src/db';
 import { supabase } from '../src/supabaseClient';
 import { Track } from '../types';
-import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2 } from 'lucide-react';
+import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2, Volume2, VolumeX } from 'lucide-react';
 
 interface EasyModeProps {
     tracks: Track[];
@@ -63,6 +63,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
     // Identify the "Pista" (Backing Track)
     const backingTrackId = tracks.find(t => t.name.toLowerCase().includes('pista'))?.id;
+    const isBackingMuted = tracks.find(t => t.id === backingTrackId)?.mute;
 
     // Filter Logic
     const filteredSongs = combinedSongs.filter(song => {
@@ -133,6 +134,13 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
     const toggleFullMix = () => {
         setTracks(prev => prev.map(t => ({ ...t, solo: false, mute: false })));
+    };
+
+    const toggleBackingMute = () => {
+        if (!backingTrackId) return;
+        setTracks(prev => prev.map(t =>
+            t.id === backingTrackId ? { ...t, mute: !t.mute } : t
+        ));
     };
 
     // --- SONG SELECTOR VIEW ---
@@ -251,17 +259,32 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 lg:px-20 py-4 scrollbar-hide">
 
                 {/* Full Mix Button (Reset) */}
-                <div className="flex justify-center mb-8 pt-4">
+                <div className="flex justify-center gap-4 mb-8 pt-4">
                     <button
                         onClick={toggleFullMix}
-                        className={`px-8 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all
+                        className={`px-6 py-3 rounded-full font-black text-xs md:text-sm tracking-widest uppercase border transition-all
                         ${!tracks.some(t => t.solo)
-                                ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-110'
+                                ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-105'
                                 : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
                         `}
                     >
                         Mezcla Completa
                     </button>
+
+                    {/* Backing Track Toggle */}
+                    {backingTrackId && (
+                        <button
+                            onClick={toggleBackingMute}
+                            className={`px-6 py-3 rounded-full font-black text-xs md:text-sm tracking-widest uppercase border transition-all flex items-center gap-2
+                            ${!isBackingMuted
+                                    ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105'
+                                    : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
+                            `}
+                        >
+                            {!isBackingMuted ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                            Pista
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 pb-8">
