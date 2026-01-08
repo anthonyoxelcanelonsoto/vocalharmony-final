@@ -15,7 +15,68 @@ interface EasyModeProps {
     onSeek: (time: number) => void;
     onLoadSong: (song: any) => Promise<void>;
     onExit: () => void;
+    trackAnalysers?: Record<number, AnalyserNode>;
 }
+
+const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying: boolean }) => {
+    const ref = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!ref.current) return;
+
+        if (!analyser || !isPlaying) {
+            ref.current.style.backgroundColor = 'rgb(51, 65, 85)'; // slate-700
+            ref.current.style.boxShadow = 'none';
+            ref.current.style.transform = 'scale(1)';
+            return;
+        }
+
+        const bufferLength = analyser.frequencyBinCount;
+        const data = new Uint8Array(bufferLength);
+
+        let frameId: number;
+        let isActive = true;
+
+        const draw = () => {
+            if (!isActive) return;
+            analyser.getByteFrequencyData(data);
+
+            // Quick RMS-ish calculation (skip-sampling for perf)
+            let sum = 0;
+            let count = 0;
+            for (let i = 0; i < bufferLength; i += 32) {
+                sum += data[i];
+                count++;
+            }
+            const avg = count > 0 ? sum / count : 0;
+
+            if (ref.current) {
+                // Threshold for "signal present"
+                if (avg > 5) {
+                    const intensity = Math.min(avg / 128, 1); // 0 to 1
+                    // Emerald-400 is roughly #34d399 (52, 211, 153)
+                    ref.current.style.backgroundColor = `rgb(52, 211, 153)`;
+                    ref.current.style.opacity = `${0.4 + (intensity * 0.6)}`;
+                    ref.current.style.boxShadow = `0 0 ${8 * intensity}px rgba(52, 211, 153, ${intensity})`;
+                    ref.current.style.transform = `scale(${1 + intensity * 0.15})`;
+                } else {
+                    ref.current.style.backgroundColor = 'rgb(51, 65, 85)';
+                    ref.current.style.opacity = '1';
+                    ref.current.style.boxShadow = 'none';
+                    ref.current.style.transform = 'scale(1)';
+                }
+            }
+            frameId = requestAnimationFrame(draw);
+        };
+        draw();
+        return () => {
+            isActive = false;
+            cancelAnimationFrame(frameId);
+        };
+    }, [analyser, isPlaying]);
+
+    return <div ref={ref} className="absolute top-4 right-4 w-4 h-4 rounded-full border-2 border-slate-900 transition-colors duration-75"></div>;
+};
 
 export const EasyMode: React.FC<EasyModeProps> = ({
     tracks,
@@ -26,7 +87,9 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     duration,
     onSeek,
     onLoadSong,
-    onExit
+    onLoadSong,
+    onExit,
+    trackAnalysers
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
 

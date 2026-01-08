@@ -2218,6 +2218,7 @@ export default function App() {
                 onSeek={(t) => { handleSeek(t); setCurrentTime(t); }}
                 onLoadSong={handleLoadFromLibrary}
                 onExit={() => setInterfaceMode(null)}
+                trackAnalysers={trackAnalysersRef.current}
             />
         );
     }
