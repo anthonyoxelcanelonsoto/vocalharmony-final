@@ -1,8 +1,7 @@
-```javascript
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../src/db';
-import { supabase } from '../src/supabaseClient'; // Import Supabase
+import { supabase } from '../src/supabaseClient';
 import { Track } from '../types';
 import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2 } from 'lucide-react';
 
@@ -30,14 +29,14 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     onExit
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
-    
+
     // Local Songs
     const localSongs = useLiveQuery(() => (db as any).myLibrary.toArray()) || [];
-    
+
     // Cloud Songs
     const [cloudSongs, setCloudSongs] = useState<any[]>([]);
     const [loadingCloud, setLoadingCloud] = useState(false);
-    
+
     const [searchQuery, setSearchQuery] = useState("");
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
@@ -84,7 +83,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 const response = await fetch(song.zip_url);
                 if (!response.ok) throw new Error('Download failed');
                 const blob = await response.blob();
-                
+
                 // 2. Save to Dexie (Local Library)
                 const newSong = {
                     id: song.id,
@@ -96,7 +95,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     fileBlob: blob
                 };
                 await (db as any).myLibrary.add(newSong);
-                
+
                 // 3. Load
                 await onLoadSong(newSong);
                 setDownloadingId(null);
@@ -133,7 +132,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     };
 
     const toggleFullMix = () => {
-         setTracks(prev => prev.map(t => ({ ...t, solo: false, mute: false })));
+        setTracks(prev => prev.map(t => ({ ...t, solo: false, mute: false })));
     };
 
     // --- SONG SELECTOR VIEW ---
@@ -142,7 +141,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             <div className="flex flex-col h-screen bg-black text-white p-6 animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
                 <div className="flex items-center justify-between mb-8 shrink-0">
                     <button onClick={onExit} className="p-3 rounded-full hover:bg-white/10 text-slate-400">
-                         <ArrowLeft size={24} />
+                        <ArrowLeft size={24} />
                     </button>
                     <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">
                         Elige una Canción
@@ -153,7 +152,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 {/* Search */}
                 <div className="relative w-full max-w-2xl mx-auto mb-10 shrink-0">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input 
+                    <input
                         className="w-full bg-slate-900 border border-slate-800 rounded-full py-4 pl-12 pr-6 text-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all"
                         placeholder="Buscar en tu biblioteca o nube..."
                         value={searchQuery}
@@ -165,13 +164,13 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 <div className="flex-1 overflow-y-auto min-h-0 w-full max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20 px-4">
                         {filteredSongs.map(song => (
-                            <button 
+                            <button
                                 key={song.id}
                                 onClick={() => !downloadingId && handleSongSelect(song)}
                                 disabled={downloadingId !== null}
-                                className={`group flex items - center gap - 4 bg - slate - 900 / 50 hover: bg - slate - 800 border border - slate - 800 rounded - 2xl p - 4 transition - all hover: scale - [1.02] text - left relative overflow - hidden
-                                ${ downloadingId === song.id ? 'opacity-75 cursor-wait' : '' }
-`}
+                                className={`group flex items-center gap-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-2xl p-4 transition-all hover:scale-[1.02] text-left relative overflow-hidden
+                                ${downloadingId === song.id ? 'opacity-75 cursor-wait' : ''}
+                                `}
                             >
                                 <div className="w-20 h-20 rounded-xl bg-slate-950 shadow-lg flex-shrink-0 overflow-hidden relative">
                                     {song.cover_url ? (
@@ -199,7 +198,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                             </button>
                         ))}
                     </div>
-                    
+
                     {filteredSongs.length === 0 && !loadingCloud && (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-600 gap-4">
                             <Disc3 size={48} className="animate-spin-slow opacity-20" />
@@ -208,8 +207,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     )}
                     {loadingCloud && filteredSongs.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                             <Loader2 size={32} className="animate-spin mb-4" />
-                             <p>Buscando en la nube...</p>
+                            <Loader2 size={32} className="animate-spin mb-4" />
+                            <p>Buscando en la nube...</p>
                         </div>
                     )}
                 </div>
@@ -219,15 +218,15 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
     // --- PLAYER VIEW ---
     // Filter out "Pista" and "Master" for the grid
-    const visibleTracks = tracks.filter(t => 
-        !t.isMaster && 
+    const visibleTracks = tracks.filter(t =>
+        !t.isMaster &&
         !t.name.toLowerCase().includes('pista')
     );
 
     const formatTime = (s: number) => {
         const mins = Math.floor(s / 60);
         const secs = Math.floor(s % 60);
-        return `${ mins }:${ secs.toString().padStart(2, '0') } `;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
     // Calculate progress
@@ -235,7 +234,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
     return (
         <div className="flex flex-col h-full bg-black text-white relative">
-            
+
             {/* TOP BAR */}
             <div className="flex items-center justify-between p-6 bg-gradient-to-b from-black to-transparent z-10">
                 <button onClick={() => setView('SELECT')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
@@ -243,25 +242,23 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     <span className="font-bold text-sm uppercase tracking-widest">Biblioteca</span>
                 </button>
                 <div className="text-center">
-                   {/* Song Title could go here nicely */}
+                    {/* Song Title could go here nicely */}
                 </div>
                 <div className="w-20"></div>
             </div>
 
             {/* MAIN TRACKS AREA */}
             <div className="flex-1 flex flex-col justify-center px-6 lg:px-20 pb-10">
-                
+
                 {/* Full Mix Button (Reset) */}
                 <div className="flex justify-center mb-8">
-                    <button 
+                    <button
                         onClick={toggleFullMix}
-                        className={`px - 8 py - 3 rounded - full font - black text - sm tracking - widest uppercase border transition - all
-                        ${
-    !tracks.some(t => t.solo)
-    ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-110'
-    : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'
-}
-`}
+                        className={`px-8 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all
+                        ${!tracks.some(t => t.solo)
+                                ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-110'
+                                : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
+                        `}
                     >
                         Mezcla Completa
                     </button>
@@ -274,23 +271,21 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                             <button
                                 key={track.id}
                                 onClick={() => handleTrackToggle(track.id)}
-                                className={`group relative aspect - square rounded - 3xl flex flex - col items - center justify - center gap - 4 transition - all duration - 300
-                                ${
-    isSolo
-        ? 'bg-gradient-to-br from-sky-600 to-blue-700 shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent'
-        : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'
-}
-`}
+                                className={`group relative aspect-square rounded-3xl flex flex-col items-center justify-center gap-4 transition-all duration-300
+                                ${isSolo
+                                        ? 'bg-gradient-to-br from-sky-600 to-blue-700 shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent'
+                                        : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
+                                `}
                             >
-                                <div className={`w - 16 h - 16 rounded - full flex items - center justify - center transition - all duration - 500
-                                    ${ isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300' }
-`}>
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500
+                                    ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
+                                `}>
                                     <Mic2 size={32} />
                                 </div>
-                                <h3 className={`text - xl font - bold transition - colors ${ isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white' } `}>
+                                <h3 className={`text-xl font-bold transition-colors ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
                                     {track.name}
                                 </h3>
-                                
+
                                 {isSolo && (
                                     <div className="absolute top-4 right-4">
                                         <div className="w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>
@@ -305,7 +300,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             {/* BOTTOM PLAYBACK CONTROLS */}
             <div className="bg-[#050510] border-t border-white/5 p-6 pb-10">
                 {/* Progress Bar */}
-                <div 
+                <div
                     className="w-full h-2 bg-slate-800 rounded-full mb-8 relative cursor-pointer group"
                     onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -314,15 +309,15 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                         onSeek(pct * duration);
                     }}
                 >
-                    <div className="absolute top-0 left-0 h-full bg-sky-500 rounded-full" style={{ width: `${ progress }% ` }}>
+                    <div className="absolute top-0 left-0 h-full bg-sky-500 rounded-full" style={{ width: `${progress}%` }}>
                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform"></div>
                     </div>
                 </div>
 
                 <div className="flex items-center justify-between max-w-4xl mx-auto">
                     <span className="text-slate-400 font-mono font-medium w-16 text-left">{formatTime(currentTime)}</span>
-                    
-                    <button 
+
+                    <button
                         onClick={onTogglePlay}
                         className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
                     >
