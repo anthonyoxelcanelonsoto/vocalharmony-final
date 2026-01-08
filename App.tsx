@@ -2236,11 +2236,17 @@ export default function App() {
       `}>
                 {/* LOGO AREA - LEFT */}
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-black shadow-lg shadow-orange-900/50 
+                    <button
+                        onClick={() => {
+                            if (confirm("¿Volver a la selección de modo?")) {
+                                setInterfaceMode(null);
+                            }
+                        }}
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center text-black shadow-lg shadow-orange-900/50 hover:scale-105 active:scale-95 transition-all
                 ${appMode === 'ULTRA' ? 'bg-orange-500' : 'bg-orange-600'}
             `}>
                         <Mic size={20} strokeWidth={3} />
-                    </div>
+                    </button>
 
                     {/* ICON NAVIGATION (STUDIO | STORE | LIBRARY) */}
                     <div className="flex items-center p-1 bg-slate-800/80 rounded-lg border border-slate-700">
