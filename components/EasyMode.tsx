@@ -219,8 +219,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
     // --- PLAYER VIEW ---
     // Filter out "Pista" and "Master" for the grid
-    const visibleTracks = tracks.filter(t =>
-        !t.isMaster &&
+    const visibleTracks = tracks.filter(t => 
+        !t.isMaster && 
         !t.name.toLowerCase().includes('pista')
     );
 
@@ -235,7 +235,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
     return (
         <div className="flex flex-col h-full bg-black text-white relative">
-
+            
             {/* TOP BAR */}
             <div className="flex items-center justify-between p-6 bg-gradient-to-b from-black to-transparent z-10">
                 <button onClick={() => setView('SELECT')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
@@ -243,23 +243,23 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     <span className="font-bold text-sm uppercase tracking-widest">Biblioteca</span>
                 </button>
                 <div className="text-center">
-                    {/* Song Title could go here nicely */}
+                   {/* Song Title could go here nicely */}
                 </div>
                 <div className="w-20"></div>
             </div>
 
             {/* MAIN TRACKS AREA */}
             <div className="flex-1 flex flex-col justify-center px-6 lg:px-20 pb-10">
-
+                
                 {/* Full Mix Button (Reset) */}
                 <div className="flex justify-center mb-8">
-                    <button
+                    <button 
                         onClick={toggleFullMix}
                         className={`px - 8 py - 3 rounded - full font - black text - sm tracking - widest uppercase border transition - all
                         ${
     !tracks.some(t => t.solo)
-        ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-110'
-        : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'
+    ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-110'
+    : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'
 }
 `}
                     >
@@ -290,7 +290,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                 <h3 className={`text - xl font - bold transition - colors ${ isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white' } `}>
                                     {track.name}
                                 </h3>
-
+                                
                                 {isSolo && (
                                     <div className="absolute top-4 right-4">
                                         <div className="w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>
@@ -305,7 +305,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             {/* BOTTOM PLAYBACK CONTROLS */}
             <div className="bg-[#050510] border-t border-white/5 p-6 pb-10">
                 {/* Progress Bar */}
-                <div
+                <div 
                     className="w-full h-2 bg-slate-800 rounded-full mb-8 relative cursor-pointer group"
                     onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -321,8 +321,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
                 <div className="flex items-center justify-between max-w-4xl mx-auto">
                     <span className="text-slate-400 font-mono font-medium w-16 text-left">{formatTime(currentTime)}</span>
-
-                    <button
+                    
+                    <button 
                         onClick={onTogglePlay}
                         className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
                     >
