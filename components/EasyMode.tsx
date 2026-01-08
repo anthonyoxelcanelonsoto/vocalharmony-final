@@ -18,13 +18,14 @@ interface EasyModeProps {
     trackAnalysers?: Record<number, AnalyserNode>;
 }
 
-const SignalLED = ({ analyser, isPlaying, isSolo }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean }) => {
+const SignalLED = ({ analyser, isPlaying, isSolo, isActive }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean, isActive: boolean }) => {
     const ref = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!ref.current) return;
 
-        if (!analyser || !isPlaying) {
+        // Visual Reset if disabled
+        if (!analyser || !isPlaying || !isActive) {
             ref.current.style.backgroundColor = 'transparent';
             ref.current.style.boxShadow = 'none';
             return;
@@ -34,11 +35,11 @@ const SignalLED = ({ analyser, isPlaying, isSolo }: { analyser?: AnalyserNode, i
         const data = new Uint8Array(bufferLength);
 
         let frameId: number;
-        let isActive = true;
+        let isRunning = true;
         let frameCount = 0;
 
         const draw = () => {
-            if (!isActive) return;
+            if (!isRunning) return;
 
             // Throttle: Update only every 3rd frame (~20fps) to save battery/CPU on mobile
             frameCount++;
@@ -82,10 +83,10 @@ const SignalLED = ({ analyser, isPlaying, isSolo }: { analyser?: AnalyserNode, i
         };
         draw();
         return () => {
-            isActive = false;
+            isRunning = false;
             cancelAnimationFrame(frameId);
         };
-    }, [analyser, isPlaying, isSolo]);
+    }, [analyser, isPlaying, isSolo, isActive]);
 
     return <div ref={ref} className="absolute inset-0 rounded-3xl pointer-events-none transition-colors duration-100 z-0"></div>;
 };
@@ -456,6 +457,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
                                     isPlaying={isPlaying}
                                     isSolo={!!isSolo}
+                                    isActive={!track.mute && (anySolo ? isSolo : true)}
                                 />
                             </button>
                         );
