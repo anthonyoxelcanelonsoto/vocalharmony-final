@@ -176,10 +176,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 const isBacking = t.name.toLowerCase().includes('pista');
                 if (clickedTrackId !== backingTrackId) {
                     if (t.id === clickedTrackId) {
-                        return { ...t, solo: true, mute: false, vol: 1.0 };
+                        return { ...t, solo: true, mute: false, vol: 1.25 };
                     }
                     if (isBacking) {
-                        return { ...t, solo: true, mute: false, vol: 0.45 };
+                        return { ...t, solo: true, mute: false, vol: 0.25 };
                     }
                     return { ...t, solo: false };
                 }
