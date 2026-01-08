@@ -199,24 +199,14 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         });
     };
 
-    // Capture Default Mix (Original Volumes) & Force Center Pan
+    // Capture Default Mix (Original Volumes) whenever we enter PlayerView or load new tracks
     useEffect(() => {
-        if (view === 'PLAYER' && tracks.length > 0) {
-
-            // 1. Capture Defaults if needed
-            if (Object.keys(defaultVolumes).length === 0) {
-                const defaults: Record<number, number> = {};
-                tracks.forEach(t => defaults[t.id] = t.vol);
-                setDefaultVolumes(defaults);
-            }
-
-            // 2. Force Pan to Center (0.5) if not already
-            const needsPanFix = tracks.some(t => Math.abs(t.pan - 0.5) > 0.001);
-            if (needsPanFix) {
-                setTracks(prev => prev.map(t => ({ ...t, pan: 0.5 })));
-            }
+        if (view === 'PLAYER' && Object.keys(defaultVolumes).length === 0 && tracks.length > 0) {
+            const defaults: Record<number, number> = {};
+            tracks.forEach(t => defaults[t.id] = t.vol);
+            setDefaultVolumes(defaults);
         }
-    }, [view, tracks, defaultVolumes, setTracks]);
+    }, [view, tracks, defaultVolumes]);
 
     // --- SONG SELECTOR VIEW ---
     if (view === 'SELECT') {
@@ -369,7 +359,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                 onClick={() => handleTrackToggle(track.id)}
                                 className={`group relative aspect-square rounded-3xl flex flex-col items-center justify-center gap-4 transition-all duration-300
                                 ${isSolo
-                                        ? 'bg-gradient-to-br from-sky-600 to-blue-700 shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent'
+                                        ? 'bg-gradient-to-br from-sky-600 to-blue-700 shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent animate-pulse'
                                         : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                 `}
                             >
