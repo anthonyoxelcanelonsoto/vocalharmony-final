@@ -2153,49 +2153,49 @@ export default function App() {
     if (interfaceMode === null) {
         return (
             <div className="fixed inset-0 z-50 bg-[#02040a] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
-                <div className="w-full max-w-4xl flex flex-col items-center gap-12">
+                <div className="w-full max-w-4xl flex flex-col items-center gap-8 md:gap-12">
 
                     <div className="text-center space-y-4">
-                        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-2xl shadow-orange-900/40 mb-4 animate-bounce-slow">
-                            <Mic size={40} className="text-white" />
+                        <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-2xl shadow-orange-900/40 mb-2 md:mb-4 animate-bounce-slow">
+                            <Mic className="w-8 h-8 md:w-10 md:h-10 text-white" />
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 tracking-tight">
+                        <h1 className="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 tracking-tight">
                             VocalHarmony <span className="text-orange-500">Pro</span>
                         </h1>
-                        <p className="text-slate-400 text-lg md:text-xl font-medium max-w-lg mx-auto leading-relaxed">
+                        <p className="text-slate-400 text-sm md:text-xl font-medium max-w-lg mx-auto leading-relaxed">
                             La herramienta definitiva para vocalistas y productores.
                             <br />Elige cómo quieres trabajar hoy.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full">
                         {/* EASY MODE */}
                         <button
                             onClick={() => { vibrate(20); setInterfaceMode('EASY'); }}
-                            className="group relative h-64 md:h-80 rounded-3xl p-8 flex flex-col items-center justify-center gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(56,189,248,0.2)] hover:border-sky-500/50 overflow-hidden"
+                            className="group relative h-40 md:h-80 rounded-3xl p-6 md:p-8 flex flex-row md:flex-col items-center justify-center gap-6 md:gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(56,189,248,0.2)] hover:border-sky-500/50 overflow-hidden text-left md:text-center"
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="w-24 h-24 rounded-full bg-slate-800 group-hover:bg-sky-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-sky-500/50">
-                                <Sparkles size={40} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
+                            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-800 group-hover:bg-sky-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-sky-500/50 shrink-0">
+                                <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-slate-400 group-hover:text-sky-400 transition-colors" />
                             </div>
-                            <div className="text-center z-10">
-                                <h3 className="text-3xl font-black text-white mb-2 group-hover:text-sky-400 max-w-[80%] mx-auto leading-none">MODO FÁCIL</h3>
-                                <p className="text-slate-500 group-hover:text-slate-300 text-sm font-medium">Para cantantes y aficionados</p>
+                            <div className="z-10 flex-1">
+                                <h3 className="text-2xl md:text-3xl font-black text-white mb-1 md:mb-2 group-hover:text-sky-400 leading-none">MODO FÁCIL</h3>
+                                <p className="text-slate-500 group-hover:text-slate-300 text-xs md:text-sm font-medium">Para cantantes y aficionados</p>
                             </div>
                         </button>
 
                         {/* PRO MODE */}
                         <button
                             onClick={() => { vibrate(20); setInterfaceMode('PRO'); }}
-                            className="group relative h-64 md:h-80 rounded-3xl p-8 flex flex-col items-center justify-center gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(249,115,22,0.2)] hover:border-orange-500/50 overflow-hidden"
+                            className="group relative h-40 md:h-80 rounded-3xl p-6 md:p-8 flex flex-row md:flex-col items-center justify-center gap-6 md:gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(249,115,22,0.2)] hover:border-orange-500/50 overflow-hidden text-left md:text-center"
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-red-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="w-24 h-24 rounded-full bg-slate-800 group-hover:bg-orange-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-orange-500/50">
-                                <Settings2 size={40} className="text-slate-400 group-hover:text-orange-400 transition-colors" />
+                            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-800 group-hover:bg-orange-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-orange-500/50 shrink-0">
+                                <Settings2 className="w-8 h-8 md:w-10 md:h-10 text-slate-400 group-hover:text-orange-400 transition-colors" />
                             </div>
-                            <div className="text-center z-10">
-                                <h3 className="text-3xl font-black text-white mb-2 group-hover:text-orange-400 max-w-[80%] mx-auto leading-none">MODO PRO</h3>
-                                <p className="text-slate-500 group-hover:text-slate-300 text-sm font-medium">Control total para productores</p>
+                            <div className="z-10 flex-1">
+                                <h3 className="text-2xl md:text-3xl font-black text-white mb-1 md:mb-2 group-hover:text-orange-400 leading-none">MODO PRO</h3>
+                                <p className="text-slate-500 group-hover:text-slate-300 text-xs md:text-sm font-medium">Control total para productores</p>
                             </div>
                         </button>
                     </div>
