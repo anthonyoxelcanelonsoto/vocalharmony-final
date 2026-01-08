@@ -16,13 +16,26 @@ interface EasyModeProps {
     onLoadSong: (song: any) => Promise<void>;
     onExit: () => void;
     trackAnalysers?: Record<number, AnalyserNode>;
+    isLite?: boolean;
 }
 
-const SignalLED = ({ analyser, isPlaying, isSolo }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean }) => {
+const SignalLED = ({ analyser, isPlaying, isSolo, isLite }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean, isLite?: boolean }) => {
     const ref = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!ref.current) return;
+
+        // LITE MODE: No animation, static colors
+        if (isLite) {
+            if (isSolo) {
+                ref.current.style.backgroundColor = 'rgba(2, 132, 199, 0.8)';
+                ref.current.style.boxShadow = 'none';
+            } else {
+                ref.current.style.backgroundColor = 'rgba(16, 185, 129, 0.4)';
+                ref.current.style.boxShadow = 'none';
+            }
+            return;
+        }
 
         if (!analyser || !isPlaying) {
             ref.current.style.backgroundColor = 'transparent';
@@ -77,7 +90,7 @@ const SignalLED = ({ analyser, isPlaying, isSolo }: { analyser?: AnalyserNode, i
             isActive = false;
             cancelAnimationFrame(frameId);
         };
-    }, [analyser, isPlaying, isSolo]);
+    }, [analyser, isPlaying, isSolo, isLite]);
 
     return <div ref={ref} className="absolute inset-0 rounded-3xl pointer-events-none transition-colors duration-100 z-0"></div>;
 };
@@ -92,7 +105,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     onSeek,
     onLoadSong,
     onExit,
-    trackAnalysers
+    trackAnalysers,
+    isLite = false
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
     const [defaultVolumes, setDefaultVolumes] = useState<Record<number, number>>({});
@@ -443,6 +457,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
                                     isPlaying={isPlaying}
                                     isSolo={!!isSolo}
+                                    isLite={isLite}
                                 />
                             </button>
                         );
