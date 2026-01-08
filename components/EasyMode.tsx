@@ -136,225 +136,268 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         setTracks(prev => prev.map(t => ({ ...t, solo: false, mute: false })));
     };
 
-    const toggleBackingMute = () => {
-        if (!backingTrackId) return;
-        setTracks(prev => prev.map(t =>
-            t.id === backingTrackId ? { ...t, mute: !t.mute } : t
-        ));
+    const handleVolumeChange = (id: number, val: number) => {
+        setTracks(prev => prev.map(t => t.id === id ? { ...t, volume: val } : t));
     };
 
     // --- SONG SELECTOR VIEW ---
     if (view === 'SELECT') {
-        return (
-            <div className="flex flex-col h-screen bg-black text-white p-6 animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
-                <div className="flex items-center justify-between mb-8 shrink-0">
-                    <button onClick={onExit} className="p-3 rounded-full hover:bg-white/10 text-slate-400">
-                        <ArrowLeft size={24} />
-                    </button>
-                    <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">
-                        Elige una Canción
-                    </h1>
-                    <div className="w-12"></div> {/* Spacer */}
-                </div>
+        // ... (start of SELECT view is unchanged, so I will target the existing code block efficiently or just insert the function and modify the render)
+        // Actually, I can't easily skip lines with standard replace, I have to provide the chunk.
+        // I will target the end of "toggleBackingMute" to start of "return" for the view.
+        // Wait, I should just insert the function first? No, I need to modify the MAP loop which is far down.
+        // I'll assume the user wants the render modified.
+        // I'll do a focused replace on the MAP function in the PLAYER view.
+        // And another replace for the helper function.
+        // Since I can only do ONE replace per tool call (or multi), I will use `MultiReplace` logic if possible or just one big block if they are close.
+        // `visibleTracks.map` is lines 272+. `handleVolumeChange` needs to be defined before return (line 236).
+        // I'll combine the adding of the function and the render update if they fit, but they are far apart.
+        // I will use `replace_file_content` for the Render part, and I'll inline the handler or add it in a previous spot?
+        // No, I can't inline a complex handler easily in JSX without clutter.
+        // I'll add the handler near `handleTrackToggle`.
+        // Then update the render.
+        // Multi-replace is safer.
 
-                {/* Search */}
-                <div className="relative w-full max-w-2xl mx-auto mb-10 shrink-0">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                        className="w-full bg-slate-900 border border-slate-800 rounded-full py-4 pl-12 pr-6 text-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all"
-                        placeholder="Buscar en tu biblioteca o nube..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
+        const toggleBackingMute = () => {
+            if (!backingTrackId) return;
+            setTracks(prev => prev.map(t =>
+                t.id === backingTrackId ? { ...t, mute: !t.mute } : t
+            ));
+        };
 
-                {/* Grid */}
-                <div className="flex-1 overflow-y-auto min-h-0 w-full max-w-7xl mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20 px-4">
-                        {filteredSongs.map(song => (
-                            <button
-                                key={song.id}
-                                onClick={() => !downloadingId && handleSongSelect(song)}
-                                disabled={downloadingId !== null}
-                                className={`group flex items-center gap-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-2xl p-4 transition-all hover:scale-[1.02] text-left relative overflow-hidden
+        const handleVolumeChange = (id: number, val: number) => {
+            setTracks(prev => prev.map(t => t.id === id ? { ...t, volume: val } : t));
+        };
+
+        // --- SONG SELECTOR VIEW ---
+        if (view === 'SELECT') {
+            return (
+                <div className="flex flex-col h-screen bg-black text-white p-6 animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
+                    <div className="flex items-center justify-between mb-8 shrink-0">
+                        <button onClick={onExit} className="p-3 rounded-full hover:bg-white/10 text-slate-400">
+                            <ArrowLeft size={24} />
+                        </button>
+                        <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">
+                            Elige una Canción
+                        </h1>
+                        <div className="w-12"></div> {/* Spacer */}
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative w-full max-w-2xl mx-auto mb-10 shrink-0">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                            className="w-full bg-slate-900 border border-slate-800 rounded-full py-4 pl-12 pr-6 text-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all"
+                            placeholder="Buscar en tu biblioteca o nube..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Grid */}
+                    <div className="flex-1 overflow-y-auto min-h-0 w-full max-w-7xl mx-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20 px-4">
+                            {filteredSongs.map(song => (
+                                <button
+                                    key={song.id}
+                                    onClick={() => !downloadingId && handleSongSelect(song)}
+                                    disabled={downloadingId !== null}
+                                    className={`group flex items-center gap-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-2xl p-4 transition-all hover:scale-[1.02] text-left relative overflow-hidden
                                 ${downloadingId === song.id ? 'opacity-75 cursor-wait' : ''}
                                 `}
-                            >
-                                <div className="w-20 h-20 rounded-xl bg-slate-950 shadow-lg flex-shrink-0 overflow-hidden relative">
-                                    {song.cover_url ? (
-                                        <img src={song.cover_url} className="w-full h-full object-cover" alt={song.title} />
-                                    ) : (
-                                        <Music className="w-full h-full p-6 text-slate-700" />
-                                    )}
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {song.isCloud ? <CloudDownload size={24} className="text-sky-400" /> : <Play size={24} className="text-white fill-current" />}
-                                    </div>
-                                    {downloadingId === song.id && (
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                            <Loader2 size={24} className="animate-spin text-white" />
+                                >
+                                    <div className="w-20 h-20 rounded-xl bg-slate-950 shadow-lg flex-shrink-0 overflow-hidden relative">
+                                        {song.cover_url ? (
+                                            <img src={song.cover_url} className="w-full h-full object-cover" alt={song.title} />
+                                        ) : (
+                                            <Music className="w-full h-full p-6 text-slate-700" />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {song.isCloud ? <CloudDownload size={24} className="text-sky-400" /> : <Play size={24} className="text-white fill-current" />}
                                         </div>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-lg text-white line-clamp-1 group-hover:text-sky-400 transition-colors">{song.title}</h3>
-                                    <p className="text-slate-400 text-sm">{song.artist || "Artista Desconocido"}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        {song.genre && <span className="text-xs text-slate-600 uppercase tracking-wider">{song.genre}</span>}
-                                        {song.isCloud && <span className="text-[10px] bg-sky-900/50 text-sky-400 px-1.5 py-0.5 rounded border border-sky-800">NUBE</span>}
+                                        {downloadingId === song.id && (
+                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                <Loader2 size={24} className="animate-spin text-white" />
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-lg text-white line-clamp-1 group-hover:text-sky-400 transition-colors">{song.title}</h3>
+                                        <p className="text-slate-400 text-sm">{song.artist || "Artista Desconocido"}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {song.genre && <span className="text-xs text-slate-600 uppercase tracking-wider">{song.genre}</span>}
+                                            {song.isCloud && <span className="text-[10px] bg-sky-900/50 text-sky-400 px-1.5 py-0.5 rounded border border-sky-800">NUBE</span>}
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        {filteredSongs.length === 0 && !loadingCloud && (
+                            <div className="flex flex-col items-center justify-center py-20 text-slate-600 gap-4">
+                                <Disc3 size={48} className="animate-spin-slow opacity-20" />
+                                <p className="text-lg">No se encontraron canciones.</p>
+                            </div>
+                        )}
+                        {loadingCloud && filteredSongs.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                                <Loader2 size={32} className="animate-spin mb-4" />
+                                <p>Buscando en la nube...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- PLAYER VIEW ---
+        // Filter out "Pista" and "Master" for the grid
+        const visibleTracks = tracks.filter(t =>
+            !t.isMaster &&
+            !t.name.toLowerCase().includes('pista')
+        );
+
+        const formatTime = (s: number) => {
+            const mins = Math.floor(s / 60);
+            const secs = Math.floor(s % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        };
+
+        // Calculate progress
+        const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+        return (
+            <div className="flex flex-col h-screen bg-black text-white overflow-hidden">
+
+                {/* TOP BAR */}
+                <div className="flex-none flex items-center justify-between p-6 bg-gradient-to-b from-black to-transparent z-10">
+                    <button onClick={() => setView('SELECT')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+                        <ArrowLeft size={20} />
+                        <span className="font-bold text-sm uppercase tracking-widest">Biblioteca</span>
+                    </button>
+                    <div className="text-center">
+                        {/* Song Title could go here nicely */}
+                    </div>
+                    <div className="w-20"></div>
+                </div>
+
+                {/* MAIN TRACKS AREA */}
+                <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 lg:px-20 py-4 scrollbar-hide">
+
+                    {/* Full Mix Button (Reset) */}
+                    <div className="flex justify-center gap-4 mb-8 pt-4">
+                        <button
+                            onClick={toggleFullMix}
+                            className={`px-6 py-3 rounded-full font-black text-xs md:text-sm tracking-widest uppercase border transition-all
+                        ${!tracks.some(t => t.solo)
+                                    ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-105'
+                                    : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
+                        `}
+                        >
+                            Mezcla Completa
+                        </button>
+
+                        {/* Backing Track Toggle */}
+                        {backingTrackId && (
+                            <button
+                                onClick={toggleBackingMute}
+                                className={`px-6 py-3 rounded-full font-black text-xs md:text-sm tracking-widest uppercase border transition-all flex items-center gap-2
+                            ${!isBackingMuted
+                                        ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105'
+                                        : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
+                            `}
+                            >
+                                {!isBackingMuted ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                                Pista
                             </button>
-                        ))}
+                        )}
                     </div>
 
-                    {filteredSongs.length === 0 && !loadingCloud && (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-600 gap-4">
-                            <Disc3 size={48} className="animate-spin-slow opacity-20" />
-                            <p className="text-lg">No se encontraron canciones.</p>
-                        </div>
-                    )}
-                    {loadingCloud && filteredSongs.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                            <Loader2 size={32} className="animate-spin mb-4" />
-                            <p>Buscando en la nube...</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    // --- PLAYER VIEW ---
-    // Filter out "Pista" and "Master" for the grid
-    const visibleTracks = tracks.filter(t =>
-        !t.isMaster &&
-        !t.name.toLowerCase().includes('pista')
-    );
-
-    const formatTime = (s: number) => {
-        const mins = Math.floor(s / 60);
-        const secs = Math.floor(s % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    // Calculate progress
-    const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-    return (
-        <div className="flex flex-col h-screen bg-black text-white overflow-hidden">
-
-            {/* TOP BAR */}
-            <div className="flex-none flex items-center justify-between p-6 bg-gradient-to-b from-black to-transparent z-10">
-                <button onClick={() => setView('SELECT')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
-                    <ArrowLeft size={20} />
-                    <span className="font-bold text-sm uppercase tracking-widest">Biblioteca</span>
-                </button>
-                <div className="text-center">
-                    {/* Song Title could go here nicely */}
-                </div>
-                <div className="w-20"></div>
-            </div>
-
-            {/* MAIN TRACKS AREA */}
-            <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 lg:px-20 py-4 scrollbar-hide">
-
-                {/* Full Mix Button (Reset) */}
-                <div className="flex justify-center gap-4 mb-8 pt-4">
-                    <button
-                        onClick={toggleFullMix}
-                        className={`px-6 py-3 rounded-full font-black text-xs md:text-sm tracking-widest uppercase border transition-all
-                        ${!tracks.some(t => t.solo)
-                                ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-105'
-                                : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
-                        `}
-                    >
-                        Mezcla Completa
-                    </button>
-
-                    {/* Backing Track Toggle */}
-                    {backingTrackId && (
-                        <button
-                            onClick={toggleBackingMute}
-                            className={`px-6 py-3 rounded-full font-black text-xs md:text-sm tracking-widest uppercase border transition-all flex items-center gap-2
-                            ${!isBackingMuted
-                                    ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105'
-                                    : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
-                            `}
-                        >
-                            {!isBackingMuted ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                            Pista
-                        </button>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 pb-8">
-                    {visibleTracks.map(track => {
-                        const isSolo = track.solo;
-                        return (
-                            <button
-                                key={track.id}
-                                onClick={() => handleTrackToggle(track.id)}
-                                className={`group relative aspect-square rounded-3xl flex flex-col items-center justify-center gap-4 transition-all duration-300
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 pb-8">
+                        {visibleTracks.map(track => {
+                            const isSolo = track.solo;
+                            return (
+                                <button
+                                    key={track.id}
+                                    onClick={() => handleTrackToggle(track.id)}
+                                    className={`group relative aspect-square rounded-3xl flex flex-col items-center justify-center gap-2 p-4 transition-all duration-300
                                 ${isSolo
-                                        ? 'bg-gradient-to-br from-sky-600 to-blue-700 shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent'
-                                        : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
+                                            ? 'bg-gradient-to-br from-sky-600 to-blue-700 shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent'
+                                            : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                 `}
-                            >
-                                <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500
+                                >
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500
                                     ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
                                 `}>
-                                    <Mic2 size={32} />
-                                </div>
-                                <h3 className={`text-xl font-bold transition-colors ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
-                                    {track.name}
-                                </h3>
-
-                                {isSolo && (
-                                    <div className="absolute top-4 right-4">
-                                        <div className="w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>
+                                        <Mic2 size={32} />
                                     </div>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+                                    <h3 className={`text-xl font-bold transition-colors mb-1 ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+                                        {track.name}
+                                    </h3>
 
-            {/* BOTTOM PLAYBACK CONTROLS */}
-            <div className="flex-none bg-[#050510] border-t border-white/5 p-6 pb-10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20">
-                {/* Progress Bar */}
-                <div
-                    className="w-full h-8 flex items-center relative cursor-pointer group mb-4"
-                    onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const x = e.clientX - rect.left;
-                        const pct = x / rect.width;
-                        onSeek(pct * duration);
-                    }}
-                >
-                    {/* Hitbox transparent */}
-                    <div className="absolute inset-0 z-10"></div>
+                                    {/* Volume Slider */}
+                                    <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-full flex items-center gap-2 mt-2 px-2"
+                                    >
+                                        <Volume2 size={16} className={`${isSolo ? "text-white/80" : "text-slate-600"}`} />
+                                        <input
+                                            type="range"
+                                            min="0" max="1" step="0.05"
+                                            value={track.volume ?? 1}
+                                            onChange={(e) => handleVolumeChange(track.id, parseFloat(e.target.value))}
+                                            className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer
+                                            ${isSolo ? 'bg-black/30 accent-white' : 'bg-slate-700 accent-sky-500'}
+                                        `}
+                                        />
+                                    </div>
 
-                    {/* Track Line */}
-                    <div className="w-full h-2 bg-slate-800 rounded-full relative overflow-hidden">
-                        <div className="absolute top-0 left-0 h-full bg-sky-500" style={{ width: `${progress}%` }}></div>
+                                    {isSolo && (
+                                        <div className="absolute top-4 right-4">
+                                            <div className="w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between max-w-4xl mx-auto px-4">
-                    <span className="text-slate-400 font-mono font-medium w-16 text-left">{formatTime(currentTime)}</span>
-
-                    <button
-                        onClick={onTogglePlay}
-                        className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                {/* BOTTOM PLAYBACK CONTROLS */}
+                <div className="flex-none bg-[#050510] border-t border-white/5 p-6 pb-10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20">
+                    {/* Progress Bar */}
+                    <div
+                        className="w-full h-8 flex items-center relative cursor-pointer group mb-4"
+                        onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const x = e.clientX - rect.left;
+                            const pct = x / rect.width;
+                            onSeek(pct * duration);
+                        }}
                     >
-                        {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-2" />}
-                    </button>
+                        {/* Hitbox transparent */}
+                        <div className="absolute inset-0 z-10"></div>
 
-                    <span className="text-slate-400 font-mono font-medium w-16 text-right">{formatTime(duration)}</span>
+                        {/* Track Line */}
+                        <div className="w-full h-2 bg-slate-800 rounded-full relative overflow-hidden">
+                            <div className="absolute top-0 left-0 h-full bg-sky-500" style={{ width: `${progress}%` }}></div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between max-w-4xl mx-auto px-4">
+                        <span className="text-slate-400 font-mono font-medium w-16 text-left">{formatTime(currentTime)}</span>
+
+                        <button
+                            onClick={onTogglePlay}
+                            className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                        >
+                            {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-2" />}
+                        </button>
+
+                        <span className="text-slate-400 font-mono font-medium w-16 text-right">{formatTime(duration)}</span>
+                    </div>
                 </div>
-            </div>
 
-        </div>
-    );
-};
+            </div>
+        );
+    };
