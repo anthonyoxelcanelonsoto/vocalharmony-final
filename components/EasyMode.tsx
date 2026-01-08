@@ -25,9 +25,8 @@ const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying
         if (!ref.current) return;
 
         if (!analyser || !isPlaying) {
-            ref.current.style.backgroundColor = 'rgb(51, 65, 85)'; // slate-700
+            ref.current.style.backgroundColor = 'transparent';
             ref.current.style.boxShadow = 'none';
-            ref.current.style.transform = 'scale(1)';
             return;
         }
 
@@ -41,7 +40,6 @@ const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying
             if (!isActive) return;
             analyser.getByteFrequencyData(data);
 
-            // Quick RMS-ish calculation (skip-sampling for perf)
             let sum = 0;
             let count = 0;
             for (let i = 0; i < bufferLength; i += 32) {
@@ -51,19 +49,17 @@ const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying
             const avg = count > 0 ? sum / count : 0;
 
             if (ref.current) {
-                // Threshold for "signal present"
                 if (avg > 5) {
-                    const intensity = Math.min(avg / 128, 1); // 0 to 1
-                    // Emerald-400 is roughly #34d399 (52, 211, 153)
-                    ref.current.style.backgroundColor = `rgb(52, 211, 153)`;
-                    ref.current.style.opacity = `${0.4 + (intensity * 0.6)}`;
-                    ref.current.style.boxShadow = `0 0 ${8 * intensity}px rgba(52, 211, 153, ${intensity})`;
-                    ref.current.style.transform = `scale(${1 + intensity * 0.15})`;
+                    // Logarithmic-like intensity map
+                    const normalized = Math.min(avg / 100, 1);
+                    const opacity = 0.2 + (normalized * 0.5); // 0.2 to 0.7 opacity
+
+                    // Use a nice glowing green
+                    ref.current.style.backgroundColor = `rgba(16, 185, 129, ${opacity})`; // emerald-500
+                    ref.current.style.boxShadow = `inset 0 0 ${20 * normalized}px rgba(16, 185, 129, ${opacity})`;
                 } else {
-                    ref.current.style.backgroundColor = 'rgb(51, 65, 85)';
-                    ref.current.style.opacity = '1';
+                    ref.current.style.backgroundColor = 'transparent';
                     ref.current.style.boxShadow = 'none';
-                    ref.current.style.transform = 'scale(1)';
                 }
             }
             frameId = requestAnimationFrame(draw);
@@ -75,7 +71,7 @@ const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying
         };
     }, [analyser, isPlaying]);
 
-    return <div ref={ref} className="absolute top-4 right-4 w-4 h-4 rounded-full border-2 border-slate-900 transition-colors duration-75"></div>;
+    return <div ref={ref} className="absolute inset-0 rounded-3xl pointer-events-none transition-colors duration-100 z-0"></div>;
 };
 
 export const EasyMode: React.FC<EasyModeProps> = ({
@@ -362,12 +358,12 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                         : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                 `}
                             >
-                                <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500
+                                <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500
                                     ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
                                 `}>
                                     <Mic2 size={32} />
                                 </div>
-                                <h3 className={`text-xl font-bold transition-colors ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+                                <h3 className={`relative z-10 text-xl font-bold transition-colors ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
                                     {track.name}
                                 </h3>
 
