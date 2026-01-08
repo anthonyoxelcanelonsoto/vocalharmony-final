@@ -96,6 +96,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
     const [defaultVolumes, setDefaultVolumes] = useState<Record<number, number>>({});
+    const [isBackingEnabled, setIsBackingEnabled] = useState(true);
 
     // Local Songs
     const localSongs = useLiveQuery(() => (db as any).myLibrary.toArray()) || [];
@@ -167,6 +168,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 await onLoadSong(newSong);
                 setDownloadingId(null);
                 setDefaultVolumes({});
+                setIsBackingEnabled(true);
                 setView('PLAYER');
             } catch (e) {
                 console.error("Download Error", e);
@@ -177,6 +179,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             // Local
             await onLoadSong(song);
             setDefaultVolumes({});
+            setIsBackingEnabled(true);
             setView('PLAYER');
         }
     };
@@ -187,7 +190,13 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
             // If clicking a track that is already active/soloed, reset to Full Mix (Deselect)
             if (clickedTrack?.solo && clickedTrackId !== backingTrackId) {
-                return prev.map(t => ({ ...t, solo: false, mute: false, vol: defaultVolumes[t.id] ?? 1.0 }));
+                return prev.map(t => {
+                    // Restore Backing Track to its "Enabled" preference
+                    if (t.id === backingTrackId) {
+                        return { ...t, solo: false, mute: !isBackingEnabled, vol: defaultVolumes[t.id] ?? 1.0 };
+                    }
+                    return { ...t, solo: false, mute: false, vol: defaultVolumes[t.id] ?? 1.0 };
+                });
             }
 
             // Otherwise, Activate Focus Mode
@@ -198,7 +207,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                         return { ...t, solo: true, mute: false, vol: 1.25 };
                     }
                     if (isBacking) {
-                        return { ...t, solo: true, mute: false, vol: 0.25 };
+                        // Only unmute backing if it is enabled
+                        return { ...t, solo: true, mute: !isBackingEnabled, vol: 0.25 };
                     }
                     return { ...t, solo: false };
                 }
@@ -338,18 +348,20 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     {backingTrackId && (
                         <button
                             onClick={() => {
+                                const newState = !isBackingEnabled;
+                                setIsBackingEnabled(newState);
                                 setTracks(prev => prev.map(t =>
-                                    t.id === backingTrackId ? { ...t, mute: !t.mute } : t
+                                    t.id === backingTrackId ? { ...t, mute: !newState } : t
                                 ));
                             }}
                             className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
-                            ${!tracks.find(t => t.id === backingTrackId)?.mute
+                            ${isBackingEnabled
                                     ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105'
                                     : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
                             `}
                         >
                             <Music size={18} />
-                            {tracks.find(t => t.id === backingTrackId)?.mute ? 'Música: OFF' : 'Música: ON'}
+                            {isBackingEnabled ? 'Música: ON' : 'Música: OFF'}
                         </button>
                     )}
                 </div>
