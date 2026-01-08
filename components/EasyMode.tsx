@@ -28,7 +28,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     onExit
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
-    const songs = useLiveQuery(() => db.myLibrary.toArray());
+    const songs = useLiveQuery(() => (db as any).myLibrary.toArray());
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
