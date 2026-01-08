@@ -233,10 +233,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
     return (
-        <div className="flex flex-col h-full bg-black text-white relative">
+        <div className="flex flex-col h-screen bg-black text-white overflow-hidden">
 
             {/* TOP BAR */}
-            <div className="flex items-center justify-between p-6 bg-gradient-to-b from-black to-transparent z-10">
+            <div className="flex-none flex items-center justify-between p-6 bg-gradient-to-b from-black to-transparent z-10">
                 <button onClick={() => setView('SELECT')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
                     <ArrowLeft size={20} />
                     <span className="font-bold text-sm uppercase tracking-widest">Biblioteca</span>
@@ -248,10 +248,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             </div>
 
             {/* MAIN TRACKS AREA */}
-            <div className="flex-1 flex flex-col justify-center px-6 lg:px-20 pb-10">
+            <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 lg:px-20 py-4 scrollbar-hide">
 
                 {/* Full Mix Button (Reset) */}
-                <div className="flex justify-center mb-8">
+                <div className="flex justify-center mb-8 pt-4">
                     <button
                         onClick={toggleFullMix}
                         className={`px-8 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all
@@ -264,7 +264,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     </button>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 pb-8">
                     {visibleTracks.map(track => {
                         const isSolo = track.solo;
                         return (
@@ -298,10 +298,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             </div>
 
             {/* BOTTOM PLAYBACK CONTROLS */}
-            <div className="bg-[#050510] border-t border-white/5 p-6 pb-10">
+            <div className="flex-none bg-[#050510] border-t border-white/5 p-6 pb-10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20">
                 {/* Progress Bar */}
                 <div
-                    className="w-full h-2 bg-slate-800 rounded-full mb-8 relative cursor-pointer group"
+                    className="w-full h-8 flex items-center relative cursor-pointer group mb-4"
                     onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         const x = e.clientX - rect.left;
@@ -309,12 +309,16 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                         onSeek(pct * duration);
                     }}
                 >
-                    <div className="absolute top-0 left-0 h-full bg-sky-500 rounded-full" style={{ width: `${progress}%` }}>
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform"></div>
+                    {/* Hitbox transparent */}
+                    <div className="absolute inset-0 z-10"></div>
+
+                    {/* Track Line */}
+                    <div className="w-full h-2 bg-slate-800 rounded-full relative overflow-hidden">
+                        <div className="absolute top-0 left-0 h-full bg-sky-500" style={{ width: `${progress}%` }}></div>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between max-w-4xl mx-auto">
+                <div className="flex items-center justify-between max-w-4xl mx-auto px-4">
                     <span className="text-slate-400 font-mono font-medium w-16 text-left">{formatTime(currentTime)}</span>
 
                     <button
