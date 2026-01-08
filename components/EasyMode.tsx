@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../src/db';
 import { supabase } from '../src/supabaseClient';
 import { Track } from '../types';
-import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 interface EasyModeProps {
     tracks: Track[];
@@ -218,6 +218,18 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         });
     };
 
+    const handleDeleteSong = async (song: any) => {
+        if (!confirm(`¿Estás seguro de que deseas eliminar "${song.title}" de tu biblioteca local? Esto te permitirá descargarla de nuevo desde la nube.`)) {
+            return;
+        }
+        try {
+            await (db as any).myLibrary.delete(song.id);
+        } catch (error) {
+            console.error("Error deleting song:", error);
+            alert("Hubo un error al eliminar la canción.");
+        }
+    };
+
     // Capture Default Mix (Original Volumes) whenever we enter PlayerView or load new tracks
     useEffect(() => {
         if (view === 'PLAYER' && Object.keys(defaultVolumes).length === 0 && tracks.length > 0) {
@@ -287,6 +299,20 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                         {song.isCloud && <span className="text-[10px] bg-sky-900/50 text-sky-400 px-1.5 py-0.5 rounded border border-sky-800">NUBE</span>}
                                     </div>
                                 </div>
+
+                                {/* DELETE BUTTON */}
+                                {!song.isCloud && (
+                                    <div
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteSong(song);
+                                        }}
+                                        className="p-2 rounded-full hover:bg-slate-700 text-slate-500 hover:text-red-400 transition-colors relative z-20"
+                                        title="Eliminar de biblioteca local"
+                                    >
+                                        <Trash2 size={18} />
+                                    </div>
+                                )}
                             </button>
                         ))}
                     </div>
