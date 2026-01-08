@@ -176,10 +176,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 const isBacking = t.name.toLowerCase().includes('pista');
                 if (clickedTrackId !== backingTrackId) {
                     if (t.id === clickedTrackId) {
-                        return { ...t, solo: true, mute: false };
+                        return { ...t, solo: true, mute: false, vol: 1.0 };
                     }
                     if (isBacking) {
-                        return { ...t, solo: true, mute: false };
+                        return { ...t, solo: true, mute: false, vol: 0.45 };
                     }
                     return { ...t, solo: false };
                 }
@@ -190,7 +190,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     };
 
     const toggleFullMix = () => {
-        setTracks(prev => prev.map(t => ({ ...t, solo: false, mute: false })));
+        setTracks(prev => prev.map(t => ({ ...t, solo: false, mute: false, vol: 1.0 })));
     };
 
     // --- SONG SELECTOR VIEW ---
