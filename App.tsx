@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Archive, Loader2, Info, Plus, Menu, Music, Activity, AudioLines, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Settings2, Archive, Loader2, Info, Plus, Menu, Music, Activity, AudioLines, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -2146,6 +2146,83 @@ export default function App() {
         setIsLoading(false);
     };
 
+    const [interfaceMode, setInterfaceMode] = useState<'EASY' | 'PRO' | null>(null);
+
+    // --- INTERFACE SELECTION SCREEN ---
+    if (interfaceMode === null) {
+        return (
+            <div className="fixed inset-0 z-50 bg-[#02040a] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
+                <div className="w-full max-w-4xl flex flex-col items-center gap-12">
+
+                    <div className="text-center space-y-4">
+                        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-2xl shadow-orange-900/40 mb-4 animate-bounce-slow">
+                            <Mic size={40} className="text-white" />
+                        </div>
+                        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 tracking-tight">
+                            VocalHarmony <span className="text-orange-500">Pro</span>
+                        </h1>
+                        <p className="text-slate-400 text-lg md:text-xl font-medium max-w-lg mx-auto leading-relaxed">
+                            La herramienta definitiva para vocalistas y productores.
+                            <br />Elige cómo quieres trabajar hoy.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                        {/* EASY MODE */}
+                        <button
+                            onClick={() => { vibrate(20); setInterfaceMode('EASY'); }}
+                            className="group relative h-64 md:h-80 rounded-3xl p-8 flex flex-col items-center justify-center gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(56,189,248,0.2)] hover:border-sky-500/50 overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="w-24 h-24 rounded-full bg-slate-800 group-hover:bg-sky-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-sky-500/50">
+                                <Sparkles size={40} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
+                            </div>
+                            <div className="text-center z-10">
+                                <h3 className="text-3xl font-black text-white mb-2 group-hover:text-sky-400 max-w-[80%] mx-auto leading-none">MODO FÁCIL</h3>
+                                <p className="text-slate-500 group-hover:text-slate-300 text-sm font-medium">Para cantantes y aficionados</p>
+                            </div>
+                        </button>
+
+                        {/* PRO MODE */}
+                        <button
+                            onClick={() => { vibrate(20); setInterfaceMode('PRO'); }}
+                            className="group relative h-64 md:h-80 rounded-3xl p-8 flex flex-col items-center justify-center gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(249,115,22,0.2)] hover:border-orange-500/50 overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-red-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="w-24 h-24 rounded-full bg-slate-800 group-hover:bg-orange-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-orange-500/50">
+                                <Settings2 size={40} className="text-slate-400 group-hover:text-orange-400 transition-colors" />
+                            </div>
+                            <div className="text-center z-10">
+                                <h3 className="text-3xl font-black text-white mb-2 group-hover:text-orange-400 max-w-[80%] mx-auto leading-none">MODO PRO</h3>
+                                <p className="text-slate-500 group-hover:text-slate-300 text-sm font-medium">Control total para productores</p>
+                            </div>
+                        </button>
+                    </div>
+
+                    <p className="text-slate-600 text-xs font-mono">v2.5.0 - Build 2026</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (interfaceMode === 'EASY') {
+        return (
+            <div className="flex items-center justify-center h-screen bg-black text-white">
+                <div className="text-center space-y-4 animate-pulse">
+                    <Sparkles size={48} className="mx-auto text-sky-500" />
+                    <h2 className="text-2xl font-bold">Modo Fácil en Construcción...</h2>
+                    <button
+                        onClick={() => setInterfaceMode(null)}
+                        className="text-sm text-slate-500 hover:text-white underline mt-4 block"
+                    >
+                        Volver
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- PRO MODE (EXISTING RENDER) ---
     return (
         <div className={`flex flex-col h-safe-screen text-white font-sans overflow-hidden transition-colors duration-500
         ${appMode === 'ULTRA' ? 'bg-black' : 'bg-[#02040a]'}
