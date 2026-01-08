@@ -242,22 +242,22 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     // --- SONG SELECTOR VIEW ---
     if (view === 'SELECT') {
         return (
-            <div className="flex flex-col h-screen bg-black text-white p-6 animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
-                <div className="flex items-center justify-between mb-8 shrink-0">
+            <div className="flex flex-col h-screen bg-black text-white p-4 md:p-6 animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
+                <div className="flex items-center justify-between mb-4 md:mb-8 shrink-0">
                     <button onClick={onExit} className="p-3 rounded-full hover:bg-white/10 text-slate-400">
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">
+                    <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">
                         Elige una Canción
                     </h1>
                     <div className="w-12"></div> {/* Spacer */}
                 </div>
 
                 {/* Search */}
-                <div className="relative w-full max-w-2xl mx-auto mb-10 shrink-0">
+                <div className="relative w-full max-w-2xl mx-auto mb-6 md:mb-8 shrink-0">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
-                        className="w-full bg-slate-900 border border-slate-800 rounded-full py-4 pl-12 pr-6 text-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-full py-3 md:py-4 pl-12 pr-6 text-base md:text-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all"
                         placeholder="Buscar en tu biblioteca o nube..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -272,11 +272,11 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                 key={song.id}
                                 onClick={() => !downloadingId && handleSongSelect(song)}
                                 disabled={downloadingId !== null}
-                                className={`group flex items-center gap-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-2xl p-4 transition-all hover:scale-[1.02] text-left relative overflow-hidden
+                                className={`group flex items-center gap-3 md:gap-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-2xl p-3 md:p-4 transition-all hover:scale-[1.02] text-left relative overflow-hidden
                                 ${downloadingId === song.id ? 'opacity-75 cursor-wait' : ''}
                                 `}
                             >
-                                <div className="w-20 h-20 rounded-xl bg-slate-950 shadow-lg flex-shrink-0 overflow-hidden relative">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl bg-slate-950 shadow-lg flex-shrink-0 overflow-hidden relative">
                                     {song.cover_url ? (
                                         <img src={song.cover_url} className="w-full h-full object-cover" alt={song.title} />
                                     ) : (
@@ -292,7 +292,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-lg text-white line-clamp-1 group-hover:text-sky-400 transition-colors">{song.title}</h3>
+                                    <h3 className="font-bold text-base md:text-lg text-white line-clamp-1 group-hover:text-sky-400 transition-colors">{song.title}</h3>
                                     <p className="text-slate-400 text-sm">{song.artist || "Artista Desconocido"}</p>
                                     <div className="flex items-center gap-2 mt-1">
                                         {song.genre && <span className="text-xs text-slate-600 uppercase tracking-wider">{song.genre}</span>}
