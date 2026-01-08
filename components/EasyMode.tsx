@@ -372,11 +372,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                 </h3>
 
                                 {/* Signal LED */}
-                                <div className={`absolute top-4 right-4 w-4 h-4 rounded-full border-2 border-slate-900 transition-all duration-300
-                                    ${isSignalActive
-                                        ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.8)] scale-110'
-                                        : 'bg-slate-700 shadow-none scale-100'}
-                                `}></div>
+                                <SignalLED
+                                    analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
+                                    isPlaying={isPlaying}
+                                />
                             </button>
                         );
                     })}
