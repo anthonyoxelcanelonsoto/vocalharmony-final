@@ -213,12 +213,14 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 const isBacking = t.name.toLowerCase().includes('pista');
                 if (clickedTrackId !== backingTrackId) {
                     if (t.id === clickedTrackId) {
-                        return { ...t, solo: true, mute: false, vol: 1.25 };
+                        // Activate Selected Track (Original Volume)
+                        return { ...t, solo: true, mute: false, vol: defaultVolumes[t.id] ?? t.vol };
                     }
                     if (isBacking) {
-                        // Only unmute backing if it is enabled
-                        return { ...t, solo: true, mute: !isBackingEnabled, vol: 0.25 };
+                        // Activate Backing Track (Original Volume, Check Mute)
+                        return { ...t, solo: true, mute: !isBackingEnabled, vol: defaultVolumes[t.id] ?? t.vol };
                     }
+                    // Mute/Deactivate Others
                     return { ...t, solo: false };
                 }
                 return t;
