@@ -31,17 +31,22 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     const songs = useLiveQuery(() => db.myLibrary.toArray());
     const [searchQuery, setSearchQuery] = useState("");
 
+    useEffect(() => {
+        console.log("Songs loaded:", songs);
+    }, [songs]);
+
     // Identify the "Pista" (Backing Track)
     const backingTrackId = tracks.find(t => t.name.toLowerCase().includes('pista'))?.id;
 
     // Filter Logic for Library
-    const filteredSongs = songs ? songs.filter(song => {
+    const filteredSongs = (songs || []).filter(song => {
         const query = searchQuery.toLowerCase();
         return (
             (song.title && song.title.toLowerCase().includes(query)) ||
-            (song.artist && song.artist.toLowerCase().includes(query))
+            (song.artist && song.artist.toLowerCase().includes(query)) ||
+            (song.genre && song.genre.toLowerCase().includes(query))
         );
-    }) : [];
+    });
 
     const handleSongSelect = async (song: any) => {
         await onLoadSong(song);
@@ -82,8 +87,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     // --- SONG SELECTOR VIEW ---
     if (view === 'SELECT') {
         return (
-            <div className="flex flex-col h-full bg-black text-white p-6 animate-in fade-in zoom-in-95 duration-500">
-                <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col h-screen bg-black text-white p-6 animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
+                <div className="flex items-center justify-between mb-8 shrink-0">
                     <button onClick={onExit} className="p-3 rounded-full hover:bg-white/10 text-slate-400">
                         <ArrowLeft size={24} />
                     </button>
@@ -94,7 +99,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 </div>
 
                 {/* Search */}
-                <div className="relative w-full max-w-2xl mx-auto mb-10">
+                <div className="relative w-full max-w-2xl mx-auto mb-10 shrink-0">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
                         className="w-full bg-slate-900 border border-slate-800 rounded-full py-4 pl-12 pr-6 text-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all"
@@ -105,32 +110,38 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 </div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-20 px-4">
-                    {filteredSongs.map(song => (
-                        <button
-                            key={song.id}
-                            onClick={() => handleSongSelect(song)}
-                            className="group flex items-center gap-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-2xl p-4 transition-all hover:scale-[1.02] text-left"
-                        >
-                            <div className="w-20 h-20 rounded-xl bg-slate-950 shadow-lg flex-shrink-0 overflow-hidden relative">
-                                {song.cover_url ? (
-                                    <img src={song.cover_url} className="w-full h-full object-cover" />
-                                ) : (
-                                    <Music className="w-full h-full p-6 text-slate-700" />
-                                )}
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Play size={24} className="text-white fill-current" />
+                <div className="flex-1 overflow-y-auto min-h-0 w-full max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20 px-4">
+                        {filteredSongs.map(song => (
+                            <button
+                                key={song.id}
+                                onClick={() => handleSongSelect(song)}
+                                className="group flex items-center gap-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 rounded-2xl p-4 transition-all hover:scale-[1.02] text-left"
+                            >
+                                <div className="w-20 h-20 rounded-xl bg-slate-950 shadow-lg flex-shrink-0 overflow-hidden relative">
+                                    {song.cover_url ? (
+                                        <img src={song.cover_url} className="w-full h-full object-cover" alt={song.title} />
+                                    ) : (
+                                        <Music className="w-full h-full p-6 text-slate-700" />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Play size={24} className="text-white fill-current" />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg text-white line-clamp-1 group-hover:text-sky-400 transition-colors">{song.title}</h3>
-                                <p className="text-slate-400 text-sm">{song.artist || "Artista Desconocido"}</p>
-                            </div>
-                        </button>
-                    ))}
-                    {filteredSongs.length === 0 && (
-                        <div className="col-span-full text-center py-20 text-slate-600">
-                            <p>No se encontraron canciones.</p>
+                                <div>
+                                    <h3 className="font-bold text-lg text-white line-clamp-1 group-hover:text-sky-400 transition-colors">{song.title}</h3>
+                                    <p className="text-slate-400 text-sm">{song.artist || "Artista Desconocido"}</p>
+                                    {song.genre && <span className="text-xs text-slate-600 uppercase tracking-wider">{song.genre}</span>}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+
+                    {(!songs || filteredSongs.length === 0) && (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-600 gap-4">
+                            <Disc3 size={48} className="animate-spin-slow opacity-20" />
+                            <p className="text-lg">No se encontraron canciones en tu biblioteca.</p>
+                            <p className="text-sm">Agrega canciones en el Modo Pro primero.</p>
                         </div>
                     )}
                 </div>
