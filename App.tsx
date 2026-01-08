@@ -2156,9 +2156,11 @@ export default function App() {
                 <div className="w-full max-w-4xl flex flex-col items-center gap-8 md:gap-12">
 
                     <div className="text-center space-y-4">
-                        <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-2xl shadow-orange-900/40 mb-2 md:mb-4 animate-bounce-slow">
-                            <Mic className="w-8 h-8 md:w-10 md:h-10 text-white" />
-                        </div>
+                        <img
+                            src="/icon-512.png"
+                            className="w-20 h-20 md:w-24 md:h-24 mb-4 animate-bounce-slow rounded-[2rem] shadow-2xl shadow-black/50"
+                            alt="Logo"
+                        />
                         <h1 className="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 tracking-tight">
                             VocalHarmony <span className="text-orange-500">Pro</span>
                         </h1>
