@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../src/db';
 import { supabase } from '../src/supabaseClient';
 import { Track } from '../types';
-import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2 } from 'lucide-react';
+import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2, Eye, EyeOff } from 'lucide-react';
 
 interface EasyModeProps {
     tracks: Track[];
@@ -97,6 +97,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
     const [defaultVolumes, setDefaultVolumes] = useState<Record<number, number>>({});
     const [isBackingEnabled, setIsBackingEnabled] = useState(true);
+    const [showAllTracks, setShowAllTracks] = useState(false);
 
     // Local Songs
     const localSongs = useLiveQuery(() => (db as any).myLibrary.toArray()) || [];
@@ -308,11 +309,17 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     }
 
     // --- PLAYER VIEW ---
-    // Filter out "Pista" and "Master" for the grid
-    const visibleTracks = tracks.filter(t =>
-        !t.isMaster &&
-        !t.name.toLowerCase().includes('pista')
-    );
+    // Filter out "Pista" and "Master". 
+    // If showAllTracks is false, ONLY show "Primera", "Segunda", "Tercera".
+    const visibleTracks = tracks.filter(t => {
+        if (t.isMaster) return false;
+        const lower = t.name.toLowerCase();
+        if (lower.includes('pista')) return false;
+
+        if (showAllTracks) return true;
+
+        return lower.includes('primera') || lower.includes('segunda') || lower.includes('tercera');
+    });
 
     const formatTime = (s: number) => {
         const mins = Math.floor(s / 60);
@@ -364,6 +371,18 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                             {isBackingEnabled ? 'Música: ON' : 'Música: OFF'}
                         </button>
                     )}
+
+                    <button
+                        onClick={() => setShowAllTracks(!showAllTracks)}
+                        className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
+                        ${showAllTracks
+                                ? 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-105'
+                                : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
+                        `}
+                    >
+                        {showAllTracks ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showAllTracks ? 'Ocultar' : 'Mostrar Todas'}
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 pb-8">
