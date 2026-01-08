@@ -2158,7 +2158,7 @@ export default function App() {
                     <div className="text-center space-y-4">
                         <img
                             src="/icon-512.png"
-                            className="w-20 h-20 md:w-24 md:h-24 mb-4 animate-bounce-slow rounded-[2rem] shadow-2xl shadow-black/50"
+                            className="w-40 h-40 md:w-56 md:h-56 mx-auto mb-6 animate-bounce-slow rounded-[2.5rem] shadow-2xl shadow-orange-500/20"
                             alt="Logo"
                         />
                         <h1 className="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 tracking-tight">
