@@ -402,9 +402,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     t.id === backingTrackId ? { ...t, mute: !newState } : t
                                 ));
                             }}
-                            className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
+                            className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border flex items-center gap-2
+                            ${isLite ? '' : 'transition-all duration-300'}
                             ${isBackingEnabled
-                                    ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105'
+                                    ? (isLite ? 'bg-emerald-600 border-transparent text-white' : 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105')
                                     : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
                             `}
                         >
@@ -415,9 +416,10 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
                     <button
                         onClick={() => setShowAllTracks(!showAllTracks)}
-                        className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
+                        className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border flex items-center gap-2
+                        ${isLite ? '' : 'transition-all duration-300'}
                         ${showAllTracks
-                                ? 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-105'
+                                ? (isLite ? 'bg-indigo-600 border-transparent text-white' : 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-105')
                                 : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
                         `}
                     >
@@ -437,14 +439,16 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                             <button
                                 key={track.id}
                                 onClick={() => handleTrackToggle(track.id)}
-                                className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0 transition-all duration-300
+                                className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0
+                                ${isLite ? '' : 'transition-all duration-300'}
                                 ${isSolo
-                                        ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent'
+                                        ? (isLite ? 'bg-sky-900/50 border border-sky-500/50' : 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent')
                                         : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                 `}
                             >
-                                <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500 shrink-0
-                                    ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
+                                <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shrink-0
+                                    ${isLite ? '' : 'transition-all duration-500'}
+                                    ${isSolo ? 'bg-white text-sky-600' + (isLite ? '' : ' scale-110') : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
                                 `}>
                                     <Mic2 size={28} className="md:w-8 md:h-8" />
                                 </div>
