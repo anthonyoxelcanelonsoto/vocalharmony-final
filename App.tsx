@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Settings2, Archive, Loader2, Info, Plus, Menu, Music, Activity, AudioLines, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown, Battery } from 'lucide-react';
+import { Mic, Play, Pause, SkipBack, SkipForward, Volume2, Settings, Settings2, Archive, Loader2, Info, Plus, Menu, Music, Activity, AudioLines, ChevronDown, ChevronUp, Zap, Sliders, Power, Disc, Square, X, SlidersHorizontal, Mic2, Download, FileAudio, Wand2, RotateCcw, AlertTriangle, Check, ArrowRight, Minus, Music2, ShoppingBag, BookOpen, LayoutGrid, Cloud, Folder, Upload, Headphones, Trash2, Share2, Smartphone, Edit2, MoveHorizontal, Clock, Lock, Unlock, Sparkles, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './src/supabaseClient';
 import Store from './src/Store';
 import Library from './src/Library';
@@ -2148,7 +2148,6 @@ export default function App() {
     };
 
     const [interfaceMode, setInterfaceMode] = useState<'EASY' | 'PRO' | null>(null);
-    const [performanceMode, setPerformanceMode] = useState<'LITE' | 'NORMAL' | null>(null);
 
     // --- INTERFACE SELECTION SCREEN ---
     if (interfaceMode === null) {
@@ -2207,62 +2206,6 @@ export default function App() {
         );
     }
 
-    // --- PERFORMANCE MODE SELECTION SCREEN ---
-    if (interfaceMode !== null && performanceMode === null) {
-        return (
-            <div className="fixed inset-0 z-50 bg-[#02040a] flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
-                <div className="w-full max-w-4xl flex flex-col items-center gap-8 md:gap-12">
-
-                    <div className="text-center space-y-4">
-                        <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-2xl shadow-orange-900/40 mb-2 md:mb-4 animate-bounce-slow">
-                            <Zap className="w-8 h-8 md:w-10 md:h-10 text-white" />
-                        </div>
-                        <h1 className="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 tracking-tight">
-                            Rendimiento
-                        </h1>
-                        <p className="text-slate-400 text-sm md:text-xl font-medium max-w-lg mx-auto leading-relaxed">
-                            Elige el modo de rendimiento para optimizar tu experiencia.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full">
-                        {/* LITE MODE */}
-                        <button
-                            onClick={() => { vibrate(20); setPerformanceMode('LITE'); }}
-                            className="group relative h-40 md:h-80 rounded-3xl p-6 md:p-8 flex flex-row md:flex-col items-center justify-center gap-6 md:gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(56,189,248,0.2)] hover:border-sky-500/50 overflow-hidden text-left md:text-center"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-800 group-hover:bg-sky-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-sky-500/50 shrink-0">
-                                <Battery size={32} className="text-slate-400 group-hover:text-sky-400 transition-colors" />
-                            </div>
-                            <div className="z-10 flex-1">
-                                <h3 className="text-2xl md:text-3xl font-black text-white mb-1 md:mb-2 group-hover:text-sky-400 leading-none">LITE</h3>
-                                <p className="text-slate-500 group-hover:text-slate-300 text-xs md:text-sm font-medium">Menor consumo de batería, menos funciones visuales.</p>
-                            </div>
-                        </button>
-
-                        {/* NORMAL MODE */}
-                        <button
-                            onClick={() => { vibrate(20); setPerformanceMode('NORMAL'); }}
-                            className="group relative h-40 md:h-80 rounded-3xl p-6 md:p-8 flex flex-row md:flex-col items-center justify-center gap-6 md:gap-6 border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(249,115,22,0.2)] hover:border-orange-500/50 overflow-hidden text-left md:text-center"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-red-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-slate-800 group-hover:bg-orange-500/20 flex items-center justify-center transition-colors border border-slate-700 group-hover:border-orange-500/50 shrink-0">
-                                <Zap size={32} className="text-slate-400 group-hover:text-orange-400 transition-colors" />
-                            </div>
-                            <div className="z-10 flex-1">
-                                <h3 className="text-2xl md:text-3xl font-black text-white mb-1 md:mb-2 group-hover:text-orange-400 leading-none">NORMAL</h3>
-                                <p className="text-slate-500 group-hover:text-slate-300 text-xs md:text-sm font-medium">Máxima calidad visual y de audio.</p>
-                            </div>
-                        </button>
-                    </div>
-
-                    <p className="text-slate-600 text-xs font-mono">v2.5.0 - Build 2026</p>
-                </div>
-            </div>
-        );
-    }
-
     if (interfaceMode === 'EASY') {
         return (
             <EasyMode
@@ -2274,9 +2217,8 @@ export default function App() {
                 duration={maxDuration}
                 onSeek={(t) => { handleSeek(t); setCurrentTime(t); }}
                 onLoadSong={handleLoadFromLibrary}
-                onExit={() => { setInterfaceMode(null); setPerformanceMode(null); }}
+                onExit={() => setInterfaceMode(null)}
                 trackAnalysers={trackAnalysersRef.current}
-                isLite={performanceMode === 'LITE'}
             />
         );
     }
@@ -2298,7 +2240,6 @@ export default function App() {
                         onClick={() => {
                             if (confirm("¿Volver a la selección de modo?")) {
                                 setInterfaceMode(null);
-                                setPerformanceMode(null);
                             }
                         }}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center text-black shadow-lg shadow-orange-900/50 hover:scale-105 active:scale-95 transition-all

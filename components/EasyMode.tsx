@@ -16,26 +16,13 @@ interface EasyModeProps {
     onLoadSong: (song: any) => Promise<void>;
     onExit: () => void;
     trackAnalysers?: Record<number, AnalyserNode>;
-    isLite?: boolean;
 }
 
-const SignalLED = ({ analyser, isPlaying, isSolo, isLite }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean, isLite?: boolean }) => {
+const SignalLED = ({ analyser, isPlaying, isSolo }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean }) => {
     const ref = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!ref.current) return;
-
-        // LITE MODE: No animation, static colors
-        if (isLite) {
-            if (isSolo) {
-                ref.current.style.backgroundColor = 'rgba(2, 132, 199, 0.8)';
-                ref.current.style.boxShadow = 'none';
-            } else {
-                ref.current.style.backgroundColor = 'rgba(16, 185, 129, 0.4)';
-                ref.current.style.boxShadow = 'none';
-            }
-            return;
-        }
 
         if (!analyser || !isPlaying) {
             ref.current.style.backgroundColor = 'transparent';
@@ -48,36 +35,44 @@ const SignalLED = ({ analyser, isPlaying, isSolo, isLite }: { analyser?: Analyse
 
         let frameId: number;
         let isActive = true;
+        let frameCount = 0;
 
         const draw = () => {
             if (!isActive) return;
+
+            // Throttle: Update only every 3rd frame (~20fps) to save battery/CPU on mobile
+            frameCount++;
+            if (frameCount % 3 !== 0) {
+                frameId = requestAnimationFrame(draw);
+                return;
+            }
+
             analyser.getByteFrequencyData(data);
 
             let sum = 0;
-            let count = 0;
+            // Sample every 32nd bin (already optimized)
             for (let i = 0; i < bufferLength; i += 32) {
                 sum += data[i];
-                count++;
             }
+            // Count approximate bins sampled
+            const count = Math.ceil(bufferLength / 32);
             const avg = count > 0 ? sum / count : 0;
 
             if (ref.current) {
                 if (avg > 5) {
-                    // Logarithmic-like intensity map
                     const normalized = Math.min(avg / 100, 1);
 
                     if (isSolo) {
-                        // Selected Track: Bright Blue pulsing
-                        const opacity = 0.4 + (normalized * 0.6); // 0.4 to 1.0
-                        ref.current.style.backgroundColor = `rgba(2, 132, 199, ${opacity})`; // sky-600/blue-700
+                        // Selected: Blue
+                        const opacity = 0.4 + (normalized * 0.6);
+                        ref.current.style.backgroundColor = `rgba(2, 132, 199, ${opacity})`;
                         ref.current.style.boxShadow = `inset 0 0 ${40 * normalized}px rgba(56, 189, 248, ${opacity})`;
                     } else {
-                        // Background Track: Green pulsing (Standard)
-                        const opacity = 0.2 + (normalized * 0.5); // 0.2 to 0.7
-                        ref.current.style.backgroundColor = `rgba(16, 185, 129, ${opacity})`; // emerald-500
+                        // Background: Green
+                        const opacity = 0.2 + (normalized * 0.5);
+                        ref.current.style.backgroundColor = `rgba(16, 185, 129, ${opacity})`;
                         ref.current.style.boxShadow = `inset 0 0 ${20 * normalized}px rgba(16, 185, 129, ${opacity})`;
                     }
-
                 } else {
                     ref.current.style.backgroundColor = 'transparent';
                     ref.current.style.boxShadow = 'none';
@@ -90,7 +85,7 @@ const SignalLED = ({ analyser, isPlaying, isSolo, isLite }: { analyser?: Analyse
             isActive = false;
             cancelAnimationFrame(frameId);
         };
-    }, [analyser, isPlaying, isSolo, isLite]);
+    }, [analyser, isPlaying, isSolo]);
 
     return <div ref={ref} className="absolute inset-0 rounded-3xl pointer-events-none transition-colors duration-100 z-0"></div>;
 };
@@ -105,8 +100,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     onSeek,
     onLoadSong,
     onExit,
-    trackAnalysers,
-    isLite = false
+    trackAnalysers
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
     const [defaultVolumes, setDefaultVolumes] = useState<Record<number, number>>({});
@@ -402,10 +396,9 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     t.id === backingTrackId ? { ...t, mute: !newState } : t
                                 ));
                             }}
-                            className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border flex items-center gap-2
-                            ${isLite ? '' : 'transition-all duration-300'}
+                            className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
                             ${isBackingEnabled
-                                    ? (isLite ? 'bg-emerald-600 border-transparent text-white' : 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105')
+                                    ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105'
                                     : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
                             `}
                         >
@@ -416,10 +409,9 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
                     <button
                         onClick={() => setShowAllTracks(!showAllTracks)}
-                        className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border flex items-center gap-2
-                        ${isLite ? '' : 'transition-all duration-300'}
+                        className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
                         ${showAllTracks
-                                ? (isLite ? 'bg-indigo-600 border-transparent text-white' : 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-105')
+                                ? 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-105'
                                 : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
                         `}
                     >
@@ -439,16 +431,14 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                             <button
                                 key={track.id}
                                 onClick={() => handleTrackToggle(track.id)}
-                                className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0
-                                ${isLite ? '' : 'transition-all duration-300'}
+                                className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0 transition-all duration-300
                                 ${isSolo
-                                        ? (isLite ? 'bg-sky-900/50 border border-sky-500/50' : 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent')
+                                        ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent'
                                         : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                 `}
                             >
-                                <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shrink-0
-                                    ${isLite ? '' : 'transition-all duration-500'}
-                                    ${isSolo ? 'bg-white text-sky-600' + (isLite ? '' : ' scale-110') : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
+                                <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500 shrink-0
+                                    ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
                                 `}>
                                     <Mic2 size={28} className="md:w-8 md:h-8" />
                                 </div>
@@ -461,7 +451,6 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
                                     isPlaying={isPlaying}
                                     isSolo={!!isSolo}
-                                    isLite={isLite}
                                 />
                             </button>
                         );
