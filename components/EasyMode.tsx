@@ -199,14 +199,24 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         });
     };
 
-    // Capture Default Mix (Original Volumes) whenever we enter PlayerView or load new tracks
+    // Capture Default Mix (Original Volumes) & Force Center Pan
     useEffect(() => {
-        if (view === 'PLAYER' && Object.keys(defaultVolumes).length === 0 && tracks.length > 0) {
-            const defaults: Record<number, number> = {};
-            tracks.forEach(t => defaults[t.id] = t.vol);
-            setDefaultVolumes(defaults);
+        if (view === 'PLAYER' && tracks.length > 0) {
+
+            // 1. Capture Defaults if needed
+            if (Object.keys(defaultVolumes).length === 0) {
+                const defaults: Record<number, number> = {};
+                tracks.forEach(t => defaults[t.id] = t.vol);
+                setDefaultVolumes(defaults);
+            }
+
+            // 2. Force Pan to Center (0.5) if not already
+            const needsPanFix = tracks.some(t => Math.abs(t.pan - 0.5) > 0.001);
+            if (needsPanFix) {
+                setTracks(prev => prev.map(t => ({ ...t, pan: 0.5 })));
+            }
         }
-    }, [view, tracks, defaultVolumes]);
+    }, [view, tracks, defaultVolumes, setTracks]);
 
     // --- SONG SELECTOR VIEW ---
     if (view === 'SELECT') {
