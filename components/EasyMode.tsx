@@ -172,7 +172,15 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
     const handleTrackToggle = (clickedTrackId: number) => {
         setTracks(prev => {
-            const newTracks = prev.map(t => {
+            const clickedTrack = prev.find(t => t.id === clickedTrackId);
+
+            // If clicking a track that is already active/soloed, reset to Full Mix (Deselect)
+            if (clickedTrack?.solo && clickedTrackId !== backingTrackId) {
+                return prev.map(t => ({ ...t, solo: false, mute: false, vol: 1.0 }));
+            }
+
+            // Otherwise, Activate Focus Mode
+            return prev.map(t => {
                 const isBacking = t.name.toLowerCase().includes('pista');
                 if (clickedTrackId !== backingTrackId) {
                     if (t.id === clickedTrackId) {
@@ -185,12 +193,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 }
                 return t;
             });
-            return newTracks;
         });
-    };
-
-    const toggleFullMix = () => {
-        setTracks(prev => prev.map(t => ({ ...t, solo: false, mute: false, vol: 1.0 })));
     };
 
     // --- SONG SELECTOR VIEW ---
@@ -311,16 +314,6 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 {/* Full Mix Button (Reset) */}
                 {/* Control Buttons */}
                 <div className="flex flex-wrap justify-center gap-4 mb-8 pt-4">
-                    <button
-                        onClick={toggleFullMix}
-                        className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all
-                        ${!tracks.some(t => t.solo)
-                                ? 'bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(14,165,233,0.4)] scale-105'
-                                : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
-                        `}
-                    >
-                        Mezcla Completa
-                    </button>
 
                     {backingTrackId && (
                         <button
