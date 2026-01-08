@@ -266,7 +266,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
                 {/* Grid */}
                 <div className="flex-1 overflow-y-auto min-h-0 w-full max-w-7xl mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20 px-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 pb-24 px-4 md:px-8">
                         {filteredSongs.map(song => (
                             <button
                                 key={song.id}
@@ -412,7 +412,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     </button>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8 pb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-8 max-w-5xl mx-auto">
                     {visibleTracks.map(track => {
                         const isSolo = track.solo;
                         const anySolo = tracks.some(t => t.solo);
@@ -423,16 +423,16 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                             <button
                                 key={track.id}
                                 onClick={() => handleTrackToggle(track.id)}
-                                className={`group relative aspect-square rounded-3xl flex flex-col items-center justify-center gap-4 transition-all duration-300
+                                className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0 transition-all duration-300
                                 ${isSolo
-                                        ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent'
+                                        ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent'
                                         : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                 `}
                             >
-                                <div className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500
+                                <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500 shrink-0
                                     ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
                                 `}>
-                                    <Mic2 size={32} />
+                                    <Mic2 size={28} className="md:w-8 md:h-8" />
                                 </div>
                                 <h3 className={`relative z-10 text-xl font-bold transition-colors ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
                                     {track.name}
