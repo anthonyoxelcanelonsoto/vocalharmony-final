@@ -28,12 +28,22 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     onExit
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
-    const songs = useLiveQuery(() => (db as any).myLibrary.toArray());
+    // Manual Fetch to debug useLiveQuery issues
+    const [songs, setSongs] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
-        console.log("Songs loaded:", songs);
-    }, [songs]);
+        const fetchSongs = async () => {
+            try {
+                const s = await (db as any).myLibrary.toArray();
+                console.log("EasyMode Cached Songs:", s);
+                setSongs(s);
+            } catch (e) {
+                console.error("EasyMode DB Error:", e);
+            }
+        };
+        fetchSongs();
+    }, []);
 
     // Identify the "Pista" (Backing Track)
     const backingTrackId = tracks.find(t => t.name.toLowerCase().includes('pista'))?.id;
