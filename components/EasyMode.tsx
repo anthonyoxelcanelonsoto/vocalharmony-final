@@ -18,7 +18,7 @@ interface EasyModeProps {
     trackAnalysers?: Record<number, AnalyserNode>;
 }
 
-const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying: boolean }) => {
+const SignalLED = ({ analyser, isPlaying, isSolo }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean }) => {
     const ref = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -52,11 +52,19 @@ const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying
                 if (avg > 5) {
                     // Logarithmic-like intensity map
                     const normalized = Math.min(avg / 100, 1);
-                    const opacity = 0.2 + (normalized * 0.5); // 0.2 to 0.7 opacity
 
-                    // Use a nice glowing green
-                    ref.current.style.backgroundColor = `rgba(16, 185, 129, ${opacity})`; // emerald-500
-                    ref.current.style.boxShadow = `inset 0 0 ${20 * normalized}px rgba(16, 185, 129, ${opacity})`;
+                    if (isSolo) {
+                        // Selected Track: Bright Blue pulsing
+                        const opacity = 0.4 + (normalized * 0.6); // 0.4 to 1.0
+                        ref.current.style.backgroundColor = `rgba(2, 132, 199, ${opacity})`; // sky-600/blue-700
+                        ref.current.style.boxShadow = `inset 0 0 ${40 * normalized}px rgba(56, 189, 248, ${opacity})`;
+                    } else {
+                        // Background Track: Green pulsing (Standard)
+                        const opacity = 0.2 + (normalized * 0.5); // 0.2 to 0.7
+                        ref.current.style.backgroundColor = `rgba(16, 185, 129, ${opacity})`; // emerald-500
+                        ref.current.style.boxShadow = `inset 0 0 ${20 * normalized}px rgba(16, 185, 129, ${opacity})`;
+                    }
+
                 } else {
                     ref.current.style.backgroundColor = 'transparent';
                     ref.current.style.boxShadow = 'none';
@@ -69,7 +77,7 @@ const SignalLED = ({ analyser, isPlaying }: { analyser?: AnalyserNode, isPlaying
             isActive = false;
             cancelAnimationFrame(frameId);
         };
-    }, [analyser, isPlaying]);
+    }, [analyser, isPlaying, isSolo]);
 
     return <div ref={ref} className="absolute inset-0 rounded-3xl pointer-events-none transition-colors duration-100 z-0"></div>;
 };
@@ -359,7 +367,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                 onClick={() => handleTrackToggle(track.id)}
                                 className={`group relative aspect-square rounded-3xl flex flex-col items-center justify-center gap-4 transition-all duration-300
                                 ${isSolo
-                                        ? 'bg-gradient-to-br from-sky-600 to-blue-700 shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent animate-pulse'
+                                        ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-105 border-transparent'
                                         : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                 `}
                             >
@@ -376,6 +384,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                 <SignalLED
                                     analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
                                     isPlaying={isPlaying}
+                                    isSolo={!!isSolo}
                                 />
                             </button>
                         );
