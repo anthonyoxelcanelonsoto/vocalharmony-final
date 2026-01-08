@@ -318,7 +318,8 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
         if (showAllTracks) return true;
 
-        return lower.includes('primera') || lower.includes('segunda') || lower.includes('tercera');
+        const exactNames = ['primera', 'segunda', 'tercera'];
+        return exactNames.includes(lower.trim());
     });
 
     const formatTime = (s: number) => {
