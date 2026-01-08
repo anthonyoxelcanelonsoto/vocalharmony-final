@@ -87,6 +87,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     trackAnalysers
 }) => {
     const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
+    const [defaultVolumes, setDefaultVolumes] = useState<Record<number, number>>({});
 
     // Local Songs
     const localSongs = useLiveQuery(() => (db as any).myLibrary.toArray()) || [];
@@ -157,6 +158,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 // 3. Load
                 await onLoadSong(newSong);
                 setDownloadingId(null);
+                setDefaultVolumes({});
                 setView('PLAYER');
             } catch (e) {
                 console.error("Download Error", e);
@@ -166,6 +168,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         } else {
             // Local
             await onLoadSong(song);
+            setDefaultVolumes({});
             setView('PLAYER');
         }
     };
@@ -176,7 +179,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
             // If clicking a track that is already active/soloed, reset to Full Mix (Deselect)
             if (clickedTrack?.solo && clickedTrackId !== backingTrackId) {
-                return prev.map(t => ({ ...t, solo: false, mute: false, vol: 1.0 }));
+                return prev.map(t => ({ ...t, solo: false, mute: false, vol: defaultVolumes[t.id] ?? 1.0 }));
             }
 
             // Otherwise, Activate Focus Mode
@@ -195,6 +198,15 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             });
         });
     };
+
+    // Capture Default Mix (Original Volumes) whenever we enter PlayerView or load new tracks
+    useEffect(() => {
+        if (view === 'PLAYER' && Object.keys(defaultVolumes).length === 0 && tracks.length > 0) {
+            const defaults: Record<number, number> = {};
+            tracks.forEach(t => defaults[t.id] = t.vol);
+            setDefaultVolumes(defaults);
+        }
+    }, [view, tracks, defaultVolumes]);
 
     // --- SONG SELECTOR VIEW ---
     if (view === 'SELECT') {
