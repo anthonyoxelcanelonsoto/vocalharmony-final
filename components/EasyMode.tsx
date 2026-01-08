@@ -87,7 +87,6 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     duration,
     onSeek,
     onLoadSong,
-    onLoadSong,
     onExit,
     trackAnalysers
 }) => {
