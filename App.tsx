@@ -1816,6 +1816,68 @@ export default function App() {
 
 
 
+    // --- NEW PROJECT (Blank Session for Recording) ---
+    const handleNewProject = async () => {
+        vibrate(20);
+
+        // Reset session
+        stopAudio();
+        stopRecording();
+        audioBuffersRef.current = {};
+        processedBuffersRef.current = {};
+        activeSourcesRef.current = {};
+        setCurrentTime(0);
+        pauseOffsetRef.current = 0;
+        setLoopStart(null);
+        setLoopEnd(null);
+        setNoteBlocks([]);
+        setImportedLyrics([]);
+        setImportedChords([]);
+        setKeySignature(null);
+
+        const ctx = await initAudioContext();
+        if (!ctx) return;
+
+        // Create fresh project with only MASTER track - no pre-created tracks
+        const newTracks: Track[] = [
+            {
+                id: 0,
+                name: "MASTER",
+                color: "#f97316",
+                vol: 0.8,
+                pan: 0,
+                mute: false,
+                solo: false,
+                hasFile: false,
+                isArmed: false,
+                isTuning: false,
+                duration: 0,
+                pitchShift: 0,
+                isMaster: true,
+                eq: {
+                    enabled: true,
+                    low: { gain: 0, freq: 80 },
+                    lowMid: { gain: 0, freq: 300, q: 1 },
+                    mid: { gain: 0, freq: 1000, q: 1 },
+                    highMid: { gain: 0, freq: 3000, q: 1 },
+                    high: { gain: 0, freq: 10000 }
+                }
+            }
+        ];
+
+        setTracks(newTracks);
+        setSelectedTrackId(0); // Select master (user will add tracks)
+        setMaxDuration(0);
+        setMainView('studio');
+
+        // Request mic access immediately so user is ready to record
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            console.log("Mic permission not granted yet");
+        }
+    };
+
     const handleLoadFromLibrary = async (song: any) => {
         if (!song.fileBlob) {
             alert("Error: Archivo de audio no encontrado en la biblioteca.");
@@ -2221,6 +2283,7 @@ export default function App() {
                 onLoadSong={handleLoadFromLibrary}
                 onExit={() => setInterfaceMode(null)}
                 trackAnalysers={trackAnalysersRef.current}
+                importedLyrics={importedLyrics}
             />
         );
     }
@@ -3223,7 +3286,7 @@ export default function App() {
 
                         {mainView === 'store' && (
                             <div className="absolute inset-0 z-20 animate-in fade-in duration-300">
-                                <Store isAdminMode={isAdminMode} onLoadSong={handleLoadFromLibrary} />
+                                <Store isAdminMode={isAdminMode} onLoadSong={handleLoadFromLibrary} onNewProject={handleNewProject} />
                             </div>
                         )}
                     </main>

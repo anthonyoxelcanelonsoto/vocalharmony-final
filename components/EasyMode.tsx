@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../src/db';
 import { supabase } from '../src/supabaseClient';
 import { Track } from '../types';
-import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Play, Pause, Music, Search, Disc3, Mic2, ArrowLeft, CloudDownload, Loader2, Eye, EyeOff, Trash2, BookOpen, X, LayoutGrid, List } from 'lucide-react';
+import { parseLRC, formatTime } from '../utils';
+import { LyricLine } from '../types';
 
 interface EasyModeProps {
     tracks: Track[];
@@ -16,9 +18,10 @@ interface EasyModeProps {
     onLoadSong: (song: any) => Promise<void>;
     onExit: () => void;
     trackAnalysers?: Record<number, AnalyserNode>;
+    importedLyrics?: LyricLine[];
 }
 
-const SignalLED = ({ analyser, isPlaying, isSolo, isActive }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean, isActive: boolean }) => {
+const SignalLED = ({ analyser, isPlaying, isSolo, isActive, size = 'md' }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean, isActive: boolean, size?: 'sm' | 'md' }) => {
     const ref = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -88,7 +91,12 @@ const SignalLED = ({ analyser, isPlaying, isSolo, isActive }: { analyser?: Analy
         };
     }, [analyser, isPlaying, isSolo, isActive]);
 
-    return <div ref={ref} className="absolute inset-0 rounded-3xl pointer-events-none transition-colors duration-100 z-0"></div>;
+    // Size-based styling
+    const sizeClasses = size === 'sm'
+        ? 'w-3 h-3 rounded-full'
+        : 'absolute inset-0 rounded-xl pointer-events-none';
+
+    return <div ref={ref} className={`${sizeClasses} transition-colors duration-100 z-0`}></div>;
 };
 
 export const EasyMode: React.FC<EasyModeProps> = ({
@@ -101,12 +109,16 @@ export const EasyMode: React.FC<EasyModeProps> = ({
     onSeek,
     onLoadSong,
     onExit,
-    trackAnalysers
+    trackAnalysers,
+    importedLyrics
 }) => {
-    const [view, setView] = useState<'SELECT' | 'PLAYER'>('SELECT');
+    const [view, setView] = useState<'SELECT' | 'PLAYER' | 'LYRICS'>('SELECT');
+    const [currentSong, setCurrentSong] = useState<any>(null);
     const [defaultVolumes, setDefaultVolumes] = useState<Record<number, number>>({});
     const [isBackingEnabled, setIsBackingEnabled] = useState(true);
     const [showAllTracks, setShowAllTracks] = useState(false);
+    const [autoScroll, setAutoScroll] = useState(true); // Auto-scroll lyrics toggle
+    const [compactView, setCompactView] = useState(false); // Compact view to see all tracks at once
 
     // Local Songs
     const localSongs = useLiveQuery(() => (db as any).myLibrary.toArray()) || [];
@@ -139,6 +151,11 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         }
     });
 
+    const changeView = (v: 'SELECT' | 'PLAYER' | 'LYRICS') => {
+        console.log("Changing View to:", v);
+        setView(v);
+    };
+
     // Identify the "Pista" (Backing Track)
     const backingTrackId = tracks.find(t => t.name.toLowerCase().includes('pista'))?.id;
 
@@ -151,6 +168,12 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             (song.genre && song.genre.toLowerCase().includes(query))
         );
     });
+
+    const formatTime = (s: number) => {
+        const mins = Math.floor(s / 60);
+        const secs = Math.floor(s % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     const handleSongSelect = async (song: any) => {
         // If Cloud only, Download first
@@ -170,12 +193,14 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     genre: song.genre,
                     cover_url: song.cover_url,
                     mix_rules: song.mix_rules,
+                    lyrics: song.lyrics,
                     fileBlob: blob
                 };
                 await (db as any).myLibrary.add(newSong);
 
                 // 3. Load
                 await onLoadSong(newSong);
+                setCurrentSong(newSong);
                 setDownloadingId(null);
                 setDefaultVolumes({});
                 setIsBackingEnabled(true);
@@ -188,6 +213,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         } else {
             // Local
             await onLoadSong(song);
+            setCurrentSong(song);
             setDefaultVolumes({});
             setIsBackingEnabled(true);
             setView('PLAYER');
@@ -252,6 +278,56 @@ export const EasyMode: React.FC<EasyModeProps> = ({
             setDefaultVolumes(defaults);
         }
     }, [view, tracks, defaultVolumes]);
+
+    // --- LYRICS HOOKS (must be at top level to avoid hook order violation) ---
+    const parsedLyrics = React.useMemo(() => {
+        // Priority: 1. importedLyrics from App.tsx (from LRC file in ZIP)
+        //           2. currentSong.lyrics (from Supabase)
+        //           3. Demo fallback
+        if (importedLyrics && importedLyrics.length > 0) {
+            return importedLyrics;
+        }
+
+        if (currentSong?.lyrics) {
+            try {
+                return parseLRC(currentSong.lyrics);
+            } catch (e) {
+                console.error("LRC Parse Error", e);
+            }
+        }
+
+        // Demo fallback
+        const demoLyrics = `[00:00.00] No hay letra disponible
+[00:03.00] Puedes agregar un archivo .lrc
+[00:06.00] al proyecto para ver la letra sincronizada`;
+        try {
+            return parseLRC(demoLyrics);
+        } catch (e) {
+            return [];
+        }
+    }, [currentSong, importedLyrics]);
+
+    const hasSyncedLyrics = parsedLyrics.length > 0;
+
+    const currentLineIndex = parsedLyrics.findIndex((line, i) => {
+        const nextLine = parsedLyrics[i + 1];
+        return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
+    });
+
+    const activeLineRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        // Early return - do nothing if manual mode
+        if (!autoScroll) {
+            console.log("Manual mode - no scroll");
+            return;
+        }
+
+        if (view === 'LYRICS' && activeLineRef.current) {
+            console.log("Auto-scrolling to line:", currentLineIndex);
+            activeLineRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [currentLineIndex, view, autoScroll]);
 
     // --- SONG SELECTOR VIEW ---
     if (view === 'SELECT') {
@@ -348,7 +424,109 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         );
     }
 
-    // --- PLAYER VIEW ---
+    // --- LYRICS VIEW ---
+    if (view === 'LYRICS') {
+        return (
+            <div className="flex flex-col h-screen bg-black text-white p-6 animate-in slide-in-from-bottom duration-500 z-50">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6 flex-none">
+                    <button
+                        onClick={() => changeView('PLAYER')}
+                        className="p-3 bg-slate-900 rounded-full hover:bg-slate-800 text-slate-300 transition-all border border-slate-800"
+                    >
+                        <ArrowLeft size={24} />
+                    </button>
+                    <div className="text-center flex-1 px-4">
+                        <h2 className="text-lg font-bold text-white truncate">{currentSong?.title || "Sin Título"}</h2>
+                        <p className="text-slate-500 text-xs truncate">{currentSong?.artist}</p>
+                    </div>
+                    {/* Auto/Manual Toggle */}
+                    <button
+                        onClick={() => setAutoScroll(!autoScroll)}
+                        className={`px-3 py-2 rounded-full text-xs font-bold uppercase tracking-wide border transition-all flex items-center gap-1.5
+                            ${autoScroll
+                                ? 'bg-sky-500/20 border-sky-500 text-sky-400'
+                                : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                    >
+                        {autoScroll ? (
+                            <>
+                                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                                Auto
+                            </>
+                        ) : (
+                            <>
+                                <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                                Manual
+                            </>
+                        )}
+                    </button>
+                </div>
+
+
+                {/* Lyrics Container */}
+                <div className="flex-1 overflow-y-auto min-h-0 text-center px-4 scrollbar-hide">
+                    {hasSyncedLyrics ? (
+                        <div className={`space-y-4 md:space-y-5 ${autoScroll ? 'py-[40vh]' : 'py-8'}`}>
+                            {parsedLyrics.map((line, i) => {
+                                const isActive = i === currentLineIndex;
+                                const isPast = i < currentLineIndex;
+                                const isNext = i === currentLineIndex + 1;
+
+                                // MANUAL MODE: All lines same size, no animations, static
+                                if (!autoScroll) {
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="text-xl md:text-2xl font-medium text-slate-300 leading-relaxed cursor-pointer hover:text-white"
+                                            onClick={() => onSeek(line.time)}
+                                        >
+                                            <p>{line.text}</p>
+                                        </div>
+                                    );
+                                }
+
+                                // AUTO MODE: Animated, highlighted active line
+                                return (
+                                    <div
+                                        key={i}
+                                        ref={isActive ? activeLineRef : null}
+                                        className={`transition-all duration-500 ease-out select-none cursor-pointer
+                                            ${isActive
+                                                ? 'text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-white to-sky-300 scale-105'
+                                                : isNext
+                                                    ? 'text-xl md:text-3xl font-semibold text-slate-300 opacity-80 hover:opacity-100'
+                                                    : isPast
+                                                        ? 'text-lg md:text-xl font-medium text-slate-600 opacity-50 hover:opacity-70'
+                                                        : 'text-lg md:text-2xl font-medium text-slate-400 opacity-70 hover:opacity-90'}
+                                        `}
+                                        onClick={() => onSeek(line.time)}
+                                    >
+                                        <p className="leading-relaxed">{line.text}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="whitespace-pre-wrap text-lg md:text-2xl text-slate-300 leading-loose max-w-2xl mx-auto py-10">
+                            {currentSong?.lyrics || "No hay letra disponible para esta canción."}
+                        </div>
+                    )}
+                </div>
+
+                {/* Mini Controls Footer */}
+                <div className="flex-none pt-6 pb-2 border-t border-white/5 flex items-center justify-center gap-8">
+                    <span className="font-mono text-slate-500">{formatTime(currentTime)}</span>
+                    <button
+                        onClick={onTogglePlay}
+                        className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                    >
+                        {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
+                    </button>
+                    <span className="font-mono text-slate-500">{formatTime(duration)}</span>
+                </div>
+            </div>
+        );
+    }
     // Filter out "Pista" and "Master". 
     // If showAllTracks is false, ONLY show "Primera", "Segunda", "Tercera".
     const visibleTracks = tracks.filter(t => {
@@ -362,37 +540,54 @@ export const EasyMode: React.FC<EasyModeProps> = ({
         return exactNames.includes(lower.trim());
     });
 
-    const formatTime = (s: number) => {
-        const mins = Math.floor(s / 60);
-        const secs = Math.floor(s % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
     // Calculate progress
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
 
     return (
         <div className="flex flex-col h-screen bg-black text-white overflow-hidden">
 
             {/* TOP BAR */}
-            <div className="flex-none flex items-center justify-between p-6 bg-gradient-to-b from-black to-transparent z-10">
-                <button onClick={() => setView('SELECT')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
-                    <ArrowLeft size={20} />
-                    <span className="font-bold text-sm uppercase tracking-widest">Biblioteca</span>
-                </button>
-                <div className="text-center">
-                    {/* Song Title could go here nicely */}
+            <div className="flex-none flex items-center justify-between p-4 md:p-6 bg-gradient-to-b from-black to-transparent z-10">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => changeView('SELECT')} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+                        <ArrowLeft size={20} />
+                        <span className="hidden md:inline font-bold text-sm uppercase tracking-widest">Biblioteca</span>
+                    </button>
+
+                    {/* Compact View Toggle */}
+                    <button
+                        onClick={() => setCompactView(!compactView)}
+                        className={`p-2 rounded-full border transition-all ${compactView
+                            ? 'bg-sky-500/20 border-sky-500 text-sky-400'
+                            : 'bg-slate-900 border-slate-700 text-slate-500 hover:text-white hover:border-slate-500'}`}
+                        title={compactView ? 'Vista Normal' : 'Ver Todas las Pistas'}
+                    >
+                        {compactView ? <List size={18} /> : <LayoutGrid size={18} />}
+                    </button>
                 </div>
-                <div className="w-20"></div>
+
+                {/* Song Title - Center */}
+                <div className="text-center flex-1 px-4">
+                    <h2 className="text-lg md:text-xl font-bold text-white truncate">{currentSong?.title || "Sin Título"}</h2>
+                    <p className="text-xs text-slate-500 truncate">{currentSong?.artist}</p>
+                </div>
+
+                {/* Letra Button - Top Right */}
+                <button
+                    onClick={() => changeView('LYRICS')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-sky-500 transition-all"
+                >
+                    <BookOpen size={16} />
+                    <span className="text-sm font-bold">Letra</span>
+                </button>
             </div>
 
             {/* MAIN TRACKS AREA */}
             <div className="flex-1 overflow-y-auto min-h-0 px-4 md:px-6 lg:px-20 py-4 scrollbar-hide">
 
-                {/* Full Mix Button (Reset) */}
-                {/* Control Buttons */}
-                <div className="flex flex-wrap justify-center gap-4 mb-8 pt-4">
-
+                {/* Control Buttons - Compact Row */}
+                <div className="flex items-center justify-center gap-3 mb-6">
                     {backingTrackId && (
                         <button
                             onClick={() => {
@@ -402,74 +597,114 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     t.id === backingTrackId ? { ...t, mute: !newState } : t
                                 ));
                             }}
-                            className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
+                            className={`px-4 py-2.5 rounded-full font-bold text-xs tracking-wider uppercase border transition-all flex items-center gap-2
                             ${isBackingEnabled
-                                    ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-105'
-                                    : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
-                            `}
+                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                                    : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'}`}
                         >
-                            <Music size={18} />
-                            {isBackingEnabled ? 'Música: ON' : 'Música: OFF'}
+                            <Music size={14} />
+                            {isBackingEnabled ? 'Música ON' : 'Música OFF'}
                         </button>
                     )}
 
                     <button
                         onClick={() => setShowAllTracks(!showAllTracks)}
-                        className={`px-6 py-3 rounded-full font-black text-sm tracking-widest uppercase border transition-all flex items-center gap-2
+                        className={`px-4 py-2.5 rounded-full font-bold text-xs tracking-wider uppercase border transition-all flex items-center gap-2
                         ${showAllTracks
-                                ? 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-105'
-                                : 'bg-black border-slate-700 text-slate-400 hover:border-white hover:text-white'}
-                        `}
+                                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400'
+                                : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'}`}
                     >
-                        {showAllTracks ? <EyeOff size={18} /> : <Eye size={18} />}
-                        {showAllTracks ? 'Ocultar' : 'Mostrar Todas'}
+                        {showAllTracks ? <EyeOff size={14} /> : <Eye size={14} />}
+                        {showAllTracks ? 'Ocultar' : 'Más Voces'}
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-8 max-w-5xl mx-auto">
-                    {visibleTracks.map(track => {
-                        const isSolo = track.solo;
-                        const anySolo = tracks.some(t => t.solo);
-                        const isAudible = !track.mute && (anySolo ? isSolo : true);
-                        const isSignalActive = isPlaying && isAudible;
 
-                        return (
-                            <button
-                                key={track.id}
-                                onClick={() => handleTrackToggle(track.id)}
-                                className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0 transition-all duration-300
-                                ${isSolo
-                                        ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent'
-                                        : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
-                                `}
-                            >
-                                <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500 shrink-0
-                                    ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
-                                `}>
-                                    <Mic2 size={28} className="md:w-8 md:h-8" />
-                                </div>
-                                <h3 className={`relative z-10 text-xl font-bold transition-colors ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
-                                    {track.name}
-                                </h3>
+                {/* COMPACT VIEW - All tracks visible at once */}
+                {compactView ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 md:gap-3 pb-8 max-w-6xl mx-auto">
+                        {visibleTracks.map(track => {
+                            const isSolo = track.solo;
+                            const anySolo = tracks.some(t => t.solo);
+                            const isAudible = !track.mute && (anySolo ? isSolo : true);
 
-                                {/* Signal LED */}
-                                <SignalLED
-                                    analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
-                                    isPlaying={isPlaying}
-                                    isSolo={!!isSolo}
-                                    isActive={!track.mute && (anySolo ? isSolo : true)}
-                                />
-                            </button>
-                        );
-                    })}
-                </div>
+                            return (
+                                <button
+                                    key={track.id}
+                                    onClick={() => handleTrackToggle(track.id)}
+                                    className={`group relative aspect-square rounded-xl flex flex-col items-center justify-center gap-1 p-2 transition-all
+                                    ${isSolo
+                                            ? 'bg-sky-500/20 shadow-[0_0_20px_rgba(2,132,199,0.4)] border border-sky-500'
+                                            : 'bg-slate-900/70 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
+                                    `}
+                                >
+                                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all shrink-0
+                                        ${isSolo ? 'bg-white text-sky-600' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700'}
+                                    `}>
+                                        <Mic2 size={16} className="md:w-5 md:h-5" />
+                                    </div>
+                                    <span className={`text-[10px] md:text-xs font-bold text-center leading-tight line-clamp-2 ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+                                        {track.name}
+                                    </span>
+
+                                    {/* Signal LED - illuminates entire card */}
+                                    <SignalLED
+                                        analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
+                                        isPlaying={isPlaying}
+                                        isSolo={!!isSolo}
+                                        isActive={isAudible}
+                                    />
+                                </button>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    /* NORMAL VIEW */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-8 max-w-5xl mx-auto">
+                        {visibleTracks.map(track => {
+                            const isSolo = track.solo;
+                            const anySolo = tracks.some(t => t.solo);
+                            const isAudible = !track.mute && (anySolo ? isSolo : true);
+                            const isSignalActive = isPlaying && isAudible;
+
+                            return (
+                                <button
+                                    key={track.id}
+                                    onClick={() => handleTrackToggle(track.id)}
+                                    className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0 transition-all duration-300
+                                    ${isSolo
+                                            ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent'
+                                            : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
+                                    `}
+                                >
+                                    <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500 shrink-0
+                                        ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
+                                    `}>
+                                        <Mic2 size={28} className="md:w-8 md:h-8" />
+                                    </div>
+                                    <h3 className={`relative z-10 text-xl font-bold transition-colors ${isSolo ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+                                        {track.name}
+                                    </h3>
+
+                                    {/* Signal LED */}
+                                    <SignalLED
+                                        analyser={trackAnalysers ? trackAnalysers[track.id] : undefined}
+                                        isPlaying={isPlaying}
+                                        isSolo={!!isSolo}
+                                        isActive={!track.mute && (anySolo ? isSolo : true)}
+                                    />
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
-            {/* BOTTOM PLAYBACK CONTROLS */}
-            <div className="flex-none bg-[#050510] border-t border-white/5 p-6 pb-10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20">
+            {/* BOTTOM PLAYBACK CONTROLS - Compact */}
+            <div className="flex-none bg-[#050510] border-t border-white/5 px-4 py-3 pb-6 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20">
                 {/* Progress Bar */}
                 <div
-                    className="w-full h-8 flex items-center relative cursor-pointer group mb-4"
+                    className="w-full h-6 flex items-center relative cursor-pointer group mb-2"
                     onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         const x = e.clientX - rect.left;
@@ -481,25 +716,25 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     <div className="absolute inset-0 z-10"></div>
 
                     {/* Track Line */}
-                    <div className="w-full h-2 bg-slate-800 rounded-full relative overflow-hidden">
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full relative overflow-hidden">
                         <div className="absolute top-0 left-0 h-full bg-sky-500" style={{ width: `${progress}%` }}></div>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between max-w-4xl mx-auto px-4">
-                    <span className="text-slate-400 font-mono font-medium w-16 text-left">{formatTime(currentTime)}</span>
+                <div className="flex items-center justify-between max-w-md mx-auto">
+                    <span className="text-slate-500 font-mono text-xs w-12 text-left">{formatTime(currentTime)}</span>
 
                     <button
                         onClick={onTogglePlay}
-                        className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                        className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.15)]"
                     >
-                        {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-2" />}
+                        {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
                     </button>
 
-                    <span className="text-slate-400 font-mono font-medium w-16 text-right">{formatTime(duration)}</span>
+                    <span className="text-slate-500 font-mono text-xs w-12 text-right">{formatTime(duration)}</span>
                 </div>
             </div>
 
-        </div>
+        </div >
     );
 };

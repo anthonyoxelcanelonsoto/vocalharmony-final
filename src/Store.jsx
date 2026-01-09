@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { db } from './db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, Check, Loader2, AlertTriangle, RotateCcw, Search, Music2, Cloud, Plus, Edit2, Trash2, Play } from 'lucide-react';
+import { Download, Check, Loader2, AlertTriangle, RotateCcw, Search, Music2, Cloud, Plus, Edit2, Trash2, Play, Mic, FolderPlus } from 'lucide-react';
 import Diagnostics from './Diagnostics';
 import AdminSongForm from './AdminSongForm';
 
-const Store = ({ isAdminMode, onLoadSong }) => {
+const Store = ({ isAdminMode, onLoadSong, onNewProject }) => {
     const [songs, setSongs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -160,102 +160,110 @@ const Store = ({ isAdminMode, onLoadSong }) => {
             {/* Grid */}
             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
                 <div className="max-w-7xl mx-auto">
-                    {filteredSongs.length === 0 ? (
-                        <div className="text-center py-20">
-                            <div className="w-16 h-16 rounded-full bg-slate-900 mx-auto flex items-center justify-center text-slate-600 mb-4">
-                                <Search size={24} />
-                            </div>
-                            <p className="text-slate-500 font-medium">No se encontraron canciones</p>
-                            <p className="text-slate-600 text-sm mt-1">Intenta con otro término de búsqueda</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-20">
-                            {filteredSongs.map((song) => {
-                                const localSong = localSongs?.find(s => s.id === song.id);
-                                const isDownloaded = !!localSong;
-                                const isDownloading = downloadingId === song.id;
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-20">
 
-                                return (
-                                    <div key={song.id} className={`group bg-slate-900 hover:bg-slate-800 border rounded-xl p-3 transition-all hover:shadow-xl hover:shadow-black/50 hover:-translate-y-1 relative overflow-hidden
+                        {/* NEW PROJECT CARD - Always first */}
+                        {onNewProject && (
+                            <button
+                                onClick={onNewProject}
+                                className="group bg-gradient-to-br from-orange-500/10 to-orange-600/5 hover:from-orange-500/20 hover:to-orange-600/10 border-2 border-dashed border-orange-500/30 hover:border-orange-500/60 rounded-xl p-3 transition-all hover:shadow-xl hover:shadow-orange-500/10 hover:-translate-y-1 flex flex-col items-center justify-center gap-4 aspect-[3/4]"
+                            >
+                                <div className="w-16 h-16 rounded-full bg-orange-500/20 group-hover:bg-orange-500/30 flex items-center justify-center transition-all group-hover:scale-110">
+                                    <FolderPlus size={32} className="text-orange-500" />
+                                </div>
+                                <div className="text-center">
+                                    <h3 className="font-bold text-white text-sm">Nuevo Proyecto</h3>
+                                    <p className="text-xs text-slate-500 mt-1">Grabar desde cero</p>
+                                </div>
+                            </button>
+                        )}
+
+                        {filteredSongs.map((song) => {
+                            const localSong = localSongs?.find(s => s.id === song.id);
+                            const isDownloaded = !!localSong;
+                            const isDownloading = downloadingId === song.id;
+
+
+                            return (
+                                <div key={song.id} className={`group bg-slate-900 hover:bg-slate-800 border rounded-xl p-3 transition-all hover:shadow-xl hover:shadow-black/50 hover:-translate-y-1 relative overflow-hidden
                                         ${isAdminMode ? 'border-dashed border-slate-700 hover:border-red-500/50' : 'border-slate-800 hover:border-slate-700'}
                                     `}>
-                                        {/* Cover */}
-                                        <div className="aspect-square rounded-lg overflow-hidden bg-slate-950 relative mb-3 shadow-md">
-                                            <img
-                                                src={song.cover_url || 'https://via.placeholder.com/300x300?text=Music'}
-                                                alt={song.title}
-                                                className={`w-full h-full object-cover transition-transform duration-500 ${isDownloaded ? 'opacity-50' : 'group-hover:scale-110'}`}
-                                            />
+                                    {/* Cover */}
+                                    <div className="aspect-square rounded-lg overflow-hidden bg-slate-950 relative mb-3 shadow-md">
+                                        <img
+                                            src={song.cover_url || 'https://via.placeholder.com/300x300?text=Music'}
+                                            alt={song.title}
+                                            className={`w-full h-full object-cover transition-transform duration-500 ${isDownloaded ? 'opacity-50' : 'group-hover:scale-110'}`}
+                                        />
 
-                                            {/* ADMIN ACTIONS OVERLAY */}
-                                            <div className={`absolute inset-0 flex flex-col justify-between p-2 transition-all duration-300
+                                        {/* ADMIN ACTIONS OVERLAY */}
+                                        <div className={`absolute inset-0 flex flex-col justify-between p-2 transition-all duration-300
                                                 ${isDownloaded || isAdminMode ? 'bg-black/40 opacity-100' : 'bg-black/40 opacity-0 group-hover:opacity-100'}
                                             `}>
 
-                                                {/* Top Right: Edit/Delete (Admin Only) */}
-                                                {isAdminMode && (
-                                                    <div className="flex gap-2 justify-end">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleEditClick(song); }}
-                                                            className="w-8 h-8 rounded-full bg-slate-900/90 text-blue-400 flex items-center justify-center hover:bg-white hover:scale-110 transition shadow-lg border border-white/10"
-                                                        >
-                                                            <Edit2 size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(song.id); }}
-                                                            className="w-8 h-8 rounded-full bg-slate-900/90 text-red-500 flex items-center justify-center hover:bg-red-600 hover:text-white hover:scale-110 transition shadow-lg border border-white/10"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </div>
-                                                )}
-
-                                                {/* Center/Bottom: Play/Download (Everyone) */}
-                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                    <div className="pointer-events-auto">
-                                                        {isDownloading ? (
-                                                            <Loader2 className="animate-spin text-white" size={24} />
-                                                        ) : isDownloaded ? (
-                                                            <button
-                                                                onClick={() => onLoadSong(localSong)}
-                                                                className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/40 hover:scale-110 hover:bg-green-400 transition-all text-black"
-                                                                title="Reproducir"
-                                                            >
-                                                                <Play size={18} fill="currentColor" />
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => downloadSong(song)}
-                                                                className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-transform shadow-lg hover:bg-blue-50"
-                                                                title="Descargar"
-                                                            >
-                                                                <Download size={18} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Genre Tag */}
-                                            {song.genre && !isAdminMode && (
-                                                <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/10">
-                                                    {song.genre}
+                                            {/* Top Right: Edit/Delete (Admin Only) */}
+                                            {isAdminMode && (
+                                                <div className="flex gap-2 justify-end">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleEditClick(song); }}
+                                                        className="w-8 h-8 rounded-full bg-slate-900/90 text-blue-400 flex items-center justify-center hover:bg-white hover:scale-110 transition shadow-lg border border-white/10"
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(song.id); }}
+                                                        className="w-8 h-8 rounded-full bg-slate-900/90 text-red-500 flex items-center justify-center hover:bg-red-600 hover:text-white hover:scale-110 transition shadow-lg border border-white/10"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             )}
+
+                                            {/* Center/Bottom: Play/Download (Everyone) */}
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="pointer-events-auto">
+                                                    {isDownloading ? (
+                                                        <Loader2 className="animate-spin text-white" size={24} />
+                                                    ) : isDownloaded ? (
+                                                        <button
+                                                            onClick={() => onLoadSong(localSong)}
+                                                            className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/40 hover:scale-110 hover:bg-green-400 transition-all text-black"
+                                                            title="Reproducir"
+                                                        >
+                                                            <Play size={18} fill="currentColor" />
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => downloadSong(song)}
+                                                            className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 transition-transform shadow-lg hover:bg-blue-50"
+                                                            title="Descargar"
+                                                        >
+                                                            <Download size={18} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        {/* Info */}
-                                        <div className="flex flex-col gap-0.5">
-                                            <h3 className={`font-bold text-sm leading-tight truncate ${isDownloaded && !isAdminMode ? 'text-slate-400' : 'text-white'}`} title={song.title}>
-                                                {song.title}
-                                            </h3>
-                                            <p className="text-xs text-slate-500 truncate">{song.artist}</p>
-                                        </div>
+                                        {/* Genre Tag */}
+                                        {song.genre && !isAdminMode && (
+                                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/10">
+                                                {song.genre}
+                                            </div>
+                                        )}
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+
+                                    {/* Info */}
+                                    <div className="flex flex-col gap-0.5">
+                                        <h3 className={`font-bold text-sm leading-tight truncate ${isDownloaded && !isAdminMode ? 'text-slate-400' : 'text-white'}`} title={song.title}>
+                                            {song.title}
+                                        </h3>
+                                        <p className="text-xs text-slate-500 truncate">{song.artist}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
