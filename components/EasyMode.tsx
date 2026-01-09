@@ -83,11 +83,12 @@ const SignalLED = React.memo(({ analyser, isPlaying, isSolo, isActive, size = 'm
                     const normalized = Math.min(avg / 140, 1);
 
                     if (isSolo) {
-                        const opacity = 0.25 + (normalized * 0.45);
-                        ref.current.style.backgroundColor = `rgba(2, 132, 199, ${opacity})`;
-                        // NO boxShadow on mobile - major GPU savings
+                        const opacity = 0.3 + (normalized * 0.5);
+                        // Orange-500: 249, 115, 22
+                        ref.current.style.backgroundColor = `rgba(249, 115, 22, ${opacity})`;
                         if (!isMobile) {
-                            ref.current.style.boxShadow = `inset 0 0 ${25 * normalized}px rgba(56, 189, 248, ${opacity * 0.5})`;
+                            // Orange-400: 251, 146, 60
+                            ref.current.style.boxShadow = `inset 0 0 ${30 * normalized}px rgba(251, 146, 60, ${opacity * 0.6})`;
                         }
                     } else {
                         const opacity = 0.1 + (normalized * 0.25);
@@ -356,7 +357,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     <button onClick={onExit} className="p-3 rounded-full hover:bg-white/10 text-slate-400">
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-600">
+                    <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">
                         Elige una Canción
                     </h1>
                     <div className="w-12"></div> {/* Spacer */}
@@ -366,7 +367,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 <div className="relative w-full max-w-2xl mx-auto mb-6 md:mb-8 shrink-0">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
-                        className="w-full bg-slate-900 border border-slate-800 rounded-full py-3 md:py-4 pl-12 pr-6 text-base md:text-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all"
+                        className="w-full bg-slate-900 border border-slate-800 rounded-full py-3 md:py-4 pl-12 pr-6 text-base md:text-lg focus:ring-2 focus:ring-orange-500 focus:outline-none transition-all"
                         placeholder="Buscar en tu biblioteca o nube..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -392,7 +393,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                         <Music className="w-full h-full p-6 text-slate-700" />
                                     )}
                                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {song.isCloud ? <CloudDownload size={24} className="text-sky-400" /> : <Play size={24} className="text-white fill-current" />}
+                                        {song.isCloud ? <CloudDownload size={24} className="text-orange-400" /> : <Play size={24} className="text-white fill-current" />}
                                     </div>
                                     {downloadingId === song.id && (
                                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -401,11 +402,11 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-base md:text-lg text-white line-clamp-1 group-hover:text-sky-400 transition-colors">{song.title}</h3>
+                                    <h3 className="font-bold text-base md:text-lg text-white line-clamp-1 group-hover:text-orange-400 transition-colors">{song.title}</h3>
                                     <p className="text-slate-400 text-sm">{song.artist || "Artista Desconocido"}</p>
                                     <div className="flex items-center gap-2 mt-1">
                                         {song.genre && <span className="text-xs text-slate-600 uppercase tracking-wider">{song.genre}</span>}
-                                        {song.isCloud && <span className="text-[10px] bg-sky-900/50 text-sky-400 px-1.5 py-0.5 rounded border border-sky-800">NUBE</span>}
+                                        {song.isCloud && <span className="text-[10px] bg-orange-900/50 text-orange-400 px-1.5 py-0.5 rounded border border-orange-800">NUBE</span>}
                                     </div>
                                 </div>
 
@@ -469,7 +470,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     >
                         {autoScroll ? (
                             <>
-                                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                                <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></span>
                                 Auto
                             </>
                         ) : (
@@ -511,7 +512,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                         ref={isActive ? activeLineRef : null}
                                         className={`transition-all duration-500 ease-out select-none cursor-pointer
                                             ${isActive
-                                                ? 'text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-white to-sky-300 scale-105'
+                                                ? 'text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-white to-orange-400 scale-105'
                                                 : isNext
                                                     ? 'text-xl md:text-3xl font-semibold text-slate-300 opacity-80 hover:opacity-100'
                                                     : isPast
@@ -578,7 +579,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     <button
                         onClick={() => setCompactView(!compactView)}
                         className={`p-2 rounded-full border transition-all ${compactView
-                            ? 'bg-sky-500/20 border-sky-500 text-sky-400'
+                            ? 'bg-orange-500/20 border-orange-500 text-orange-400'
                             : 'bg-slate-900 border-slate-700 text-slate-500 hover:text-white hover:border-slate-500'}`}
                         title={compactView ? 'Vista Normal' : 'Ver Todas las Pistas'}
                     >
@@ -595,7 +596,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                 {/* Letra Button - Top Right */}
                 <button
                     onClick={() => changeView('LYRICS')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-sky-500 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-orange-500 transition-all"
                 >
                     <BookOpen size={16} />
                     <span className="text-sm font-bold">Letra</span>
@@ -627,14 +628,19 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                     )}
 
                     <button
-                        onClick={() => setShowAllTracks(!showAllTracks)}
+                        onClick={() => {
+                            const newState = !showAllTracks;
+                            setShowAllTracks(newState);
+                            // If showing all tracks, force compact view. If hiding, go back to normal view.
+                            setCompactView(newState);
+                        }}
                         className={`px-4 py-2.5 rounded-full font-bold text-xs tracking-wider uppercase border transition-all flex items-center gap-2
                         ${showAllTracks
-                                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400'
+                                ? 'bg-orange-500/20 border-orange-500 text-orange-400'
                                 : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500'}`}
                     >
                         {showAllTracks ? <EyeOff size={14} /> : <Eye size={14} />}
-                        {showAllTracks ? 'Ocultar' : 'Más Voces'}
+                        {showAllTracks ? 'Menos Voces' : 'Más Voces'}
                     </button>
                 </div>
 
@@ -653,12 +659,12 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     onClick={() => handleTrackToggle(track.id)}
                                     className={`group relative aspect-square rounded-xl flex flex-col items-center justify-center gap-1 p-2 transition-all
                                     ${isSolo
-                                            ? 'bg-sky-500/20 shadow-[0_0_20px_rgba(2,132,199,0.4)] border border-sky-500'
+                                            ? 'bg-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.4)] border border-orange-500'
                                             : 'bg-slate-900/70 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                     `}
                                 >
                                     <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all shrink-0
-                                        ${isSolo ? 'bg-white text-sky-600' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700'}
+                                        ${isSolo ? 'bg-white text-orange-600' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700'}
                                     `}>
                                         <Mic2 size={16} className="md:w-5 md:h-5" />
                                     </div>
@@ -692,12 +698,12 @@ export const EasyMode: React.FC<EasyModeProps> = ({
                                     onClick={() => handleTrackToggle(track.id)}
                                     className={`group relative w-full aspect-auto md:aspect-square py-6 md:py-0 rounded-3xl flex md:flex-col items-center justify-start md:justify-center gap-6 md:gap-4 px-6 md:px-0 transition-all duration-300
                                     ${isSolo
-                                            ? 'bg-transparent shadow-[0_0_40px_rgba(2,132,199,0.4)] scale-[1.02] md:scale-105 border-transparent'
+                                            ? 'bg-transparent shadow-[0_0_40px_rgba(249,115,22,0.4)] scale-[1.02] md:scale-105 border-transparent'
                                             : 'bg-slate-900/50 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'}
                                     `}
                                 >
                                     <div className={`relative z-10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-500 shrink-0
-                                        ${isSolo ? 'bg-white text-sky-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
+                                        ${isSolo ? 'bg-white text-orange-600 scale-110' : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'}
                                     `}>
                                         <Mic2 size={28} className="md:w-8 md:h-8" />
                                     </div>
@@ -736,7 +742,7 @@ export const EasyMode: React.FC<EasyModeProps> = ({
 
                     {/* Track Line */}
                     <div className="w-full h-1.5 bg-slate-800 rounded-full relative overflow-hidden">
-                        <div className="absolute top-0 left-0 h-full bg-sky-500" style={{ width: `${progress}%` }}></div>
+                        <div className="absolute top-0 left-0 h-full bg-orange-500" style={{ width: `${progress}%` }}></div>
                     </div>
                 </div>
 
