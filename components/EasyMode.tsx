@@ -21,13 +21,27 @@ interface EasyModeProps {
     importedLyrics?: LyricLine[];
 }
 
-const SignalLED = ({ analyser, isPlaying, isSolo, isActive, size = 'md' }: { analyser?: AnalyserNode, isPlaying: boolean, isSolo: boolean, isActive: boolean, size?: 'sm' | 'md' }) => {
+// Detect mobile device once
+const isMobile = typeof window !== 'undefined' && (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    window.innerWidth < 768
+);
+
+// OPTIMIZED SignalLED - Extra light on mobile for battery/CPU
+const SignalLED = React.memo(({ analyser, isPlaying, isSolo, isActive, size = 'md' }: {
+    analyser?: AnalyserNode,
+    isPlaying: boolean,
+    isSolo: boolean,
+    isActive: boolean,
+    size?: 'sm' | 'md'
+}) => {
     const ref = React.useRef<HTMLDivElement>(null);
+    const lastUpdateRef = React.useRef<number>(0);
 
     useEffect(() => {
         if (!ref.current) return;
 
-        // Visual Reset if disabled
+        // Immediate visual reset if not active
         if (!analyser || !isPlaying || !isActive) {
             ref.current.style.backgroundColor = 'transparent';
             ref.current.style.boxShadow = 'none';
@@ -37,45 +51,48 @@ const SignalLED = ({ analyser, isPlaying, isSolo, isActive, size = 'md' }: { ana
         const bufferLength = analyser.frequencyBinCount;
         const data = new Uint8Array(bufferLength);
 
+        // MOBILE: Update every 200ms (~5fps) - Desktop: 80ms (~12fps)
+        const updateInterval = isMobile ? 200 : 80;
+
         let frameId: number;
         let isRunning = true;
-        let frameCount = 0;
 
-        const draw = () => {
+        const draw = (timestamp: number) => {
             if (!isRunning) return;
 
-            // Throttle: Update only every 3rd frame (~20fps) to save battery/CPU on mobile
-            frameCount++;
-            if (frameCount % 3 !== 0) {
+            // Heavy throttle based on device
+            if (timestamp - lastUpdateRef.current < updateInterval) {
                 frameId = requestAnimationFrame(draw);
                 return;
             }
+            lastUpdateRef.current = timestamp;
 
             analyser.getByteFrequencyData(data);
 
+            // Sample only 4 bins on mobile, 8 on desktop
+            const sampleCount = isMobile ? 4 : 8;
             let sum = 0;
-            // Sample every 32nd bin (already optimized)
-            for (let i = 0; i < bufferLength; i += 32) {
+            const step = Math.max(1, Math.floor(bufferLength / sampleCount));
+            for (let i = 0; i < bufferLength; i += step) {
                 sum += data[i];
             }
-            // Count approximate bins sampled
-            const count = Math.ceil(bufferLength / 32);
-            const avg = count > 0 ? sum / count : 0;
+            const avg = sum / sampleCount;
 
             if (ref.current) {
-                if (avg > 5) {
-                    const normalized = Math.min(avg / 100, 1);
+                if (avg > 15) {
+                    const normalized = Math.min(avg / 140, 1);
 
                     if (isSolo) {
-                        // Selected: Blue
-                        const opacity = 0.4 + (normalized * 0.6);
+                        const opacity = 0.25 + (normalized * 0.45);
                         ref.current.style.backgroundColor = `rgba(2, 132, 199, ${opacity})`;
-                        ref.current.style.boxShadow = `inset 0 0 ${40 * normalized}px rgba(56, 189, 248, ${opacity})`;
+                        // NO boxShadow on mobile - major GPU savings
+                        if (!isMobile) {
+                            ref.current.style.boxShadow = `inset 0 0 ${25 * normalized}px rgba(56, 189, 248, ${opacity * 0.5})`;
+                        }
                     } else {
-                        // Background: Green
-                        const opacity = 0.2 + (normalized * 0.5);
+                        const opacity = 0.1 + (normalized * 0.25);
                         ref.current.style.backgroundColor = `rgba(16, 185, 129, ${opacity})`;
-                        ref.current.style.boxShadow = `inset 0 0 ${20 * normalized}px rgba(16, 185, 129, ${opacity})`;
+                        ref.current.style.boxShadow = 'none';
                     }
                 } else {
                     ref.current.style.backgroundColor = 'transparent';
@@ -84,20 +101,22 @@ const SignalLED = ({ analyser, isPlaying, isSolo, isActive, size = 'md' }: { ana
             }
             frameId = requestAnimationFrame(draw);
         };
-        draw();
+
+        frameId = requestAnimationFrame(draw);
+
         return () => {
             isRunning = false;
             cancelAnimationFrame(frameId);
         };
-    }, [analyser, isPlaying, isSolo, isActive]);
+    }, [analyser, isPlaying, isActive, isSolo]);
 
-    // Size-based styling
+    // Size-based styling - NO CSS TRANSITIONS
     const sizeClasses = size === 'sm'
         ? 'w-3 h-3 rounded-full'
         : 'absolute inset-0 rounded-xl pointer-events-none';
 
-    return <div ref={ref} className={`${sizeClasses} transition-colors duration-100 z-0`}></div>;
-};
+    return <div ref={ref} className={`${sizeClasses} z-0`}></div>;
+});
 
 export const EasyMode: React.FC<EasyModeProps> = ({
     tracks,
